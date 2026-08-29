@@ -1,0 +1,41 @@
+<meta>
+    <info
+        name="dxui"
+        description="High-performance retained-mode DX GUI framework for MTA:SA (M10 — Production: profiler, debug, nested clip, blur fallback)"
+        author="project"
+        type="script"
+        version="1.0.0-M10"
+    />
+
+    <!--
+        Порядок загрузки предсказуемый и фиксированный (§46 ТЗ: не создавать
+        runtime dependency loader без необходимости). Каждый файл require()
+        нижестоящие модули только по имени файла — MTA грузит client-скрипты
+        в общее Lua-окружение ресурса, поэтому require здесь используется
+        как локальная эмуляция module-паттерна для читаемости и для того,
+        чтобы тот же код был тестируем вне MTA обычным lua5.1 (см. tests/).
+    -->
+    <script src="client/core/constants.lua" type="client" cache="false" />
+    <script src="client/core/storage.lua"   type="client" cache="false" />
+    <script src="client/core/proxy.lua"     type="client" cache="false" />
+    <script src="client/render/commands.lua"    type="client" cache="false" />
+    <script src="client/render/culling.lua"     type="client" cache="false" />
+    <script src="client/render/layout.lua"      type="client" cache="false" />
+    <script src="client/render/clip.lua"        type="client" cache="false" />
+    <script src="client/render/builder.lua"     type="client" cache="false" />
+    <script src="client/render/batcher.lua"     type="client" cache="false" />
+    <script src="client/render/state_cache.lua" type="client" cache="false" />
+    <script src="client/render/rt_manager.lua"  type="client" cache="false" />
+    <script src="client/render/profiler.lua"    type="client" cache="false" />
+    <script src="client/render/backend_mta.lua" type="client" cache="false" />
+    <script src="client/anim/animation.lua"    type="client" cache="false" />
+    <script src="client/input/events.lua"    type="client" cache="false" />
+    <script src="client/input/hittest.lua"   type="client" cache="false" />
+    <script src="client/input/dispatcher.lua" type="client" cache="false" />
+    <script src="client/debug/debug.lua"        type="client" cache="false" />
+    <script src="client/core/kernel.lua"    type="client" cache="false" />
+    <script src="client/widgets/ui.lua"     type="client" cache="false" />
+    <script src="client/bootstrap.lua"      type="client" cache="false" />
+    <!-- M9: benchmark — cold path, вызывается вручную DXUI.Bench.runAll(DXUI.instance) -->
+    <script src="bench/bench.lua"           type="client" cache="false" />
+</meta>
