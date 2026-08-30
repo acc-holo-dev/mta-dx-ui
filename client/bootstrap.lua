@@ -46,6 +46,31 @@ addEventHandler("onClientResourceStart", resourceRoot, function()
         end
     end)
 
+    -- M13 (ADR-017): колесо мыши. MTA не имеет отдельного onClientMouseWheel
+    -- события -- прокрутка ловится bindKey("mouse_wheel_up"/"mouse_wheel_down").
+    -- Координаты курсора -- getCursorPosition() (доступна пока курсор показан).
+    if bindKey then
+        local function wheel(dz)
+            local k = DXUI.instance
+            if not k then return end
+            local cx, cy = 0, 0
+            if getCursorPosition then cx, cy = getCursorPosition() end
+            if cx == nil then cx, cy = 0, 0 end
+            k:onMouseWheel(cx or 0, cy or 0, dz)
+        end
+        bindKey("mouse_wheel_up",   "down", function() wheel(1)  end)
+        bindKey("mouse_wheel_down", "down", function() wheel(-1) end)
+    end
+
+    -- M14/M15 (ADR-018/019): клавиатура. onClientKey даёт (key, state, mods, text).
+    -- key -- имя клавиши; mods -- "ctrl"/"shift"/""; text -- символ (для EVENT_TEXT).
+    addEventHandler("onClientKey", root, function(key, state, mods, text)
+        local k = DXUI.instance
+        if k then
+            k:onKeyDown(key, state, mods, text)
+        end
+    end)
+
     -- M10: Profiler overlay (cold path — только при включённом).
     -- DXUI.toggleProfile() — включает/выключает профилирование + overlay.
     local textNode = DXUI.instance:create(3) -- NODE_TEXT, root
@@ -99,7 +124,7 @@ addEventHandler("onClientResourceStart", resourceRoot, function()
     end)
 
     if DXUI.Constants.DEBUG then
-        outputChatBox("[dxui] M10 initialized: Profiler (DXUI.toggleProfile()), Debug (DXUI.toggleDebug()), ADR-001..013")
+        outputChatBox("[dxui] M20 initialized: polish (opacity-anim, tooltip delay, modal auto-focus, slider click-to-jump/vertical) (ADR-024)")
     end
 end)
 

@@ -23,18 +23,15 @@ DXUI = DXUI or {}
 DXUI.Bench = Bench
 
 local function now()
-    -- M9: getTickCount64 (Windows, 1ms) — стабильнее os.clock() на Windows
-    -- (os.clock разброс ×30 на idle-сценариях из-за thread-quantum).
-    -- В MTA: getRealTime() * 1000 (секунды -> мс).
-    if getRealTime then
-        return getRealTime() * 1000
+    -- M9/M11: getTickCount() — мс с момента старта (MTA client-side).
+    -- getTickCount64 — 64-битная версия (MTA 1.5.5+), фоллбэк для Windows.
+    -- os.clock — фоллбэк для lupa/Linux.
+    if getTickCount then
+        return getTickCount()
     end
     if getTickCount64 then
         return getTickCount64()
     end
-    -- Fallback: os.clock (Linux/Mac, стабильнее).
-    -- В lupa (Windows) os.clock нестабилен — для точных замеров
-    -- используйте MTA (getRealTime) или Linux (os.clock).
     return os.clock() * 1000
 end
 

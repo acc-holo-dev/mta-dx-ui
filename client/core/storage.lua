@@ -99,11 +99,12 @@ function Storage.new()
     end
     -- M6: активные анимации узла. Значение — slot в AnimationPool или
     -- C.NO_ANIM_SLOT (0). Один узел может одновременно анимировать
-    -- до 4 свойств (x/y/w/h) — 4 отдельных pool-slota.
+    -- до 5 свойств (x/y/w/h/opacity) — отдельных pool-slot'ов.
     self.animX = {}
     self.animY = {}
     self.animW = {}
     self.animH = {}
+    self.animOpacity = {} -- M20 (ADR-024)
     self.zIndex    = {}
     self.nodeType  = {}
     self.flags     = {}
@@ -258,6 +259,7 @@ function Storage:createNode(nodeType, parentId)
     self.animY[slot]      = C.NO_ANIM_SLOT
     self.animW[slot]      = C.NO_ANIM_SLOT
     self.animH[slot]      = C.NO_ANIM_SLOT
+    self.animOpacity[slot] = C.NO_ANIM_SLOT -- M20
 
     if bitand(self.flags[slot], C.FLAG_ENABLED) > 0 then
         addInteractive(self, id)
@@ -329,6 +331,11 @@ function Storage:setParent(id, parentId)
     self.firstChild[parentSlot] = id
     self.parent[slot] = parentId
 
+    -- M16 (ADR-020): наследование layer — дети рендерятся в том же слое,
+    -- что и родитель (modal-окно + его дети выше overlay). Новые дети
+    -- modal-окна автоматически получают LAYER_MODAL.
+    self.layer[slot] = self.layer[parentSlot]
+
     self:markDirty(parentId, C.DIRTY_CHILDREN + C.DIRTY_LAYOUT)
     self:markDirty(id, C.DIRTY_LAYOUT)
 end
@@ -379,7 +386,7 @@ local ARRAY_FIELDS = {
     "clipX2", "clipY2", "clipW2", "clipH2",
     "clipX3", "clipY3", "clipW3", "clipH3",
     "clipX4", "clipY4", "clipW4", "clipH4",
-    "animX", "animY", "animW", "animH",
+    "animX", "animY", "animW", "animH", "animOpacity",
 }
 
 --- Уничтожает узел и рекурсивно всех его потомков.

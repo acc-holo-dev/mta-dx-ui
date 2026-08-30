@@ -26,20 +26,31 @@ function Kernel.new(driver)
     -- M3: EventBus создаётся до Proxy, т.к. proxy:on() нужна ссылка на него.
     self.eventBus = DXUI.EventBus.new(self.storage)
 
-    -- M6: clock — время в мс. В MTA bootstrap подменит на getRealTime()*1000;
-    -- по умолчанию статичный 0, пока clock не задан через setClock (тесты).
+    -- M6: clock — время в мс. В MTA: getTickCount() — мс с момента старта.
+    -- В тестах (lupa): os.clock()*1000 (фоллбэк).
     local clockFn
-    if getRealTime then
-        clockFn = function() return getRealTime() * 1000 end
+    if getTickCount then
+        clockFn = function() return getTickCount() end
     else
-        clockFn = function() return 0 end
+        clockFn = function() return os.clock() * 1000 end
     end
 
     local animPool = DXUI.AnimationPool.new(self.storage, clockFn)
     self.animPool = animPool
 
-    self.proxy = Proxy.new(self.storage, self.eventBus, animPool)
+    -- M20 (ADR-024): единый источник времени для отложенных колбэков
+    -- (tooltip delay), реестр фокусируемых виджетов (modal auto-focus).
+    self.clock = clockFn
+    self.timers = {}     -- { {at = ms, fn = fn}, ... }
+    self.focusables = {} -- map id -> true (Edit и другие ввод-виджеты)
+
+    self.proxy = Proxy.new(self.storage, self.eventBus, animPool, self)
     self.dispatcher = DXUI.Dispatcher.new(self.storage, self.eventBus)
+
+    -- M15 (ADR-019): виртуальный clipboard (копирование внутри kernel).
+    -- MTA не даёт системный clipboard из клиентского Lua -- достаточно
+    -- виртуального буфера для copy/paste между полями того же kernel.
+    self.clipboard = ""
 
     -- M2: render pipeline. driver — реальный DXUI.MtaDriver в игре,
     -- либо мок в тестах (см. tests/test_render.lua) — это единственная
@@ -99,6 +110,7 @@ function Kernel:renderFrame()
     local profiling = prof.enabled
     if profiling then prof:begin() end
 
+    self:_runTimers() -- M20: отложенные колбэки (tooltip delay) — до анимаций
     self.animPool:update() -- M6: ПЕРВЫМ — сдвиг позиции прошёл layout в этом же кадре
     if profiling then prof:mark() end
     DXUI.Culling.update(self.storage)
@@ -140,12 +152,41 @@ function Kernel:setScreenSize(w, h)
     self.screenW = w
     self.screenH = h
     DXUI.Layout.setScreenSize(self.storage, w, h)
+    -- M16 (ADR-020): resize modal overlay'ев под новое разрешение
+    self.dispatcher:resizeModalOverlays(w, h)
 end
 
 --- M6: подмена источника времени (мс). MTA: getRealTime()*1000 (bootstrap);
 -- тесты — фейковый clock с ручным advance.
 function Kernel:setClock(fn)
     self.animPool.clock = fn
+    self.clock = fn -- M20: timers (schedule) — тот же источник времени
+end
+
+--- M20 (ADR-024): отложенный колбэк на едином clock (БЕЗ setTimer — ADR-010).
+-- Выполняется в renderFrame (self:_runTimers). Отмена не поддерживается —
+-- колбэк обязан сам проверять актуальность (см. tooltip delay в proxy.lua).
+function Kernel:schedule(delayMs, fn)
+    local now = self.clock and self.clock() or 0
+    self.timers[#self.timers + 1] = { at = now + delayMs, fn = fn }
+end
+
+--- M20: тик отложенных колбэков (идемпотентно по времени: выполняется при
+-- now >= at). Удаление через table.remove — колбэки редкие (cold path).
+function Kernel:_runTimers()
+    local timers = self.timers
+    if not timers or #timers == 0 then return end
+    local now = self.clock and self.clock() or 0
+    local i = 1
+    while i <= #timers do
+        local tm = timers[i]
+        if now >= tm.at then
+            table.remove(timers, i)
+            tm.fn()
+        else
+            i = i + 1
+        end
+    end
 end
 
 function Kernel:stats()
@@ -165,4 +206,26 @@ end
 
 function Kernel:onMouseUp(px, py, button)
     self.dispatcher:onMouseUp(px, py, button)
+end
+
+-- M13: колесо мыши (bootstrap: bindKey mouse_wheel_up/down -> getCursorPosition).
+function Kernel:onMouseWheel(px, py, dz)
+    self.dispatcher:onMouseWheel(px, py, dz)
+end
+
+-- M14: клавиатура (bootstrap: addEventHandler("onClientKey", ...)).
+-- key -- имя клавиши (MTA key map, строка), state -- "down"/"up",
+-- mods -- "ctrl"/"shift"/... , text -- символ (для EVENT_TEXT).
+-- M15: mods пробрасываются для ctrl-шорткатов.
+function Kernel:onKeyDown(key, state, mods, text)
+    self.dispatcher:onKeyDown(key, state, mods, text)
+end
+
+-- M14: focus management
+function Kernel:setFocus(id)
+    self.dispatcher:setFocus(id)
+end
+
+function Kernel:getFocus()
+    return self.dispatcher:getFocus()
 end

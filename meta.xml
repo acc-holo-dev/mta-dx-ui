@@ -1,10 +1,10 @@
 <meta>
     <info
         name="dxui"
-        description="High-performance retained-mode DX GUI framework for MTA:SA (M10 — Production: profiler, debug, nested clip, blur fallback)"
+        description="High-performance retained-mode DX GUI framework for MTA:SA (M20 — polish: opacity-anim, tooltip delay, modal auto-focus, slider click-to-jump/vertical)"
         author="project"
         type="script"
-        version="1.0.0-M10"
+        version="1.0.0-M20"
     />
 
     <!--
@@ -34,6 +34,7 @@
     <script src="client/input/dispatcher.lua" type="client" cache="false" />
     <script src="client/debug/debug.lua"        type="client" cache="false" />
     <script src="client/core/kernel.lua"    type="client" cache="false" />
+    <script src="client/core/selftest.lua"  type="client" cache="false" />
     <script src="client/widgets/ui.lua"     type="client" cache="false" />
     <script src="client/bootstrap.lua"      type="client" cache="false" />
     <!-- M9: benchmark — cold path, вызывается вручную DXUI.Bench.runAll(DXUI.instance) -->

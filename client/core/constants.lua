@@ -135,6 +135,13 @@ C.EVENT_MOUSEDOWN  = 2
 C.EVENT_MOUSEUP    = 3
 C.EVENT_MOUSEENTER = 4
 C.EVENT_MOUSELEAVE = 5
+C.EVENT_CLOSE      = 6 -- M12: запрос закрытия окна (preventable, ADR-016)
+C.EVENT_WHEEL      = 7 -- M13: колесо мыши над узлом (dz = -1/+1), ADR-017
+C.EVENT_SCROLL     = 8 -- M13: изменение позиции скролла ScrollPanel, ADR-017
+C.EVENT_FOCUS      = 9  -- M14: узел получил фокус (ADR-018)
+C.EVENT_BLUR       = 10 -- M14: узел потерял фокус (ADR-018)
+C.EVENT_TEXT       = 11 -- M14: ввод текста (onClientKey с текстовым кодом)
+C.EVENT_KEY        = 12 -- M14: нажатие/отпускание клавиши (код + state)
 
 -- ---------------------------------------------------------------------
 -- M6: Animation (ADR-010). НИКАКИХ per-node таймеров (setTimer запрещён
@@ -147,6 +154,7 @@ C.ANIM_X = 1
 C.ANIM_Y = 2
 C.ANIM_W = 3
 C.ANIM_H = 4
+C.ANIM_OPACITY = 5 -- M20 (ADR-024): fade-анимации (overlay/popup)
 
 C.EASE_LINEAR  = 0
 C.EASE_IN      = 1  -- cubic in:   t^3

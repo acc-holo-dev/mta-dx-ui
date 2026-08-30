@@ -75,12 +75,25 @@ function Builder.update(storage, pool)
             local hasCmd = storage.cmdSlot[nodeSlot] ~= C.NO_CMD_SLOT
 
             if visible then
-                if not hasCmd then
-                    local cmdSlot = pool:alloc(id)
-                    storage.cmdSlot[nodeSlot] = cmdSlot
-                    compositionChanged = true
+                -- M13 (ADR-017): zero-size RECT не эмитится -- контейнеры-
+                -- невидимки (content ScrollPanel и т.п.) не тратят команду
+                -- и draw call. TEXT/IMAGE не трогаем (0-размерный текст
+                -- может быть валиден для измерения).
+                local isRect = storage.text[nodeSlot] == nil and storage.texture[nodeSlot] == nil
+                if isRect and (storage.w[nodeSlot] or 0) <= 0 and (storage.h[nodeSlot] or 0) <= 0 then
+                    if hasCmd then
+                        pool:free(storage.cmdSlot[nodeSlot])
+                        storage.cmdSlot[nodeSlot] = C.NO_CMD_SLOT
+                        compositionChanged = true
+                    end
+                else
+                    if not hasCmd then
+                        local cmdSlot = pool:alloc(id)
+                        storage.cmdSlot[nodeSlot] = cmdSlot
+                        compositionChanged = true
+                    end
+                    writeCmd(pool, storage.cmdSlot[nodeSlot], storage, nodeSlot, id)
                 end
-                writeCmd(pool, storage.cmdSlot[nodeSlot], storage, nodeSlot, id)
             else
                 if hasCmd then
                     pool:free(storage.cmdSlot[nodeSlot])

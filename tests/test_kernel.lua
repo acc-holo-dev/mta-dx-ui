@@ -6,21 +6,7 @@
     альтернативу.
 ]]
 
-dofile("../client/core/constants.lua")
-dofile("../client/core/storage.lua")
-dofile("../client/core/proxy.lua")
-dofile("../client/render/commands.lua")
-dofile("../client/render/culling.lua")
-dofile("../client/render/builder.lua")
-dofile("../client/render/batcher.lua")
-dofile("../client/render/state_cache.lua")
-dofile("../client/anim/animation.lua")
-dofile("../client/render/rt_manager.lua")
-    dofile("../client/render/profiler.lua")
-dofile("../client/input/events.lua")
-dofile("../client/input/hittest.lua")
-dofile("../client/input/dispatcher.lua")
-dofile("../client/core/kernel.lua")
+dofile("loader.lua")
 
 local Kernel = DXUI.Kernel
 local Storage = DXUI.Storage

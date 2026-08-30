@@ -44,7 +44,20 @@ function HitTest.pick(storage, px, py)
         if slot and storage.effectiveVisible[slot] then
             local x, y, w, h = storage.worldX[slot], storage.worldY[slot], storage.w[slot], storage.h[slot]
             if px >= x and px <= x + w and py >= y and py <= y + h then
-                if bestSlot == nil or higherPriority(storage, slot, bestSlot) then
+                -- M13 (ADR-017): узел под clip-контейнером хитается только
+                -- ВНУТРИ clip-региона (иначе клик "за краем" панели попадал
+                -- бы в визуально обрезанный элемент). Регион 0/0/0/0 = ещё
+                -- не вычислен (первый кадр) -- проверку пропускаем.
+                local inClip = true
+                local cw = storage.clipW[slot]
+                if cw ~= nil and cw > 0 then
+                    local ch = storage.clipH[slot]
+                    if px < storage.clipX[slot] or px > storage.clipX[slot] + cw
+                        or py < storage.clipY[slot] or py > storage.clipY[slot] + ch then
+                        inClip = false
+                    end
+                end
+                if inClip and (bestSlot == nil or higherPriority(storage, slot, bestSlot)) then
                     bestId = id
                     bestSlot = slot
                 end

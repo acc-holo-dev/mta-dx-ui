@@ -34,6 +34,17 @@ local EASE = {
     [C.EASE_IN_OUT] = function(t) return t * t * (3 - 2 * t) end,
 }
 
+-- M20 (ADR-024): применение opacity — значение + FLAG_OPACITY (как
+-- proxy:setOpacity, но из hot-пути тика; каскад НЕ делает — opacity
+-- per-node, см. builder.lua: pool.opacity[cmdSlot] = storage.opacity[slot]).
+local function applyOpacity(s, id, slot, v)
+    s.opacity[slot] = v
+    local isFlag = v ~= 255
+    if s:hasFlag(id, C.FLAG_OPACITY) ~= isFlag then
+        s:setFlag(id, C.FLAG_OPACITY, isFlag)
+    end
+end
+
 local AnimationPool = {}
 AnimationPool.__index = AnimationPool
 DXUI.AnimationPool = AnimationPool
@@ -114,7 +125,8 @@ function AnimationPool:start(nodeId, field, to, durMs, ease)
     if field == C.ANIM_X then col = s.animX
     elseif field == C.ANIM_Y then col = s.animY
     elseif field == C.ANIM_W then col = s.animW
-    else col = s.animH end
+    elseif field == C.ANIM_H then col = s.animH
+    else col = s.animOpacity end -- M20
 
     local oldSlot = col[slot]
     if oldSlot ~= C.NO_ANIM_SLOT then
@@ -128,15 +140,17 @@ function AnimationPool:start(nodeId, field, to, durMs, ease)
     if field == C.ANIM_X then from = s.x[slot]
     elseif field == C.ANIM_Y then from = s.y[slot]
     elseif field == C.ANIM_W then from = s.w[slot]
-    else from = s.h[slot] end
+    elseif field == C.ANIM_H then from = s.h[slot]
+    else from = s.opacity[slot] end -- M20
 
     if durMs <= 0 then
         -- дегенерация: мгновенный snap без записи в пул
         if field == C.ANIM_X then s.x[slot] = to
         elseif field == C.ANIM_Y then s.y[slot] = to
         elseif field == C.ANIM_W then s.w[slot] = to
-        else s.h[slot] = to end
-        s:markDirty(nodeId, C.DIRTY_POS) -- M9: единый бит
+        elseif field == C.ANIM_H then s.h[slot] = to
+        else applyOpacity(s, nodeId, slot, to) end
+        s:markDirty(nodeId, field == C.ANIM_OPACITY and C.DIRTY_RENDER or C.DIRTY_POS)
         return nil
     end
 
@@ -161,7 +175,7 @@ function AnimationPool:stop(nodeId)
     local s = self.storage
     local slot = s.idToSlot[nodeId]
     if not slot then return end
-    for _, col in ipairs({ s.animX, s.animY, s.animW, s.animH }) do
+    for _, col in ipairs({ s.animX, s.animY, s.animW, s.animH, s.animOpacity }) do
         local pslot = col[slot]
         if pslot ~= C.NO_ANIM_SLOT then
             col[slot] = C.NO_ANIM_SLOT
@@ -209,8 +223,12 @@ function AnimationPool:update()
                 if f == C.ANIM_X then s.x[slot] = self.to[pslot]; s.animX[slot] = C.NO_ANIM_SLOT
                 elseif f == C.ANIM_Y then s.y[slot] = self.to[pslot]; s.animY[slot] = C.NO_ANIM_SLOT
                 elseif f == C.ANIM_W then s.w[slot] = self.to[pslot]; s.animW[slot] = C.NO_ANIM_SLOT
-                else s.h[slot] = self.to[pslot]; s.animH[slot] = C.NO_ANIM_SLOT end
-                s:markSlotDirty(slot, C.DIRTY_POS) -- M9: hot-вариант
+                elseif f == C.ANIM_H then s.h[slot] = self.to[pslot]; s.animH[slot] = C.NO_ANIM_SLOT
+                else -- M20: ANIM_OPACITY
+                    applyOpacity(s, id, slot, self.to[pslot])
+                    s.animOpacity[slot] = C.NO_ANIM_SLOT
+                end
+                s:markSlotDirty(slot, f == C.ANIM_OPACITY and C.DIRTY_RENDER or C.DIRTY_POS)
             end
             self:_removeActiveAt(i)
             self:_free(pslot)
@@ -225,8 +243,9 @@ function AnimationPool:update()
                 if f == C.ANIM_X then s.x[slot] = v
                 elseif f == C.ANIM_Y then s.y[slot] = v
                 elseif f == C.ANIM_W then s.w[slot] = v
-                else s.h[slot] = v end
-                s:markSlotDirty(slot, C.DIRTY_POS) -- M9: hot-вариант
+                elseif f == C.ANIM_H then s.h[slot] = v
+                else applyOpacity(s, id, slot, v) end -- M20
+                s:markSlotDirty(slot, f == C.ANIM_OPACITY and C.DIRTY_RENDER or C.DIRTY_POS)
             end
             i = i + 1
         end

@@ -39,10 +39,11 @@ local PHASES = {
     "builder", "batcher", "execute", "flushClip",
 }
 
--- Функция времени (мс). Подменяется bootstrap'ом (MTA: getRealTime()*1000).
+-- Функция времени (мс). В MTA: getTickCount() — мс с момента старта.
+-- В тестах (lupa): os.clock()*1000 (фоллбэк).
 local function clockFn()
-    if getRealTime then
-        return getRealTime() * 1000
+    if getTickCount then
+        return getTickCount()
     end
     return os.clock() * 1000
 end

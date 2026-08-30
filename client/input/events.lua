@@ -21,6 +21,13 @@ local NAME_TO_EVENT = {
     mouseup    = C.EVENT_MOUSEUP,
     mouseenter = C.EVENT_MOUSEENTER,
     mouseleave = C.EVENT_MOUSELEAVE,
+    close      = C.EVENT_CLOSE,  -- M12 (ADR-016)
+    wheel      = C.EVENT_WHEEL, -- M13 (ADR-017)
+    scroll     = C.EVENT_SCROLL,-- M13 (ADR-017)
+    focus      = C.EVENT_FOCUS,  -- M14 (ADR-018)
+    blur       = C.EVENT_BLUR,   -- M14 (ADR-018)
+    text       = C.EVENT_TEXT,   -- M14 (ADR-018)
+    key        = C.EVENT_KEY,    -- M14 (ADR-018)
 }
 
 local EventBus = {}
@@ -69,6 +76,9 @@ function EventBus:emit(targetId, eventType, eventData)
     eventData.target = targetId
     eventData.stopped = false
     eventData.stopPropagation = function() eventData.stopped = true end
+    -- M12: preventDefault -- отмена действия по умолчанию (close -> destroy)
+    eventData.defaultPrevented = false
+    eventData.preventDefault = function() eventData.defaultPrevented = true end
 
     local storage = self.storage
     local currentId = targetId

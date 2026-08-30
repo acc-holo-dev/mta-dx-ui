@@ -54,7 +54,7 @@ local function unpackMarginTL(packed)
         return cached[1], cached[2]
     end
     local mL = packed % 256
-    local mT = (packed - mL) % 65536 // 256
+    local mT = math.floor(((packed - mL) % 65536) / 256)
     marginCache[packed] = { mL, mT }
     return mL, mT
 end

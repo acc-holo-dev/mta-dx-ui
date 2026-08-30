@@ -18,3 +18,13 @@
 | [ADR-012](ADR-012.md) | M9 Optimization: slot dirtyList, итеративный layout, DIRTY_POS |
 | [ADR-013](ADR-013.md) | M10 Production: Profiler OFF by default, zero overhead в проде |
 | [ADR-014](ADR-014.md) | M10 Debug-система: инспекция дерева, bounds-overlay, dirty-визуализация |
+| [ADR-015](ADR-015.md) | M11: политика версии Lua — тесты только под 5.1 (lupa.lua51), запрет 5.2+ синтаксиса |
+| [ADR-016](ADR-016.md) | M12: Window 2.0 — composite-proxy, drag-capture в Dispatcher, z-order, preventable close |
+| [ADR-017](ADR-017.md) | M13: ScrollPanel — composite + wheel (bindKey) + drag scrollbar + virtualization + HitTest clip-aware + zero-size RECT skip |
+| [ADR-018](ADR-018.md) | M14: Edit — text input + focus system + keyboard (onClientKey → focusedId) |
+| [ADR-019](ADR-019.md) | M15: Edit 2.0 — selection (drag-select) + clipboard + multiline + placeholder render |
+| [ADR-020](ADR-020.md) | M16: Modal — overlay + focus lock + input trap + наследование layer |
+| [ADR-021](ADR-021.md) | M17: Tooltip + Popup + ContextMenu — hover-подсказка, dismiss по клику вне |
+| [ADR-022](ADR-022.md) | M18: CheckBox + RadioButton + Slider + ProgressBar — input/display-контролы |
+| [ADR-023](ADR-023.md) | M19: ComboBox + TabPanel + GridList — контейнерные виджеты (popup/scroll переиспользование) |
+| [ADR-024](ADR-024.md) | M20: polish — ANIM_OPACITY (fade), Kernel:schedule (tooltip delay), modal auto-focus, slider click-to-jump/vertical |
