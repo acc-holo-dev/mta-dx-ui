@@ -1,0 +1,28 @@
+<meta>
+    <info
+        name="dxui-v2"
+        description="DXUI V2 — readable, extensible, high-performance MTA:SA UI engine (Stage 3: renderer)"
+        author="project"
+        type="script"
+        version="2.0.0-stage3"
+    />
+
+    <!--
+        Порядок загрузки фиксирован. MTA грузит client-скрипты одного ресурса
+        в общее Lua-окружение (_G), поэтому модули публикуют себя в общую
+        таблицу DXUI, а порядок <script> задаёт порядок публикации.
+        Тот же код тестируется вне MTA обычным Lua 5.1 (см. tests/).
+    -->
+    <script src="client/core/node.lua"       type="client" cache="false" />
+    <script src="client/core/widget.lua"     type="client" cache="false" />
+    <script src="client/render/render_list.lua" type="client" cache="false" />
+    <script src="client/render/renderer.lua"    type="client" cache="false" />
+    <script src="client/render/state.lua"       type="client" cache="false" />
+    <script src="client/render/backend_mta.lua" type="client" cache="false" />
+    <script src="client/input/events.lua"     type="client" cache="false" />
+    <script src="client/input/hit_test.lua"   type="client" cache="false" />
+    <script src="client/input/dispatcher.lua" type="client" cache="false" />
+    <script src="client/api/context.lua"     type="client" cache="false" />
+    <script src="client/api/ui.lua"          type="client" cache="false" />
+    <script src="client/init.lua"            type="client" cache="false" />
+</meta>
