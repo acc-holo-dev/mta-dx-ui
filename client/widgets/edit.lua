@@ -407,6 +407,9 @@ function Edit.build(context, props)
     node:on("key", function(e)
         if node._hasFocus and e.state == "down" then
             node:_handleKey(e.key, e.mods)
+            -- caret/selection may have moved (arrows/home/end/ctrl-a) —
+            -- cursor geometry is part of the render list, so repaint
+            node:_invalidate({ DXUI.DIRTY.RENDER })
         end
     end)
 

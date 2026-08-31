@@ -72,6 +72,10 @@ function RadioButton.build(context, props)
     node:on("click", function()
         if node:isAlive() then node:setChecked(true) end
     end)
+
+    -- props.checked goes through the mutation layer and misses the group
+    -- exclusivity — re-apply via setChecked (clears the rest of the group)
+    if props.checked then node:setChecked(true) end
     return node
 end
 

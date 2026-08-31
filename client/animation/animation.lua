@@ -62,13 +62,30 @@ function AnimationManager:_removeFor(node, prop)
     end
 end
 
+--- Removes only the entries owned by ONE handle (AnimHandle:cancel). Other
+-- handles animating the same node are left untouched (their onDone still fires).
+function AnimationManager:_removeHandle(handle)
+    local i = 1
+    while i <= self.activeCount do
+        local a = self.active[i]
+        local tok = a.token
+        if tok and tok.owner == handle then
+            tok.cancelled = true
+            removeAt(self, i)
+        else
+            i = i + 1
+        end
+    end
+end
+
 --- One animation step: a set of props + token (step completion → onDone).
-function AnimationManager:_startStep(node, props, duration, easeName, onDone)
+-- owner — the AnimHandle the step belongs to (for scoped cancel).
+function AnimationManager:_startStep(node, props, duration, easeName, onDone, owner)
     local ease = DXUI.EASING[easeName or "inout"] or DXUI.EASING.inout
     duration = duration or 300
     if duration <= 0 then duration = 1 end
 
-    local token = { remaining = 0, onDone = onDone, cancelled = false }
+    local token = { remaining = 0, onDone = onDone, cancelled = false, owner = owner }
     for prop, target in pairs(props) do
         local spec = node._spec[prop]
         local current = node[prop]
@@ -175,7 +192,7 @@ function AnimHandle:_run(props, duration, easeName)
             local cbs = self_.doneCbs
             for i = 1, #cbs do cbs[i]() end
         end
-    end)
+    end, self)
 end
 
 --- Adds a step to the chain queue (runs after the current one).
@@ -190,12 +207,13 @@ function AnimHandle:onDone(fn)
     return self
 end
 
---- Cancels the chain (current animations stop, onDone is not called).
+--- Cancels THIS chain only (other handles on the same node keep running,
+-- their onDone still fires). onDone of this chain is not called.
 function AnimHandle:cancel()
     self.cancelled = true
     self.queue = {}
     self.doneCbs = {}
-    self.manager:stop(self.node)
+    self.manager:_removeHandle(self)
     return self
 end
 

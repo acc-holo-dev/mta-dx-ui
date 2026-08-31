@@ -54,10 +54,32 @@ function Window:getTitle()
 end
 
 function Window:setClosable(v)
-    self.closable = v
+    self.closable = v == true
+    if self.closable then self:_ensureCloseButton() end
     if self._closeButton then
-        self._closeButton.visible = v
+        self._closeButton.visible = self.closable
     end
+    return self
+end
+
+--- Creates the close button lazily (at build or on later setClosable(true)).
+-- The button is a separate interactive child anchored to the top-right
+-- corner via relative layout + anchor TR (follows the size).
+function Window:_ensureCloseButton()
+    if self._closeButton then return self end
+    local k = self._context
+    if not k or self._destroyed then return self end
+    local closeBtn = DXUI.Button.build(k, {
+        layoutMode = "relative",
+        x = 1, y = 0,
+        anchor = "tr",
+        width = CLOSE_W, height = CLOSE_H,
+        text = "x",
+        color = 0xFFFF6060,
+    })
+    closeBtn:setParent(self)
+    closeBtn:on("click", function() self:close() end)
+    rawset(self, "_closeButton", closeBtn)
     return self
 end
 
@@ -148,17 +170,7 @@ function Window.build(context, props)
     -- close button: a separate interactive child anchored to the top-right
     -- corner via relative layout + anchor TR (follows the size).
     if props.closable then
-        local closeBtn = DXUI.Button.build(context, {
-            layoutMode = "relative",
-            x = 1, y = 0,
-            anchor = "tr",
-            width = CLOSE_W, height = CLOSE_H,
-            text = "x",
-            color = 0xFFFF6060,
-        })
-        closeBtn:setParent(node)
-        closeBtn:on("click", function() node:close() end)
-        node._closeButton = closeBtn
+        node:_ensureCloseButton()
     end
 
     -- drag via the title bar (Stage 7)

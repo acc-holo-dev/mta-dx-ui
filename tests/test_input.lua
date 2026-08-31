@@ -30,9 +30,12 @@ end
 local ctx = DXUI.createContext({
     setBlendMode = function() end,
     drawRect = function() end,
+    drawRoundedRect = function() end,
     drawImage = function() end,
     drawText = function() end,
     drawLine = function() end,
+    beginGroup = function() return false end,
+    endGroup = function() end,
 })
 
 -- ---------------------------------------------------------------------
@@ -52,6 +55,27 @@ eq(DXUI.HitTest.pick(ctx, 200, 200), nil, "no hit outside")
 b.zIndex = 10
 ctx:renderFrame()
 eq(DXUI.HitTest.pick(ctx, 60, 60), b, "b on top (zIndex)")
+
+-- ---------------------------------------------------------------------
+-- Clip-aware hit-test: ancestors with clip=true bound their children's
+-- interactive region (a scrolled-out child must not eat clicks)
+-- ---------------------------------------------------------------------
+local vp = Panel:new({ x = 0, y = 200, width = 100, height = 100, clip = true })
+local inner = Panel:new({ x = 0, y = 150, width = 50, height = 50 })
+vp:addChild(inner)
+ctx:mount(vp)
+ctx:renderFrame()
+local innerClicks = 0
+inner:on("click", function() innerClicks = innerClicks + 1 end)
+-- inside inner's AABB (0..50 × 350..400) but BELOW the clip region (0..100) —
+-- visually clipped out: the click must NOT reach it
+ctx:onMouseDown(25, 375, "left"); ctx:onMouseUp(25, 375, "left")
+eq(innerClicks, 0, "clip: clipped-out child receives no click")
+-- move the child back inside the clip region → clickable again
+inner:setPosition(0, 50)
+ctx:renderFrame()
+ctx:onMouseDown(25, 275, "left"); ctx:onMouseUp(25, 275, "left")
+eq(innerClicks, 1, "clip: visible child receives click")
 
 -- ---------------------------------------------------------------------
 -- Click + bubble

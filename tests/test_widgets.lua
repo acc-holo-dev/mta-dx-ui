@@ -1,5 +1,5 @@
 --[[
-    test_widgets.lua — DXUI V2 Stage 6
+    test_widgets.lua вЂ” DXUI V2 Stage 6
 
     Tests base widgets: panel, label, button, image, window
     (composite), color, declarative children, parent-scoped builders.
@@ -22,6 +22,7 @@ end
 local calls = {}
 local mock = {
     setBlendMode = function(m) calls[#calls + 1] = { "blend", m } end,
+    drawRoundedRect = function() end,
     drawRect  = function(x, y, w, h, c) calls[#calls + 1] = { "rect", x, y, w, h, c } end,
     drawImage = function(x, y, w, h, t, c) calls[#calls + 1] = { "image", x, y, w, h, t, c } end,
     drawText  = function(t, x, y, w, h, c) calls[#calls + 1] = { "text", t, x, y, w, h, c } end,
@@ -74,7 +75,7 @@ local win = ui:window({ title = "Settings", closable = true, x = 100, y = 100 })
 eq(win.title, "Settings", "window title")
 ok(win._closeButton ~= nil, "close button created")
 
--- close button — window child, pinned to top-right
+-- close button вЂ” window child, pinned to top-right
 ui:renderFrame()
 local cb = win._closeButton
 eq(cb.parent, win, "close button is child of window")

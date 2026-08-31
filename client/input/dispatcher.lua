@@ -108,12 +108,15 @@ function Dispatcher:isDescendant(node, ancestor)
     return false
 end
 
---- node is inside the top modal (window / descendant / overlay). No modal — everything allowed.
+--- node is inside the top modal (window / descendant / overlay) or the top
+-- popup (popups float above modals — dropdowns must stay clickable). No modal — everything allowed.
 function Dispatcher:isInsideModal(node)
     local top = self:getTopModal()
     if not top then return true end
     if node == nil then return false end
     if node == top.overlay then return true end
+    -- a popup/dropdown on top of a modal is interactive (higher layer)
+    if self:isInsidePopup(node) then return true end
     return self:isDescendant(node, top.window)
 end
 
@@ -233,6 +236,14 @@ function Dispatcher:onMouseUp(x, y, button)
             DXUI.EventBus.emit(old, "dragleave", { x = x, y = y })
         end
         self:endDrag(target, x, y)
+        -- a drag release is a gesture end, not a click: skip the normal
+        -- mouseup/click path, but clear the pressed state and repaint it
+        local oldPressed = self.pressedNode
+        self.pressedNode = nil
+        if oldPressed then
+            self:_updateNodeState(oldPressed)
+        end
+        return
     end
 
     local hit = DXUI.HitTest.pick(self.context, x, y)

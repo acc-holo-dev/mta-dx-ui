@@ -66,10 +66,12 @@ function Selector.build(context, props)
     return node
 end
 
---- Selects index (highlights rows, emits "select").
+--- Selects index (highlights rows, emits "select"). No-op when unchanged
+-- (so repeating setSelected(1) doesn't re-emit "select").
 function Selector:setSelected(index)
     index = index or 0
     if index < 0 or index > #(self._rows or {}) then index = 0 end
+    if self.selected == index then return self end
     self.selected = index
     local rows = self._rows
     if rows then

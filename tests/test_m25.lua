@@ -106,6 +106,19 @@ eq(src.x, 110, "dragged node moved by delta")
 eq(src.y, 110, "dragged node moved by delta y")
 eq(tgt._dragOverTarget == nil, true, "drag-over state cleared after drop")
 
+-- a drag release is a gesture end, not a click: releasing over the source
+-- itself must NOT emit "click" (regression: fell through to the normal
+-- mouseup path and fired a spurious click)
+local d2 = ui:panel({ x = 0, y = 200, width = 50, height = 50 })
+d2:setDraggable(true)
+local d2Clicks = 0
+d2:on("click", function() d2Clicks = d2Clicks + 1 end)
+ui:renderFrame()
+ui:onMouseDown(10, 220, "left") -- grab d2
+ui:onCursorMove(40, 240)        -- drag it
+ui:onMouseUp(40, 240)           -- release over d2 itself
+eq(d2Clicks, 0, "drag release is not a click")
+
 -- ---------------------------------------------------------------------
 -- Summary
 -- ---------------------------------------------------------------------

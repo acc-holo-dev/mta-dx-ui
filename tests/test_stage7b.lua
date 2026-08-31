@@ -20,7 +20,9 @@ local function eq(a, b, name)
 end
 
 local mock = { setBlendMode = function() end, drawRect = function() end,
-    drawImage = function() end, drawText = function() end, drawLine = function() end }
+    drawRoundedRect = function() end, drawImage = function() end,
+    drawText = function() end, drawLine = function() end,
+    beginGroup = function() return false end, endGroup = function() end }
 
 local ui = DXUI.createContext(mock)
 ui:setScreenSize(800, 600)
@@ -97,6 +99,21 @@ ui:renderFrame()
 n4:stopAnimations()
 eq(n4:isAnimating(), false, "anim: stopped")
 eq(n4.x, 25, "anim: stopped keeps current value")
+
+-- cancel() is scoped to ITS OWN chain — other handles on the same node
+-- keep running and their onDone still fires (regression: was node-wide stop)
+local n5 = ui:panel({ x = 0, y = 0, width = 5, height = 5 })
+local h1 = n5:animate({ x = 100 }, 100, "linear")
+local h2 = n5:animate({ y = 100 }, 100, "linear")
+local done1, done2 = false, false
+h1:onDone(function() done1 = true end)
+h2:onDone(function() done2 = true end)
+h1:cancel()
+now = now + 100
+ui:renderFrame()
+eq(n5.y, 100, "anim: cancel doesn't stop the other handle (y completed)")
+eq(done2, true, "anim: other handle's onDone fired")
+eq(done1, false, "anim: cancelled chain's onDone suppressed")
 
 -- ---------------------------------------------------------------------
 -- _set-guard: same value — no invalidation

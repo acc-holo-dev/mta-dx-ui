@@ -24,9 +24,12 @@ local calls = {}
 local mock = {
     setBlendMode = function(m) calls[#calls + 1] = { "blend", m } end,
     drawRect  = function(x, y, w, h, c) calls[#calls + 1] = { "rect", x, y, w, h, c } end,
+    drawRoundedRect = function() end,
     drawImage = function(x, y, w, h, t, c) calls[#calls + 1] = { "image", x, y, w, h, t, c } end,
     drawText  = function(t, x, y, w, h, c) calls[#calls + 1] = { "text", t, x, y, w, h, c } end,
     drawLine  = function() end,
+    beginGroup = function() return false end,
+    endGroup = function() end,
 }
 
 local ui = DXUI.createContext(mock)
@@ -60,6 +63,12 @@ eq(r1:isChecked(), false, "r1 unchecked")
 r1:setChecked(true)
 eq(r1:isChecked(), true, "r1 checked")
 eq(r2:isChecked(), false, "r2 unchecked by group")
+
+-- props.checked at BUILD must respect group exclusivity too
+-- (mutation layer bypasses setChecked — the builder re-applies it)
+local ra = ui:radiobutton({ x = 0, y = 100, group = "g2", checked = true })
+local rb = ui:radiobutton({ x = 0, y = 100, group = "g2", checked = true })
+ok(not (ra:isChecked() and rb:isChecked()), "radio: props.checked group exclusivity at build")
 
 -- ---------------------------------------------------------------------
 -- ProgressBar
@@ -139,6 +148,16 @@ eq(edit._context.clipboard, "ih", "cut copies to clipboard")
 
 ui:onMouseUp(5, 210, "left") -- finish click gesture (drag-select holds until mouseup)
 
+-- caret movement must repaint — arrows don't change the text but the
+-- cursor geometry is part of the render list (regression: no invalidation)
+local e2 = ui:edit({ x = 0, y = 240, width = 100, height = 24, text = "ab" })
+ui:renderFrame()
+ui:onMouseDown(5, 250, "left") -- focus e2
+ui:onMouseUp(5, 250, "left")
+ui:renderFrame() -- absorb focus dirty
+ui:onKeyDown("arrow_r", "down", "", nil)
+ok(e2._dirty[DXUI.DIRTY.RENDER] == true, "edit: arrow key invalidates RENDER (caret moved)")
+
 -- ---------------------------------------------------------------------
 -- Popup: dismiss on outside click
 -- ---------------------------------------------------------------------
@@ -158,6 +177,14 @@ local combo = ui:combobox({ items = { "One", "Two", "Three" }, onChange = functi
 combo:setSelected(2)
 eq(comboVal, "Two", "combobox onChange value")
 
+-- open() before any frame: must position at the widget, not at stale (0,0)
+-- world coords (regression: layout deferred to the next frame)
+local cb2 = ui:combobox({ x = 10, y = 20, width = 100, items = { "A", "B" } })
+cb2:open()
+eq(cb2._dropdown.x, 10, "combobox: open() before layout uses current X")
+ok(cb2._dropdown.y > 20, "combobox: open() before layout uses current Y")
+cb2:close()
+
 -- ---------------------------------------------------------------------
 -- TabPanel
 -- ---------------------------------------------------------------------
@@ -168,6 +195,12 @@ eq(tp:getTabCount(), 2, "tabpanel 2 tabs")
 eq(tp:getSelectedIndex(), 1, "first tab selected")
 tp:selectTab(2)
 eq(tp:getSelectedIndex(), 2, "selectTab(2)")
+
+-- barHeight change at runtime must reposition tabs + pages (regression:
+-- previously only the header strip redrew, leaving stale geometry)
+tp.barHeight = 40
+eq(tp._tabs[1].btn.height, 40, "tabpanel: barHeight repositions buttons")
+eq(tp._tabs[1].page.y, 40, "tabpanel: barHeight repositions pages")
 
 -- ---------------------------------------------------------------------
 -- GridList
@@ -209,6 +242,18 @@ ui:renderFrame() -- fresh interactive list (overlay2 in hit-test)
 ui:onMouseDown(700, 500, "left")
 ui:onMouseUp(700, 500, "left") -- dismiss fires on click (down+up)
 eq(modal2.destroyed, true, "modal dismiss on outside click")
+
+-- a popup/dropdown stays clickable while a modal is open (floats above it;
+-- regression: isInsideModal rejected every root-level popup)
+local mpop = ui:popup({ x = 0, y = 0, width = 60, height = 60 })
+mpop:show(300, 300)
+ui:renderFrame()
+local popClicks = 0
+mpop:on("click", function() popClicks = popClicks + 1 end)
+ui:onMouseDown(310, 310, "left")
+ui:onMouseUp(310, 310, "left")
+eq(popClicks, 1, "popup above modal receives clicks")
+mpop:destroy()
 
 -- ---------------------------------------------------------------------
 -- Summary

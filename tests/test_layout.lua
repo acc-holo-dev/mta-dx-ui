@@ -1,5 +1,5 @@
 --[[
-    test_layout.lua — DXUI V2 Stage 5
+    test_layout.lua вЂ” DXUI V2 Stage 5
 
     Tests layout: absolute, relative, center, anchor (9 points), margin,
     padding, nesting.
@@ -26,6 +26,7 @@ end
 
 local ctx = DXUI.createContext({
     setBlendMode = function() end, drawRect = function() end,
+    drawRoundedRect = function() end,
     drawImage = function() end, drawText = function() end, drawLine = function() end,
 })
 ctx:setScreenSize(800, 600)

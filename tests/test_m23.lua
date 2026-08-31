@@ -1,5 +1,5 @@
 --[[
-    test_m23.lua — DXUI M23
+    test_m23.lua вЂ” DXUI M23
 
     Property validation (type/min/max) and the plugin API
     (registerWidget / registerEffect).
@@ -21,6 +21,7 @@ end
 
 local mock = {
     setBlendMode = function() end,
+    drawRoundedRect = function() end,
     drawRect  = function() end,
     drawImage = function() end,
     drawText  = function() end,

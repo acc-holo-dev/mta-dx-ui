@@ -105,27 +105,37 @@ DXUI.MtaBackend = {
 
     --- Switches rendering to an offscreen RT (w×h) with origin (x, y).
     -- Returns true on success; false — RT unavailable (draw directly).
+    -- Nested groups: the enclosing target (screen or an outer group's RT)
+    -- is remembered so endGroup can restore it.
     beginGroup = function(x, y, w, h)
         local rt = DXUI.Effects and DXUI.Effects.acquireRT(w, h)
         if not rt then return false end
+        local n = #groupStack
+        local prevTarget = (n > 0) and groupStack[n].rt or nil
         dxSetRenderTarget(rt, true)
-        groupStack[#groupStack + 1] = { rt = rt, offX = x, offY = y }
+        groupStack[#groupStack + 1] = { rt = rt, offX = x, offY = y, prevTarget = prevTarget }
         return true
     end,
 
-    --- Restores the target, draws the RT with the effect (blur/mask) in place.
+    --- Restores the enclosing target, draws the RT with the effect
+    -- (blur/mask) in the current target's coordinate space.
     -- alpha (0..1) — TRUE group-opacity: the whole composite as one quad,
     -- interior intersections never blend twice.
     endGroup = function(x, y, w, h, effect, alpha)
         local g = table.remove(groupStack)
         if not g then return end
-        dxSetRenderTarget(nil)
+        -- restore the target we were rendering into before this group
+        -- (screen at top level, the outer group's RT when nested)
+        dxSetRenderTarget(g.prevTarget)
+        -- the composite lands in that target's coordinate space: subtract
+        -- the (enclosing) group's offset, identity when top-level
+        local ax, ay = adjust(x, y)
         -- the RT is the shader's source sample (blur/mask over the composite)
         local shader = applyEffect(effect, g.rt)
         local a = alpha
         if a == nil or a >= 1 then a = 1 elseif a < 0 then a = 0 end
         local quadColor = math.floor(255 * a) * 0x1000000 + 0xFFFFFF -- 0xAAFFFFFF
-        dxDrawImage(x, y, w, h, shader or g.rt, 0, 0, 0, quadColor)
+        dxDrawImage(ax, ay, w, h, shader or g.rt, 0, 0, 0, quadColor)
         if DXUI.Effects then DXUI.Effects.releaseRT(g.rt) end
     end,
 }

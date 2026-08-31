@@ -11,9 +11,12 @@
     Backend interface:
         backend.setBlendMode(mode)
         backend.drawRect(x, y, w, h, color)
-        backend.drawImage(x, y, w, h, texture, color)
-        backend.drawText(text, x, y, w, h, color)
-        backend.drawLine(x1, y1, x2, y2, color)
+        backend.drawRoundedRect(x, y, w, h, radius, color, effect)
+        backend.drawImage(x, y, w, h, texture, color, effect, section)
+        backend.drawText(text, x, y, w, h, color, font, align, valign, scaleX, scaleY)
+        backend.drawLine(x1, y1, x2, y2, color, width)
+        backend.beginGroup(x, y, w, h)   -- returns true when an RT was acquired
+        backend.endGroup(x, y, w, h, effect, alpha)
 ]]
 
 DXUI = DXUI or {}

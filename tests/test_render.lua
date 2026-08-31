@@ -1,5 +1,5 @@
 --[[
-    test_render.lua — DXUI V2 Stage 3
+    test_render.lua вЂ” DXUI V2 Stage 3
 
     Tests renderer: rect/text, ordering (layer/zIndex), culling
     (visibility), state dedup (blend mode), idle frames.
@@ -44,6 +44,7 @@ end
 local calls = {}
 local mock = {
     setBlendMode = function(mode) calls[#calls + 1] = { "blend", mode } end,
+    drawRoundedRect = function() end,
     drawRect  = function(x, y, w, h, c) calls[#calls + 1] = { "rect", x, y, w, h, c } end,
     drawImage = function(x, y, w, h, t, c) calls[#calls + 1] = { "image", x, y, w, h, t, c } end,
     drawText  = function(t, x, y, w, h, c) calls[#calls + 1] = { "text", t, x, y, w, h, c } end,

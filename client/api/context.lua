@@ -288,12 +288,14 @@ function Context:_renderNodes(nodes, list)
                 if own.count > 0 then
                     local sx, ox = r.scaleX, r.offsetX
                     local sy, oy = r.scaleY, r.offsetY
+                    local qw, qh = node.width * sx, node.height * sy
                     list:add({
                         kind = "rtgroup",
                         x = node.worldX * sx + ox, y = node.worldY * sy + oy,
-                        w = node.width * sx, h = node.height * sy,
+                        w = qw, h = qh,
                         items = own.items, count = own.count,
-                        effect = effect,
+                        -- blur texel size matches the drawn quad (screen px)
+                        effect = DXUI.Effects.fitBlurTexel(effect, qw, qh),
                     })
                 end
             else
@@ -358,7 +360,8 @@ function Context:_renderRtGroup(node, list, r)
         x = node.worldX * sx + ox, y = node.worldY * sy + oy,
         w = node.width * sx, h = node.height * sy,
         items = subList.items, count = subList.count,
-        effect = effect,
+        -- blur texel size matches the drawn quad (screen px)
+        effect = DXUI.Effects.fitBlurTexel(effect, node.width * sx, node.height * sy),
         alpha = node._effOpacity or 1, -- true group-opacity
         scaleX = node.scaleX or 1, scaleY = node.scaleY or 1, -- ScalePane
     })
@@ -445,7 +448,7 @@ end
 -- = "receives the click".
 function Context:_rebuildInteractiveList()
     local nodes = {}
-    self:_collectInteractive(self.root, true, DXUI.LAYER.BASE, nodes)
+    self:_collectInteractive(self.root, true, DXUI.LAYER.BASE, nil, nodes)
 
     table.sort(nodes, function(a, b)
         local la = a._effLayer or a.layer
@@ -463,19 +466,32 @@ function Context:_rebuildInteractiveList()
     end
 end
 
-function Context:_collectInteractive(node, parentVisible, parentLayer, out)
+function Context:_collectInteractive(node, parentVisible, parentLayer, parentClip, out)
     local visible = parentVisible and node.visible
     local effLayer = node.layer
     if effLayer == DXUI.LAYER.BASE then
         effLayer = parentLayer or DXUI.LAYER.BASE
     end
     rawset(node, "_effLayer", effLayer)
+
+    -- a clip=true container (e.g. ScrollPanel viewport) also clips its
+    -- children for hit-testing: scrolled-out content must not eat clicks.
+    -- clipMode="rt" (ScalePane) bounds the subtree visually the same way.
+    local clip = parentClip
+    if node.clip or node.clipMode == "rt" then
+        clip = intersectClip(parentClip, node.worldX, node.worldY, node.width, node.height)
+        if not clip then return end -- fully clipped out — drop the subtree
+    end
+    -- the region in which THIS node can actually receive events
+    -- (its AABB ∩ accumulated ancestor clip); nil = no clipping
+    rawset(node, "_hitClip", clip)
+
     if visible and node.enabled then
         out[#out + 1] = node
     end
     local children = node._children
     for i = 1, #children do
-        self:_collectInteractive(children[i], visible, effLayer, out)
+        self:_collectInteractive(children[i], visible, effLayer, clip, out)
     end
 end
 

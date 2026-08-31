@@ -13,10 +13,25 @@ local COLOR_INACTIVE = 0xFF2A2A2A
 local PAGE_COLOR = 0xFF222222
 
 local TabPanel = DXUI.Widget:extend("TabPanel", {
-    barHeight = { default = TAB_BAR_H, invalidates = { DXUI.DIRTY.RENDER } },
+    barHeight = { default = TAB_BAR_H, invalidates = { DXUI.DIRTY.RENDER },
+        onSet = function(node)
+            -- bar height changed at runtime: reposition tabs + resize pages
+            if node._tabs then node:_relayoutAll() end
+        end },
     barColor = { default = 0xFF181818, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     pageColor = { default = PAGE_COLOR, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
 })
+
+--- Repositions tab buttons and resizes pages after a bar-height change.
+function TabPanel:_relayoutAll()
+    if not self._tabs then return end
+    self:_layoutTabs()
+    local w, h = self.width, self.height
+    for i = 1, #self._tabs do
+        self._tabs[i].page:setPosition(0, self.barHeight)
+        self._tabs[i].page:setSize(w, h - self.barHeight)
+    end
+end
 
 function TabPanel:render(renderer)
     renderer:rect(self.worldX, self.worldY, self.width, self.height, self.color)

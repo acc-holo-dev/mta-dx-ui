@@ -1,5 +1,5 @@
 --[[
-    test_stage8.lua — DXUI V2 Stage 8
+    test_stage8.lua вЂ” DXUI V2 Stage 8
 
     Tests text engine: measure, wrap (+color-carry, word-break),
     ellipsis, align/valign, shadow; Label/Button integration; design
@@ -46,7 +46,7 @@ eq(laid.height, 30, "wrap: height 2*15")
 
 -- active #RRGGBB code carried to the next line
 -- "#FF0000Red" = 70px; wrap 70: the word fits, "text" does not. The carried
--- code inflates line monospace widths → "text"/"here" on separate lines.
+-- code inflates line monospace widths в†’ "text"/"here" on separate lines.
 local laid2 = DXUI.Text.wrap("#FF0000Red text here", nil, 1, 70)
 eq(#laid2.lines, 3, "wrap color: 3 lines (code inflates width)")
 eq(laid2.lines[1], "#FF0000Red", "wrap color: line 1 keeps coded word")
@@ -58,14 +58,14 @@ local laid3 = DXUI.Text.wrap("AAAAAAAA", nil, 1, 35) -- 8*7=56 > 35
 ok(#laid3.lines >= 2, "word-break: long word split")
 ok(#laid3.lines[1] <= 5, "word-break: pieces fit width")
 
--- no wrap — split by newline
+-- no wrap вЂ” split by newline
 local laid4 = DXUI.Text.wrap("AB\nCD", nil, 1, nil)
 eq(#laid4.lines, 2, "no-wrap: split by newline")
 
 -- ---------------------------------------------------------------------
 -- Text engine: ellipsis
 -- ---------------------------------------------------------------------
-eq(DXUI.Text.ellipsis("Hello", nil, 1, 35), "Hello", "ellipsis: fits — unchanged")
+eq(DXUI.Text.ellipsis("Hello", nil, 1, 35), "Hello", "ellipsis: fits вЂ” unchanged")
 eq(DXUI.Text.ellipsis("Hello", nil, 1, 28), "H...", "ellipsis: keep 1 char + '...' (28px)")
 eq(DXUI.Text.ellipsis("Hello", nil, 1, 21), "...", "ellipsis: nothing fits, only '...' (21px)")
 
@@ -75,6 +75,7 @@ eq(DXUI.Text.ellipsis("Hello", nil, 1, 21), "...", "ellipsis: nothing fits, only
 local items = {}
 local mock = {
     setBlendMode = function() end,
+    drawRoundedRect = function() end,
     drawRect = function(x, y, w, h, c) items[#items + 1] = { kind = "rect", x = x, y = y, w = w, h = h, c = c } end,
     drawImage = function() end,
     drawText = function(t, x, y, w, h, c, font, align, valign, sx, sy)
@@ -99,7 +100,7 @@ eq(textItems[2].text, "World", "label wrap: item 2")
 eq(textItems[1].align, "center", "label wrap: align passed")
 eq(textItems[2].y - textItems[1].y, 15, "label wrap: line step = lineHeight")
 
--- valign middle: content 30 in box 40 → offset 5 (find this label's item)
+-- valign middle: content 30 in box 40 в†’ offset 5 (find this label's item)
 items = {}
 local lblV = ui:label({ x = 0, y = 0, width = 100, height = 40, text = "AB\nCD", valign = "middle" })
 ui:renderFrame()
@@ -145,7 +146,7 @@ eq(btnText.valign, "middle", "button: text middle by default")
 -- ---------------------------------------------------------------------
 -- Design resolution: stretch
 -- ---------------------------------------------------------------------
-DXUI.setDesignResolution(400, 300) -- screen 800x600 → scale 2
+DXUI.setDesignResolution(400, 300) -- screen 800x600 в†’ scale 2
 ui:setScreenSize(800, 600)
 
 local node = ui:panel({ x = 10, y = 20, width = 50, height = 25, color = 0xFFFF0000 })
@@ -160,8 +161,8 @@ eq(rectItem.y, 40, "design stretch: y scaled 20*2")
 eq(rectItem.w, 100, "design stretch: w scaled 50*2")
 eq(rectItem.h, 50, "design stretch: h scaled 25*2")
 
--- hit-test: screen click → design coords → node found
--- node (10..60, 20..45); screen (30,60) → design (15,30) — inside
+-- hit-test: screen click в†’ design coords в†’ node found
+-- node (10..60, 20..45); screen (30,60) в†’ design (15,30) вЂ” inside
 local clicked = false
 node:on("click", function(e) clicked = true end)
 ui:onMouseDown(30, 60, "left")

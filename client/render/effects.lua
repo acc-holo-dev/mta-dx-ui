@@ -206,6 +206,25 @@ function Effects.acquireRT(w, h)
     return nil
 end
 
+--- Sets the effect's gTexelSize to match a SCREEN-space quad.
+-- Effects.blur is created with design-space size; when the design resolution
+-- scales the quad, the blur offset (in texels of the sampled target) must use
+-- 1/(drawn px), not 1/(design px). Returns a shallow clone (params copied) so
+-- shared/named effects are never mutated.
+function Effects.fitBlurTexel(effect, qw, qh)
+    if not effect or not effect.params or not effect.params.gTexelSize then
+        return effect
+    end
+    local p = effect.params
+    return {
+        shader = effect.shader, texture = effect.texture,
+        params = {
+            gBlur = p.gBlur,
+            gTexelSize = { 1 / math.max(qw, 1), 1 / math.max(qh, 1) },
+        },
+    }
+end
+
 --- Returns an RT to the pool.
 function Effects.releaseRT(rt)
     if not rt then return end
@@ -227,6 +246,10 @@ function Effects.releasePool()
             for i = 1, #list do
                 if isElement(list[i]) then destroyElement(list[i]) end
             end
+        end
+        -- the white pixel is an RT too — destroy, not just drop the ref
+        if whiteTexture and isElement(whiteTexture) then
+            destroyElement(whiteTexture)
         end
     end
     rtPool, rtKey = {}, {}

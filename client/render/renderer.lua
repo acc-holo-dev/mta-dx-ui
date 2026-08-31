@@ -158,7 +158,9 @@ function Renderer:image(texture, x, y, w, h, color, effect)
         kind = "image", texture = texture,
         x = nx * sx + ox, y = ny * sy + oy, w = nw * sx, h = nh * sy,
         color = modulate(color, self.effOpacity),
-        effect = effect, section = section, node = self.node,
+        -- blur texel size must match the drawn (screen) quad size
+        effect = (effect and DXUI.Effects) and DXUI.Effects.fitBlurTexel(effect, nw * sx, nh * sy) or effect,
+        section = section, node = self.node,
     })
 end
 

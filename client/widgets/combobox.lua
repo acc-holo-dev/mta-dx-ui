@@ -64,6 +64,14 @@ end
 function ComboBox:open()
     if not self._dropdown then return self end
     if self:isOpen() then return self end
+    -- worldX/worldY are computed by the layout pass, which is deferred to
+    -- the next frame; if a layout is pending, resolve it now so the dropdown
+    -- is positioned at the CURRENT place of the combobox
+    local k = self._context
+    if k and k.layoutDirty then
+        k:_updateLayout()
+        k.layoutDirty = false
+    end
     self:_rebuildDropdown()
     self._dropdown:setSize(self.width, #self.items * ITEM_H)
     self._dropdown:show(self.worldX, self.worldY + self.height)

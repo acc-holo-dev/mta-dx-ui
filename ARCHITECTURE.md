@@ -339,7 +339,7 @@ not implemented in the current scope.
     │   ├── input/
     │   │   ├── dispatcher.lua -- hover/focus/pressed/drag/modal/popup + key/text
     │   │   ├── events.lua     -- EventBus (bubble)
-    │   │   └── hit_test.lua   -- AABB pick on the flat interactive list
+    │   │   └── hit_test.lua   -- AABB ∩ accumulated ancestor clip pick on the flat interactive list
     │   ├── layout/
     │   │   └── layout.lua     -- absolute/relative/center/stretch/autosize
     │   ├── render/

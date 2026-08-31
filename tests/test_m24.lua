@@ -43,6 +43,17 @@ eq(memo.scrollY, 20, "scrollBy moves scrollY")
 eq(select("#", memo:getScroll()), 2, "getScroll returns offset + max")
 ui:renderFrame() -- must not crash
 
+-- scrollBy clamps at 0 (regression: repeated wheel-up at the top raised a
+-- validator error on negative write)
+memo:scrollBy(-100)
+eq(memo.scrollY, 0, "scrollBy clamps at 0")
+memo:scrollBy(-50)
+eq(memo.scrollY, 0, "scrollBy stays clamped at 0")
+
+-- textColor is a real property (regression: rendered with nil color)
+memo.textColor = "#FF0000"
+eq(memo.textColor, 0xFFFF0000, "memo textColor property resolves")
+
 -- ---------------------------------------------------------------------
 -- Menu
 -- ---------------------------------------------------------------------
@@ -82,6 +93,15 @@ sel:selectItem("C")
 eq(sel.selected, 3, "selectItem by value")
 sel:setSelected(1)
 eq(sel.selected, 1, "setSelected clamps")
+
+-- repeated setSelected with the same value emits "select" only ONCE
+-- (regression: emitted on every call; also emitted at build for index 0)
+local selN = 0
+sel:on("select", function() selN = selN + 1 end)
+sel:setSelected(2) -- change: one emission
+sel:setSelected(2) -- same value: no re-emission
+sel:setSelected(2) -- same value: no re-emission
+eq(selN, 1, "selector: repeated setSelected emits once")
 
 -- ---------------------------------------------------------------------
 -- SwitchButton

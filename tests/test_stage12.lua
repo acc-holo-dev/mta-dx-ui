@@ -250,5 +250,19 @@ ui:onCursorMove(560, 460)
 eq(hb.color, DXUI.resolveColor("#444444"), "leave restores base color")
 
 -- =====================================================================
+-- 13. setClosable after build creates the close button (regression: the
+-- close button was only ever created at build time)
+-- =====================================================================
+local wc = ui:window({ x = 0, y = 0, width = 100, height = 60 })
+ui:renderFrame()
+eq(wc._closeButton, nil, "setClosable: no button by default")
+wc:setClosable(true)
+ui:renderFrame()
+ok(wc._closeButton ~= nil, "setClosable: creates the close button after build")
+eq(wc._closeButton.visible, true, "setClosable: close button visible")
+wc:setClosable(false)
+eq(wc._closeButton.visible, false, "setClosable(false) hides the close button")
+
+-- =====================================================================
 print(string.format("test_stage12: %d passed, %d failed", passed, failed))
 if failed > 0 then os.exit(1) end

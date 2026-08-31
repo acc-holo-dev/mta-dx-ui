@@ -141,6 +141,15 @@ eq(DXUI.resolveColor("#FF0000"), 0xFFFF0000, "resolveColor #FF0000")
 eq(DXUI.resolveColor({ r = 255, g = 0, b = 0, a = 128 }), 0x80FF0000, "resolveColor table")
 eq(DXUI.color(255, 0, 0), 0xFFFF0000, "color()")
 
+-- extended string forms (regression: Lua-style 0xRRGGBB and #RGB shorthand
+-- produced garbage; unknown strings silently resolved to transparent black)
+eq(DXUI.resolveColor("#ABC"), 0xFFAABBCC, "resolveColor #RGB shorthand")
+eq(DXUI.resolveColor("#FF000080"), 0x80FF0000, "resolveColor #RRGGBBAA")
+eq(DXUI.resolveColor("0xFF0000"), 0xFFFF0000, "resolveColor 0xRRGGBB string")
+eq(DXUI.resolveColor("0x80FF0000"), 0x80FF0000, "resolveColor 0xAARRGGBB string")
+local colorErr = pcall(DXUI.resolveColor, "white")
+eq(colorErr, false, "resolveColor: unknown string raises instead of silent black")
+
 -- ---------------------------------------------------------------------
 -- Summary
 -- ---------------------------------------------------------------------

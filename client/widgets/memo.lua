@@ -13,6 +13,8 @@ local Memo = DXUI.Label:extend("Memo", {
     clip = { default = true, invalidates = { DXUI.DIRTY.RENDER, DXUI.DIRTY.INPUT } },
     -- interactive (wheel scroll) — override Label's enabled=false default
     enabled = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
+    -- text color (Memo renders text; Label's base color is the box color)
+    textColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
 })
 
 function Memo:render(renderer)
@@ -50,9 +52,12 @@ function Memo:render(renderer)
     end
 end
 
---- Scrolls by dy pixels (clamped on next render).
+--- Scrolls by dy pixels (clamped to ≥ 0 — the upper bound is clamped on
+-- render to the content height). Repeated wheel-up at the top never errors.
 function Memo:scrollBy(dy)
-    self.scrollY = (self.scrollY or 0) + dy
+    local v = (self.scrollY or 0) + dy
+    if v < 0 then v = 0 end
+    self.scrollY = v
     return self
 end
 

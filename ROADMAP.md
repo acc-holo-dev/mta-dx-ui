@@ -2,7 +2,7 @@
 
 > Working plan. Locked decisions from the planning session. Follow this, not the chat.
 
-Status: **RELEASE-READY (2.1.0)** — code (M21–M25), tests (15 files, 393 asserts, green on Lua 5.1 via lupa),
+Status: **RELEASE-READY (2.1.0)** — code (M21–M25), tests (15 files, 419 asserts, green on Lua 5.1 via lupa),
 docs (README, ARCHITECTURE, ADR-001..011), comment rework (English, concise). Release prep (audit +
 fixes in docs/RELEASE-REPORT.md): MTA input bridge (screen size, key/state, wheel, mouse-button
 filtering), onClientCharacter → text input, modifier tracking (Ctrl+A/C/V/X), shader-as-material

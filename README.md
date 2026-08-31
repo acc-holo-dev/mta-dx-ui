@@ -61,7 +61,7 @@ readable, extensible, testable core.
     │   ├── widgets/      -- 23 widgets + builders registry
     │   ├── translation.lua -- locales, setTextKey
     │   └── export.lua    -- exports.dxui:getUI()
-    ├── tests/            -- Python + lupa (Lua 5.1) suite, 15 files (393 asserts)
+    ├── tests/            -- Python + lupa (Lua 5.1) suite, 15 files (419 asserts)
     ├── examples/         -- demo resource (consumer-style, exports.dxui:getUI())
     ├── docs/adr/         -- Architecture Decision Records (001–011)
     ├── docs/             -- RELEASE-REPORT.md (audit + release prep)
