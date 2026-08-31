@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <meta>
-    <info name="dxui" author="dxui-team" type="script" version="2.0.0" description="High-performance retained-mode DX GUI framework for MTA:SA" />
+    <info name="dxui" author="dxui-team" type="script" version="2.1.0" description="High-performance retained-mode DX GUI framework for MTA:SA" />
     <min_mtaversion server="1.5.8-9.20957" client="1.5.8-9.20957" />
     <script src="client/utils/color.lua" type="client" />
     <script src="client/core/node.lua" type="client" />

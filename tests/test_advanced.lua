@@ -121,6 +121,22 @@ ui:onKeyDown("i", "down", "", "i")
 eq(edit:getText(), "hi", "edit append")
 ui:onKeyDown("backspace", "down", "", nil)
 eq(edit:getText(), "h", "edit backspace")
+
+-- modifier shortcuts (mods string comes from the init.lua modifier tracker)
+ui:onKeyDown("a", "down", "ctrl", nil) -- select all
+eq(({ edit:getSelection() })[1], 0, "ctrl+a: selection start 0")
+eq(({ edit:getSelection() })[2], 1, "ctrl+a: selection end 1")
+ui:onKeyDown("c", "down", "ctrl", nil) -- copy
+eq(edit._context.clipboard, "h", "ctrl+c copies selection")
+ui:onKeyDown("i", "down", "", "i") -- typing replaces the selection
+eq(edit:getText(), "i", "typing replaces the selection")
+ui:onKeyDown("v", "down", "ctrl", nil) -- paste
+eq(edit:getText(), "ih", "ctrl+v pastes")
+ui:onKeyDown("a", "down", "ctrl", nil)
+ui:onKeyDown("x", "down", "ctrl", nil) -- cut
+eq(edit:getText(), "", "ctrl+x cuts selection")
+eq(edit._context.clipboard, "ih", "cut copies to clipboard")
+
 ui:onMouseUp(5, 210, "left") -- finish click gesture (drag-select holds until mouseup)
 
 -- ---------------------------------------------------------------------

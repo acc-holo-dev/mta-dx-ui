@@ -26,8 +26,10 @@ function Context.new(backend)
     self.layoutDirty = false -- Stage 5: whether any node has DIRTY_LAYOUT
 
     self.focusedNode = nil -- Stage 4: focus manager
-    self.screenW = 0
-    self.screenH = 0
+    -- screen size: adopt the global set by init.lua (guiGetScreenSize);
+    -- contexts can override via setScreenSize.
+    self.screenW = DXUI.screenW or 0
+    self.screenH = DXUI.screenH or 0
 
     -- root: top of the tree. Its _context is the context itself.
     self.root = DXUI.Node:new()
@@ -503,6 +505,10 @@ end
 
 function Context:onMouseWheel(x, y, dz)
     self.dispatcher:onMouseWheel(x, y, dz)
+end
+
+function Context:onCharacter(char)
+    self.dispatcher:onCharacter(char)
 end
 
 function Context:onKeyDown(key, state, mods, text)

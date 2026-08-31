@@ -15,10 +15,13 @@ readable, extensible, testable core.
         print("clicked!")
     end)
 
-    function onClientRender()
-        ui:renderFrame()
-    end
-    addEventHandler("onClientRender", root, onClientRender)
+> Rendering and input are bridged automatically: the resource's init.lua
+> renders every live context in `onClientRender` and forwards cursor/click/
+> key/character events. Do NOT add your own `onClientRender` loop on top
+> (it would draw twice). Mouse events need a visible cursor
+> (`showCursor(true)`) — the framework never changes cursor state itself.
+> Running a standalone copy without init.lua? Then render manually:
+> `addEventHandler("onClientRender", root, function() ui:renderFrame() end)`.
 
 ## Cross-resource use (M21)
 
@@ -58,18 +61,25 @@ readable, extensible, testable core.
     │   ├── widgets/      -- 23 widgets + builders registry
     │   ├── translation.lua -- locales, setTextKey
     │   └── export.lua    -- exports.dxui:getUI()
-    ├── tests/            -- Python + lupa (Lua 5.1) suite, 15 files (~380 asserts)
+    ├── tests/            -- Python + lupa (Lua 5.1) suite, 15 files (393 asserts)
+    ├── examples/         -- demo resource (consumer-style, exports.dxui:getUI())
     ├── docs/adr/         -- Architecture Decision Records (001–011)
+    ├── docs/             -- RELEASE-REPORT.md (audit + release prep)
     ├── ROADMAP.md        -- milestone plan M21–M25
     ├── ARCHITECTURE.md   -- full architecture description
     └── meta.xml          -- MTA resource manifest
 
 ## Widgets (23)
 
-panel, label, image, button, checkbox, radiobutton, switchbutton, slider,
-progressbar, edit, memo, scrollpanel, gridlist, tabpanel, combobox,
-contextmenu, menu, selector, popup, tooltip, window, layout (LayoutBox),
-scalepane, line.
+Registered widgets: panel, label, image, button, checkbox, radiobutton,
+switchbutton, slider, progressbar, edit, memo, scrollpanel, gridlist,
+tabpanel, combobox, contextmenu, menu, selector, popup, window, layout
+(LayoutBox), scalepane, line.
+
+`toggle` is an internal base class of checkbox/radiobutton (not registered),
+and tooltips are a node method, not a widget:
+
+    btn:setTooltip("Help text")
 
 ## Plugins (M23)
 
@@ -83,7 +93,7 @@ scalepane, line.
 
 ## Translation (M25)
 
-    DXUI.addLocale("ru", { "menu.open" = "Открыть" })
+    DXUI.addLocale("ru", { ["menu.open"] = "Открыть" })
     DXUI.setLocale("ru")
     label:setTextKey("menu.open")           -- label.text = "Открыть"
 

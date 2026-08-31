@@ -309,84 +309,73 @@ not implemented in the current scope.
 
 ## 13. File structure (actual)
 
-    dxui-v2/
+    dxui/
     ├── meta.xml
     ├── README.md
     ├── ARCHITECTURE.md
+    ├── ROADMAP.md
     ├── docs/adr/
     │   ├── 001-aos-public-nodes.md
     │   ├── 002-named-dirty-categories.md
     │   ├── 003-efflayer-collect-time.md
     │   ├── 004-style-ownership-guards.md
     │   ├── 005-immediate-interactive-rebuild.md
-    │   └── 006-zindex-modal-reset.md
+    │   ├── 006-zindex-modal-reset.md
+    │   ├── 007-export-getui.md
+    │   ├── 008-state-matrix-theme.md
+    │   ├── 009-property-validation-plugins.md
+    │   ├── 010-widget-set-extension.md
+    │   └── 011-listeners-translation-dnd.md
     ├── client/
-    │   ├── init.lua
-    │   ├── demo.lua
+    │   ├── init.lua          -- MTA event bridge (render/input/character)
+    │   ├── export.lua        -- exports.dxui:getUI()
+    │   ├── translation.lua   -- locales, setTextKey
     │   ├── api/
-    │   │   ├── ui.lua
-    │   │   └── context.lua
+    │   │   ├── ui.lua        -- createContext, design resolution
+    │   │   └── context.lua   -- Context: frames, layout, render lists, input passthrough
     │   ├── core/
-    │   │   ├── node.lua
-    │   │   └── widget.lua
+    │   │   ├── node.lua      -- Node + property system (mutation layer)
+    │   │   └── widget.lua    -- Widget: events, DnD, translation binding
     │   ├── input/
-    │   │   ├── dispatcher.lua
-    │   │   ├── events.lua
-    │   │   └── hit_test.lua
+    │   │   ├── dispatcher.lua -- hover/focus/pressed/drag/modal/popup + key/text
+    │   │   ├── events.lua     -- EventBus (bubble)
+    │   │   └── hit_test.lua   -- AABB pick on the flat interactive list
     │   ├── layout/
-    │   │   └── layout.lua
+    │   │   └── layout.lua     -- absolute/relative/center/stretch/autosize
     │   ├── render/
-    │   │   ├── renderer.lua
+    │   │   ├── renderer.lua   -- primitives (rect/text/image/roundedRect/line)
     │   │   ├── render_list.lua
-    │   │   ├── state.lua
-    │   │   ├── effects.lua
-    │   │   └── backend_mta.lua
+    │   │   ├── state.lua      -- state cache (blend mode dedup)
+    │   │   ├── effects.lua    -- SDF rounded / blur / mask shaders, RT pool
+    │   │   └── backend_mta.lua -- dxDraw* adapter (the only dx* entry point)
     │   ├── resources/
-    │   │   └── manager.lua
+    │   │   └── manager.lua    -- texture/font/shader cache
     │   ├── animation/
-    │   │   ├── animation.lua
+    │   │   ├── animation.lua  -- tween manager + chains
     │   │   └── easing.lua
     │   ├── style/
-    │   │   └── theme.lua
+    │   │   └── theme.lua      -- state-matrix theme
     │   ├── text/
-    │   │   └── text.lua
+    │   │   └── text.lua       -- measure / wrap / ellipsis
     │   ├── utils/
     │   │   └── color.lua
     │   └── widgets/
-    │       ├── builders.lua
-    │       ├── button.lua
-    │       ├── checkbox.lua
-    │       ├── combobox.lua
-    │       ├── contextmenu.lua
-    │       ├── edit.lua
-    │       ├── gridlist.lua
-    │       ├── image.lua
-    │       ├── label.lua
-    │       ├── panel.lua
-    │       ├── popup.lua
-    │       ├── progressbar.lua
-    │       ├── radiobutton.lua
-    │       ├── scrollpanel.lua
-    │       ├── slider.lua
-    │       ├── tabpanel.lua
-    │       ├── toggle.lua
-    │       ├── tooltip.lua
+    │       ├── builders.lua   -- registerWidget + registrations
+    │       ├── button.lua, checkbox.lua, combobox.lua, contextmenu.lua,
+    │       ├── edit.lua, gridlist.lua, image.lua, label.lua, layout.lua,
+    │       ├── line.lua, memo.lua, menu.lua, panel.lua, popup.lua,
+    │       ├── progressbar.lua, radiobutton.lua, scalepane.lua,
+    │       ├── scrollpanel.lua, selector.lua, slider.lua, switchbutton.lua,
+    │       ├── tabpanel.lua, toggle.lua (base), tooltip.lua (setTooltip),
     │       └── window.lua
     └── tests/
-        ├── run.py
-        ├── loader.lua
-        ├── test_core.lua
-        ├── test_input.lua
-        ├── test_layout.lua
-        ├── test_render.lua
-        ├── test_widgets.lua
-        ├── test_advanced.lua
-        ├── test_stage7b.lua
-        ├── test_stage8.lua
-        ├── test_stage9.lua
-        ├── test_stage10.lua
-        ├── test_stage11.lua
-        └── test_stage12.lua
+        ├── run.py            -- python tests/run.py [test_name.lua ...]
+        ├── loader.lua        -- loads all client modules (meta.xml order)
+        ├── test_core.lua, test_input.lua, test_layout.lua, test_render.lua,
+        ├── test_widgets.lua, test_advanced.lua, test_stage7b.lua,
+        ├── test_stage8.lua, test_stage9.lua, test_stage10.lua,
+        ├── test_stage11.lua, test_stage12.lua,
+        └── test_m23.lua, test_m24.lua, test_m25.lua
 
 ---
 

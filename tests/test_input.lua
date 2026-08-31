@@ -126,6 +126,22 @@ eq(keyLog[1], "text:a", "text event")
 eq(keyLog[2], "a", "key event")
 
 -- ---------------------------------------------------------------------
+-- Character input (MTA onClientCharacter bridge → Context:onCharacter)
+-- ---------------------------------------------------------------------
+keyLog = {}
+ctx:onCharacter("x")
+eq(keyLog[1], "text:x", "onCharacter emits text event on focused node")
+eq(keyLog[2], nil, "onCharacter does not emit a key event")
+
+ctx:onCharacter("") -- empty char: no event
+eq(#keyLog, 1, "empty character is ignored")
+
+-- no focus: no event
+ctx:setFocus(nil)
+ctx:onCharacter("y")
+eq(#keyLog, 1, "no focus → onCharacter ignored")
+
+-- ---------------------------------------------------------------------
 -- Summary
 -- ---------------------------------------------------------------------
 print(string.format("test_input: %d passed, %d failed", passed, failed))

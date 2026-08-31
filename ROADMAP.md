@@ -2,10 +2,11 @@
 
 > Working plan. Locked decisions from the planning session. Follow this, not the chat.
 
-Status: **ALL MILESTONES DONE** — code (M21–M25), tests (15 files, ~380 asserts, green on Lua 5.1 via lupa),
-docs (README, ARCHITECTURE translated; ADR-007..011 added), comment rework (all ~64 .lua files → concise
-English, §-references removed, 0 syntax errors, tests still green). Optional leftovers: translate the 6
-legacy ADRs (001–006) and an examples/ folder (short demo was deleted by decision #3).
+Status: **RELEASE-READY (2.1.0)** — code (M21–M25), tests (15 files, 393 asserts, green on Lua 5.1 via lupa),
+docs (README, ARCHITECTURE, ADR-001..011), comment rework (English, concise). Release prep (audit +
+fixes in docs/RELEASE-REPORT.md): MTA input bridge (screen size, key/state, wheel, mouse-button
+filtering), onClientCharacter → text input, modifier tracking (Ctrl+A/C/V/X), shader-as-material
+backend fix, examples/ folder (demo), version 2.1.0, .gitattributes (LF), git tag v2.1.0.
 
 ## Locked decisions (all implemented)
 - Single codebase: v2 promoted to repo root. Resource name "dxui". DELETE v1 (done).

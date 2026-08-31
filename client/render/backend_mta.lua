@@ -19,13 +19,19 @@
 
 DXUI = DXUI or {}
 
---- Applies effect params to the shader. Returns the shader or nil.
-local function applyEffect(effect)
+--- Applies effect params to the shader and returns it (or nil).
+-- baseTexture feeds the shader's gTexture0 source sample: the effect's
+-- own texture (e.g. the rounded-rect white quad) or the drawn texture.
+local function applyEffect(effect, baseTexture)
     if not effect or not effect.shader then return nil end
     if effect.params then
         for k, v in pairs(effect.params) do
             dxSetShaderValue(effect.shader, k, v)
         end
+    end
+    local base = effect.texture or baseTexture
+    if base and base ~= "" then
+        dxSetShaderValue(effect.shader, "gTexture0", base)
     end
     return effect.shader
 end
@@ -53,13 +59,14 @@ DXUI.MtaBackend = {
         dxDrawRectangle(x, y, w, h, color)
     end,
 
-    --- Rounded rect: white quad with SDF shader; color via tint
-    -- dxDrawImage (shader outputs white + corner alpha). Without shader — flat rect.
+    --- Rounded rect: the SDF shader IS the draw material (MTA has no
+    -- shader argument — dxDrawImage's 10th param is postGUI). Without
+    -- shader — flat rect fallback.
     drawRoundedRect = function(x, y, w, h, radius, color, effect)
         x, y = adjust(x, y)
         local shader = applyEffect(effect)
-        if shader and effect.texture then
-            dxDrawImage(x, y, w, h, effect.texture, 0, 0, 0, color, shader)
+        if shader then
+            dxDrawImage(x, y, w, h, shader, 0, 0, 0, color)
         else
             dxDrawRectangle(x, y, w, h, color) -- fallback (no shader)
         end
@@ -67,14 +74,15 @@ DXUI.MtaBackend = {
 
     drawImage = function(x, y, w, h, texture, color, effect, section)
         x, y = adjust(x, y)
-        local shader = applyEffect(effect)
+        local shader = applyEffect(effect, texture)
+        local material = shader or texture
         if section then
             -- crop: draw the visible texture SECTION into the clipped quad
             dxDrawImageSection(x, y, w, h,
                 section[1], section[2], section[3], section[4],
-                texture, 0, 0, 0, color, shader)
+                material, 0, 0, 0, color)
         else
-            dxDrawImage(x, y, w, h, texture, 0, 0, 0, color, shader)
+            dxDrawImage(x, y, w, h, material, 0, 0, 0, color)
         end
     end,
 
@@ -112,11 +120,12 @@ DXUI.MtaBackend = {
         local g = table.remove(groupStack)
         if not g then return end
         dxSetRenderTarget(nil)
-        local shader = applyEffect(effect)
+        -- the RT is the shader's source sample (blur/mask over the composite)
+        local shader = applyEffect(effect, g.rt)
         local a = alpha
         if a == nil or a >= 1 then a = 1 elseif a < 0 then a = 0 end
         local quadColor = math.floor(255 * a) * 0x1000000 + 0xFFFFFF -- 0xAAFFFFFF
-        dxDrawImage(x, y, w, h, g.rt, 0, 0, 0, quadColor, shader)
+        dxDrawImage(x, y, w, h, shader or g.rt, 0, 0, 0, quadColor)
         if DXUI.Effects then DXUI.Effects.releaseRT(g.rt) end
     end,
 }

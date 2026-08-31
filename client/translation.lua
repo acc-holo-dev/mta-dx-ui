@@ -5,7 +5,7 @@
     substitution. Widgets bind a text property to a key via
     node:setTextKey(key, target) (Widget method) and re-apply on setLocale.
 
-        DXUI.addLocale("ru", { "menu.open" = "Open" })
+        DXUI.addLocale("ru", { ["menu.open"] = "Open" })
         DXUI.setLocale("ru")
         label:setTextKey("menu.open")   -- label.text = "Open"
 ]]

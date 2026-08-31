@@ -288,6 +288,15 @@ function Dispatcher:onKeyDown(key, state, mods, text)
     }, false)
 end
 
+--- Character input (onClientCharacter bridge): emits "text" on the
+-- focused node. Target event (no bubbling), like onKeyDown.
+function Dispatcher:onCharacter(char)
+    if not self.focusedNode then return end
+    if char and char ~= "" then
+        DXUI.EventBus.emit(self.focusedNode, "text", { text = char }, false)
+    end
+end
+
 --- Set focus (emit blur on the old node + focus on the new). Target events
 -- (no bubbling — focus/blur don't bubble, like in the DOM). Modal: focus lock.
 -- A click on the overlay does NOT change focus (the input under it keeps it).
