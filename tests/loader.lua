@@ -1,45 +1,55 @@
 --[[
-    tests/loader.lua (M11)
+    tests/loader.lua — DXUI V2
 
-    Единый манифест загрузки всех модулей DXUI в порядке meta.xml.
-    Используется во всех тест-файлах вместо копипаста dofile-списков.
-    Порядок строго соответствует meta.xml (client/... + bench/bench.lua).
+    Single manifest for loading all DXUI V2 modules in meta.xml order.
+    Used by every test file instead of copy-pasting dofile lists.
 ]]
 
--- Core
-dofile("../client/core/constants.lua")
-dofile("../client/core/storage.lua")
-dofile("../client/core/proxy.lua")
-dofile("../client/core/kernel.lua")
-dofile("../client/core/selftest.lua")
-
--- Render
-dofile("../client/render/commands.lua")
-dofile("../client/render/culling.lua")
-dofile("../client/render/layout.lua")
-dofile("../client/render/clip.lua")
-dofile("../client/render/builder.lua")
-dofile("../client/render/batcher.lua")
-dofile("../client/render/state_cache.lua")
-dofile("../client/render/rt_manager.lua")
-dofile("../client/render/profiler.lua")
-dofile("../client/render/backend_mta.lua")
-
--- Anim
-dofile("../client/anim/animation.lua")
-
--- Input
+dofile("../client/utils/color.lua")
+dofile("../client/core/node.lua")
+dofile("../client/core/widget.lua")
+dofile("../client/api/context.lua")
+dofile("../client/api/ui.lua")
+dofile("../client/layout/layout.lua")
+dofile("../client/input/hit_test.lua")
 dofile("../client/input/events.lua")
-dofile("../client/input/hittest.lua")
 dofile("../client/input/dispatcher.lua")
-
--- Debug
-dofile("../client/debug/debug.lua")
-
--- Widgets
-dofile("../client/widgets/ui.lua")
-
--- Bench (cold path, опционально)
-dofile("../bench/bench.lua")
+dofile("../client/render/render_list.lua")
+dofile("../client/render/renderer.lua")
+dofile("../client/render/state.lua")
+dofile("../client/render/effects.lua")
+dofile("../client/render/backend_mta.lua")
+dofile("../client/resources/manager.lua")
+dofile("../client/style/theme.lua")
+dofile("../client/text/text.lua")
+dofile("../client/animation/easing.lua")
+dofile("../client/animation/animation.lua")
+dofile("../client/translation.lua")
+dofile("../client/widgets/panel.lua")
+dofile("../client/widgets/label.lua")
+dofile("../client/widgets/image.lua")
+dofile("../client/widgets/button.lua")
+dofile("../client/widgets/toggle.lua")
+dofile("../client/widgets/checkbox.lua")
+dofile("../client/widgets/radiobutton.lua")
+dofile("../client/widgets/slider.lua")
+dofile("../client/widgets/progressbar.lua")
+dofile("../client/widgets/edit.lua")
+dofile("../client/widgets/scrollpanel.lua")
+dofile("../client/widgets/gridlist.lua")
+dofile("../client/widgets/tabpanel.lua")
+dofile("../client/widgets/combobox.lua")
+dofile("../client/widgets/popup.lua")
+dofile("../client/widgets/contextmenu.lua")
+dofile("../client/widgets/tooltip.lua")
+dofile("../client/widgets/window.lua")
+dofile("../client/widgets/memo.lua")
+dofile("../client/widgets/menu.lua")
+dofile("../client/widgets/selector.lua")
+dofile("../client/widgets/switchbutton.lua")
+dofile("../client/widgets/line.lua")
+dofile("../client/widgets/layout.lua")
+dofile("../client/widgets/scalepane.lua")
+dofile("../client/widgets/builders.lua")
 
 return DXUI

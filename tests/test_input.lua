@@ -1,220 +1,132 @@
+--[[
+    test_input.lua — DXUI V2 Stage 4
+
+    Tests input: hit-test (topmost node), click, bubble, stopPropagation,
+    hover (mouseenter/mouseleave), focus (blur/focus), keyboard (key/text).
+]]
+
 dofile("loader.lua")
 
-local Kernel = DXUI.Kernel
-local C = DXUI.Constants
-
 local passed, failed = 0, 0
-local function check(name, cond)
-    if cond then
-        passed = passed + 1
-        print("[OK]   " .. name)
-    else
-        failed = failed + 1
-        print("[FAIL] " .. name)
-    end
+
+local function ok(cond, name)
+    if cond then passed = passed + 1
+    else failed = failed + 1; print("FAIL: " .. name) end
 end
 
-local function newKernel()
-    return Kernel.new({ -- мок render driver, в input-тестах не задействован по существу
-        setBlendMode = function() end,
-        drawRect = function() end,
-        drawImage = function() end,
-        drawText = function() end,
-    })
+local function eq(a, b, name)
+    if a == b then passed = passed + 1
+    else failed = failed + 1; print("FAIL: " .. name .. " (got " .. tostring(a) .. ", want " .. tostring(b) .. ")") end
 end
 
--- =======================================================================
--- 1. Базовый hit-test: точка внутри/снаружи прямоугольника
--- =======================================================================
-do
-    local k = newKernel()
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setPosition(10, 10):setSize(100, 40)
-
-    -- M4: layout pass вычисляет world-координаты, которые использует HitTest.
-    -- Без renderFrame() worldX/worldY не вычислены (остаются 0), и hit-test
-    -- будет работать с устаревшими координатами.
-    k:renderFrame()
-
-    local hitInside = DXUI.HitTest.pick(k.storage, 50, 20)
-    local hitOutside = DXUI.HitTest.pick(k.storage, 5, 5)
-
-    check("hittest: точка внутри AABB находит узел", hitInside == btn.id)
-    check("hittest: точка снаружи AABB не находит узел", hitOutside == C.NIL_ID)
+-- ---------------------------------------------------------------------
+-- Test widget (interactive panel)
+-- ---------------------------------------------------------------------
+local Panel = DXUI.Widget:extend("Panel", {})
+function Panel:render(renderer)
+    renderer:rect(self.worldX, self.worldY, self.width, self.height, self.color)
 end
 
--- =======================================================================
--- 2. Приоритет верхнего элемента: два перекрывающихся узла, побеждает
---    более высокий layer, при равном layer — больший zIndex
--- =======================================================================
-do
-    local k = newKernel()
-    local back = k:create(C.NODE_PANEL)
-    back:setPosition(0, 0):setSize(100, 100):setLayer(C.LAYER_BASE)
+local ctx = DXUI.createContext({
+    setBlendMode = function() end,
+    drawRect = function() end,
+    drawImage = function() end,
+    drawText = function() end,
+    drawLine = function() end,
+})
 
-    local front = k:create(C.NODE_PANEL)
-    front:setPosition(0, 0):setSize(100, 100):setLayer(C.LAYER_MODAL)
+-- ---------------------------------------------------------------------
+-- Hit-test: topmost node under point
+-- ---------------------------------------------------------------------
+local a = Panel:new({ x = 0, y = 0, width = 100, height = 100 })
+local b = Panel:new({ x = 50, y = 50, width = 100, height = 100 })
+ctx:mount(a)
+ctx:mount(b)
+ctx:renderFrame() -- rebuild interactive list
 
-    local hit = DXUI.HitTest.pick(k.storage, 50, 50)
-    check("hittest: полностью перекрывающиеся узлы -> побеждает более высокий layer",
-        hit == front.id)
-end
+eq(DXUI.HitTest.pick(ctx, 10, 10), a, "hit a (only a covers 10,10)")
+eq(DXUI.HitTest.pick(ctx, 60, 60), b, "hit b (b on top at 60,60)")
+eq(DXUI.HitTest.pick(ctx, 200, 200), nil, "no hit outside")
 
--- =======================================================================
--- 3. Отключённый узел (setEnabled(false)) не участвует в hit-test'е
--- =======================================================================
-do
-    local k = newKernel()
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setPosition(0, 0):setSize(50, 50)
-    btn:setEnabled(false)
+-- zIndex: b above a
+b.zIndex = 10
+ctx:renderFrame()
+eq(DXUI.HitTest.pick(ctx, 60, 60), b, "b on top (zIndex)")
 
-    local hit = DXUI.HitTest.pick(k.storage, 10, 10)
-    check("hittest: setEnabled(false) исключает узел из hit-test", hit == C.NIL_ID)
+-- ---------------------------------------------------------------------
+-- Click + bubble
+-- ---------------------------------------------------------------------
+local clickLog = {}
+local child = Panel:new({ x = 0, y = 0, width = 10, height = 10 })
+a:addChild(child)
+ctx:renderFrame()
 
-    btn:setEnabled(true)
-    local hit2 = DXUI.HitTest.pick(k.storage, 10, 10)
-    check("hittest: повторный setEnabled(true) возвращает узел в hit-test", hit2 == btn.id)
-end
+a:on("click", function(e) clickLog[#clickLog + 1] = "a" end)
+child:on("click", function(e) clickLog[#clickLog + 1] = "child" end)
 
--- =======================================================================
--- 4. Hover: mouseenter/mouseleave срабатывают ровно по одному разу на смену
--- =======================================================================
-do
-    local k = newKernel()
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setPosition(0, 0):setSize(50, 50)
+-- click on child (inside a): child first, then bubble to a
+ctx:onMouseDown(5, 5, "left")
+ctx:onMouseUp(5, 5, "left")
+eq(clickLog[1], "child", "click target first")
+eq(clickLog[2], "a", "click bubbles to parent")
 
-    local enterCount, leaveCount = 0, 0
-    btn:on("mouseenter", function() enterCount = enterCount + 1 end)
-    btn:on("mouseleave", function() leaveCount = leaveCount + 1 end)
+-- ---------------------------------------------------------------------
+-- stopPropagation
+-- ---------------------------------------------------------------------
+clickLog = {}
+child:on("click", function(e) e:stopPropagation() end)
+ctx:onMouseDown(5, 5, "left")
+ctx:onMouseUp(5, 5, "left")
+eq(#clickLog, 1, "stopPropagation stops bubble (only child)")
 
-    k:onCursorMove(10, 10) -- вход в btn
-    k:onCursorMove(20, 20) -- всё ещё внутри btn -> НЕ должно повторно триггерить enter
-    k:onCursorMove(200, 200) -- выход за пределы btn
+-- ---------------------------------------------------------------------
+-- Hover: mouseenter / mouseleave
+-- ---------------------------------------------------------------------
+-- Disable child and b so hover/focus tests are clean on a.
+child.enabled = false
+b.enabled = false
+ctx:renderFrame()
 
-    check("hover: mouseenter сработал ровно 1 раз (не на каждый onCursorMove)", enterCount == 1)
-    check("hover: mouseleave сработал ровно 1 раз при выходе", leaveCount == 1)
-end
+local hoverLog = {}
+a:on("mouseenter", function() hoverLog[#hoverLog + 1] = "enter" end)
+a:on("mouseleave", function() hoverLog[#hoverLog + 1] = "leave" end)
 
--- =======================================================================
--- 5. Click: mousedown+mouseup над одним и тем же узлом -> click.
---    Увод курсора с узла перед mouseup -> click НЕ засчитывается.
--- =======================================================================
-do
-    local k = newKernel()
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setPosition(0, 0):setSize(50, 50)
+ctx:onCursorMove(10, 10) -- into a
+ctx:onCursorMove(20, 20) -- still in a (no change)
+ctx:onCursorMove(300, 300) -- outside a
+eq(hoverLog[1], "enter", "mouseenter")
+eq(hoverLog[2], "leave", "mouseleave")
+eq(#hoverLog, 2, "no redundant enter/leave")
 
-    local clicks = 0
-    btn:on("click", function() clicks = clicks + 1 end)
+-- ---------------------------------------------------------------------
+-- Focus: mousedown focuses, blur/focus events
+-- ---------------------------------------------------------------------
+local focusLog = {}
+a:on("focus", function() focusLog[#focusLog + 1] = "focus" end)
+a:on("blur", function() focusLog[#focusLog + 1] = "blur" end)
 
-    k:onMouseDown(10, 10, "left")
-    k:onMouseUp(10, 10, "left")
-    check("click: mousedown+mouseup в одной точке над узлом -> 1 click", clicks == 1)
+ctx:onMouseDown(10, 10, "left")
+eq(ctx:getFocus(), a, "mousedown focuses node")
+eq(focusLog[1], "focus", "focus event")
 
-    k:onMouseDown(10, 10, "left")
-    k:onMouseUp(500, 500, "left") -- отпустили мимо
-    check("click: mouseup вне узла после mousedown на нём -> click НЕ засчитан", clicks == 1)
-end
+ctx:onMouseDown(300, 300, "left") -- click elsewhere
+eq(ctx:getFocus(), nil, "click outside clears focus")
+eq(focusLog[2], "blur", "blur event")
 
--- =======================================================================
--- 6. Bubble propagation: клик по child должен также сработать на parent,
---    в правильном порядке (target первым, затем предки)
--- =======================================================================
-do
-    local k = newKernel()
-    local window = k:create(C.NODE_WINDOW)
-    window:setPosition(0, 0):setSize(200, 200)
+-- ---------------------------------------------------------------------
+-- Keyboard: key/text to focused node
+-- ---------------------------------------------------------------------
+local keyLog = {}
+a:on("key", function(e) keyLog[#keyLog + 1] = e.key end)
+a:on("text", function(e) keyLog[#keyLog + 1] = "text:" .. e.text end)
 
-    local panel = k:create(C.NODE_PANEL)
-    panel:setParent(window)
-    panel:setPosition(0, 0):setSize(200, 200)
+ctx:onMouseDown(10, 10, "left") -- focus on a
+ctx:onKeyDown("a", "down", "", "a")
+eq(keyLog[1], "text:a", "text event")
+eq(keyLog[2], "a", "key event")
 
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setParent(panel)
-    btn:setPosition(0, 0):setSize(50, 50)
-
-    local callOrder = {}
-    btn:on("click", function() callOrder[#callOrder+1] = "button" end)
-    panel:on("click", function() callOrder[#callOrder+1] = "panel" end)
-    window:on("click", function() callOrder[#callOrder+1] = "window" end)
-
-    k:onMouseDown(10, 10, "left")
-    k:onMouseUp(10, 10, "left")
-
-    check("bubble: событие дошло до всех 3 уровней", #callOrder == 3)
-    check("bubble: порядок target -> parent -> grandparent",
-        callOrder[1] == "button" and callOrder[2] == "panel" and callOrder[3] == "window")
-end
-
--- =======================================================================
--- 7. stopPropagation() останавливает всплытие на нужном уровне
--- =======================================================================
-do
-    local k = newKernel()
-    local window = k:create(C.NODE_WINDOW)
-    window:setPosition(0, 0):setSize(200, 200)
-
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setParent(window)
-    btn:setPosition(0, 0):setSize(50, 50)
-
-    local windowClicked = false
-    btn:on("click", function(e) e.stopPropagation() end)
-    window:on("click", function() windowClicked = true end)
-
-    k:onMouseDown(10, 10, "left")
-    k:onMouseUp(10, 10, "left")
-
-    check("stopPropagation: событие не доходит до родителя после остановки",
-        windowClicked == false)
-end
-
--- =======================================================================
--- 8. Уничтоженный узел не оставляет мёртвых слушателей (нет утечки/ошибки)
--- =======================================================================
-do
-    local k = newKernel()
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setPosition(0, 0):setSize(50, 50)
-
-    local calls = 0
-    btn:on("click", function() calls = calls + 1 end)
-    k:destroy(btn)
-
-    check("cleanup: слушатели уничтоженного узла не в EventBus",
-        k.eventBus.listeners[btn.id] == nil or next(k.eventBus.listeners) == nil)
-
-    -- клик по тому же месту не должен ни на что упасть (узла больше нет в interactiveIds)
-    local ok = pcall(function()
-        k:onMouseDown(10, 10, "left")
-        k:onMouseUp(10, 10, "left")
-    end)
-    check("cleanup: клик по опустевшей области не падает", ok)
-    check("cleanup: обработчик уничтоженного узла не вызывается", calls == 0)
-end
-
--- =======================================================================
--- 9. destroy родителя во время всплытия (обработчик child уничтожает
---    родителя) не должен уронить EventBus:emit
--- =======================================================================
-do
-    local k = newKernel()
-    local window = k:create(C.NODE_WINDOW)
-    window:setPosition(0, 0):setSize(200, 200)
-    local btn = k:create(C.NODE_BUTTON)
-    btn:setParent(window)
-    btn:setPosition(0, 0):setSize(50, 50)
-
-    btn:on("click", function() k:destroy(window) end)
-
-    local ok = pcall(function()
-        k:onMouseDown(10, 10, "left")
-        k:onMouseUp(10, 10, "left")
-    end)
-    check("robustness: уничтожение родителя обработчиком child не роняет emit", ok)
-end
-
-print(string.format("\n%d passed, %d failed", passed, failed))
-os.exit(failed == 0 and 0 or 1)
+-- ---------------------------------------------------------------------
+-- Summary
+-- ---------------------------------------------------------------------
+print(string.format("test_input: %d passed, %d failed", passed, failed))
+if failed > 0 then os.exit(1) end

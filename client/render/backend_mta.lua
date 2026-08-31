@@ -1,155 +1,122 @@
 --[[
-    backend_mta.lua
+    backend_mta.lua — DXUI V2
 
-    Реализация драйвера рендера поверх MTA DX9 (dxDraw*/dxSetBlendMode).
+    Backend implementation on top of MTA DX9 (dxDraw*/dxSetBlendMode).
 
-    M8 (ADR-011): RT-based clip + real opacity + blur-шейдер.
-      - clip: pushClip/popClip через RTManager (dxCreateRenderTarget).
-      - opacity: модуляция альфа-канала packed 0xAARRGGBB через bitReplace.
-      - blur: 5-tap Gaussian blur shader. Image — напрямую (dxDrawImage+shader).
-        Rect/Text (M10) — blur-fallback: рендер в RT, затем draw RT с шейдером.
+    This is the only entry point for the external dx* dependency in the
+    whole engine. Tests use a mock instead (see tests/).
+
+    Stage 9: drawRoundedRect (SDF shader, fallback — flat rect), drawImage
+    with effect (shader: blur/mask) and section (crop via
+    dxDrawImageSection — without distorting proportions).
+
+    Stage 10: RT-groups (effect layer). beginGroup switches rendering to an
+    offscreen RT and sets an offset; draw functions subtract the offset
+    (coords inside the RT are local); endGroup restores the target and draws
+    the RT with the effect (blur/mask). Node-level effects thus get
+    pixel-perfect composition without changing the items model.
 ]]
 
 DXUI = DXUI or {}
-local C = DXUI.Constants
 
--- M8: 5-tap Gaussian blur shader (pass-through если gBlur=0).
-local BLUR_SHADER_CODE = [[
-texture gTexture0;
-float gBlur;
-float2 gTexelSize;
-
-sampler2D Samp0 = sampler_state
-{
-    Texture = <gTexture0>;
-    AddressU = Clamp;
-    AddressV = Clamp;
-};
-
-float4 PS(float2 uv : TEXCOORD0) : COLOR0
-{
-    float4 c = tex2D(Samp0, uv) * 0.5;
-    float2 off = gTexelSize * gBlur;
-    c += tex2D(Samp0, uv + float2(off.x, 0)) * 0.125;
-    c += tex2D(Samp0, uv - float2(off.x, 0)) * 0.125;
-    c += tex2D(Samp0, uv + float2(0, off.y)) * 0.125;
-    c += tex2D(Samp0, uv - float2(0, off.y)) * 0.125;
-    return c;
-}
-
-technique simple
-{
-    pass P0
-    {
-        PixelShader = compile ps_2_0 PS();
-    }
-}
-]]
-
-local function applyOpacity(color, opacity)
-    if opacity >= 255 then return color end
-    if opacity <= 0 then
-        -- Полностью прозрачный: обнуляем альфа
-        return bitReplace(color, 0, 24, 8)
+--- Applies effect params to the shader. Returns the shader or nil.
+local function applyEffect(effect)
+    if not effect or not effect.shader then return nil end
+    if effect.params then
+        for k, v in pairs(effect.params) do
+            dxSetShaderValue(effect.shader, k, v)
+        end
     end
-    local a = bitExtract(color, 24, 8)
-    local newA = math.floor(a * opacity / 255)
-    return bitReplace(color, newA, 24, 8)
+    return effect.shader
 end
 
-DXUI.MtaDriver = {
-    rtManager = nil, -- инициализируется ниже
-    blurShader = nil,
-    currentOpacity = 255,
-    currentBlur = 0,
+-- Stack of active RT-groups: { { rt, offX, offY }, ... }. Empty — draw to screen.
+local groupStack = {}
 
+--- Subtracts the current group offset (world → local RT coords).
+local function adjust(x, y)
+    local n = #groupStack
+    if n > 0 then
+        local g = groupStack[n]
+        return x - g.offX, y - g.offY
+    end
+    return x, y
+end
+
+DXUI.MtaBackend = {
     setBlendMode = function(mode)
         dxSetBlendMode(mode)
     end,
 
-    -- M8: clip-стек управляется RT Manager
-    pushClip = function(x, y, w, h)
-        DXUI.MtaDriver.rtManager:pushClip(x, y, w, h)
-    end,
-
-    popClip = function()
-        DXUI.MtaDriver.rtManager:popClip()
-    end,
-
-    setOpacity = function(opacity)
-        DXUI.MtaDriver.currentOpacity = opacity
-    end,
-
-    setBlur = function(blur)
-        DXUI.MtaDriver.currentBlur = blur
-    end,
-
     drawRect = function(x, y, w, h, color)
-        local c = applyOpacity(color, DXUI.MtaDriver.currentOpacity)
-        local blur = DXUI.MtaDriver.currentBlur
-        local rm = DXUI.MtaDriver.rtManager
-        if blur and blur > 0 and DXUI.MtaDriver.blurShader then
-            -- M10: blur-fallback — рендер rect в RT, затем draw RT с шейдером.
-            local prevRT = rm:getCurrentRT()
-            local rt = rm:acquire(w, h)
-            dxSetRenderTarget(rt, true)
-            dxDrawRectangle(0, 0, w, h, c)
-            dxSetRenderTarget(prevRT)
-            dxSetShaderValue(DXUI.MtaDriver.blurShader, "gBlur", blur)
-            dxSetShaderValue(DXUI.MtaDriver.blurShader, "gTexelSize", 1/w, 1/h)
-            dxDrawImage(x - rm.offsetX, y - rm.offsetY, w, h, rt, 0, 0, 0, 0xFFFFFFFF, DXUI.MtaDriver.blurShader)
-            rm:release(rt)
+        x, y = adjust(x, y)
+        dxDrawRectangle(x, y, w, h, color)
+    end,
+
+    --- Rounded rect: white quad with SDF shader; color via tint
+    -- dxDrawImage (shader outputs white + corner alpha). Without shader — flat rect.
+    drawRoundedRect = function(x, y, w, h, radius, color, effect)
+        x, y = adjust(x, y)
+        local shader = applyEffect(effect)
+        if shader and effect.texture then
+            dxDrawImage(x, y, w, h, effect.texture, 0, 0, 0, color, shader)
         else
-            dxDrawRectangle(x - rm.offsetX, y - rm.offsetY, w, h, c)
+            dxDrawRectangle(x, y, w, h, color) -- fallback (no shader)
         end
     end,
 
-    drawImage = function(x, y, w, h, texture, color)
-        local c = applyOpacity(color, DXUI.MtaDriver.currentOpacity)
-        local blur = DXUI.MtaDriver.currentBlur
-        local shader = nil
-        if blur and blur > 0 and DXUI.MtaDriver.blurShader then
-            dxSetShaderValue(DXUI.MtaDriver.blurShader, "gBlur", blur)
-            dxSetShaderValue(DXUI.MtaDriver.blurShader, "gTexelSize", 1/w, 1/h)
-            shader = DXUI.MtaDriver.blurShader
+    drawImage = function(x, y, w, h, texture, color, effect, section)
+        x, y = adjust(x, y)
+        local shader = applyEffect(effect)
+        if section then
+            -- crop: draw the visible texture SECTION into the clipped quad
+            dxDrawImageSection(x, y, w, h,
+                section[1], section[2], section[3], section[4],
+                texture, 0, 0, 0, color, shader)
+        else
+            dxDrawImage(x, y, w, h, texture, 0, 0, 0, color, shader)
         end
-        dxDrawImage(x - DXUI.MtaDriver.rtManager.offsetX,
-                    y - DXUI.MtaDriver.rtManager.offsetY,
-                    w, h, texture, 0, 0, 0, c, shader)
     end,
 
-    drawText = function(text, x, y, w, h, color)
-        local c = applyOpacity(color, DXUI.MtaDriver.currentOpacity)
-        local blur = DXUI.MtaDriver.currentBlur
-        local rm = DXUI.MtaDriver.rtManager
-        if blur and blur > 0 and DXUI.MtaDriver.blurShader then
-            -- M10: blur-fallback — рендер text в RT, затем draw RT с шейдером.
-            local prevRT = rm:getCurrentRT()
-            local rt = rm:acquire(w, h)
-            dxSetRenderTarget(rt, true)
-            dxDrawText(text, 0, 0, w, h, c)
-            dxSetRenderTarget(prevRT)
-            dxSetShaderValue(DXUI.MtaDriver.blurShader, "gBlur", blur)
-            dxSetShaderValue(DXUI.MtaDriver.blurShader, "gTexelSize", 1/w, 1/h)
-            dxDrawImage(x - rm.offsetX, y - rm.offsetY, w, h, rt, 0, 0, 0, 0xFFFFFFFF, DXUI.MtaDriver.blurShader)
-            rm:release(rt)
-        else
-            dxDrawText(text,
-                       x - rm.offsetX,
-                       y - rm.offsetY,
-                       x + w - rm.offsetX,
-                       y + h - rm.offsetY,
-                       c)
-        end
+    drawText = function(text, x, y, w, h, color, font, align, valign, scaleX, scaleY)
+        x, y = adjust(x, y)
+        dxDrawText(text, x, y, x + w, y + h, color,
+            scaleX or 1, scaleY or 1, font or "default",
+            align or "left", valign or "top")
+    end,
+
+    drawLine = function(x1, y1, x2, y2, color, width)
+        x1, y1 = adjust(x1, y1)
+        x2, y2 = adjust(x2, y2)
+        dxDrawLine(x1, y1, x2, y2, color, width)
+    end,
+
+    -- -----------------------------------------------------------------
+    -- RT-groups (expensive path / effect layer)
+    -- -----------------------------------------------------------------
+
+    --- Switches rendering to an offscreen RT (w×h) with origin (x, y).
+    -- Returns true on success; false — RT unavailable (draw directly).
+    beginGroup = function(x, y, w, h)
+        local rt = DXUI.Effects and DXUI.Effects.acquireRT(w, h)
+        if not rt then return false end
+        dxSetRenderTarget(rt, true)
+        groupStack[#groupStack + 1] = { rt = rt, offX = x, offY = y }
+        return true
+    end,
+
+    --- Restores the target, draws the RT with the effect (blur/mask) in place.
+    -- alpha (0..1) — TRUE group-opacity: the whole composite as one quad,
+    -- interior intersections never blend twice.
+    endGroup = function(x, y, w, h, effect, alpha)
+        local g = table.remove(groupStack)
+        if not g then return end
+        dxSetRenderTarget(nil)
+        local shader = applyEffect(effect)
+        local a = alpha
+        if a == nil or a >= 1 then a = 1 elseif a < 0 then a = 0 end
+        local quadColor = math.floor(255 * a) * 0x1000000 + 0xFFFFFF -- 0xAAFFFFFF
+        dxDrawImage(x, y, w, h, g.rt, 0, 0, 0, quadColor, shader)
+        if DXUI.Effects then DXUI.Effects.releaseRT(g.rt) end
     end,
 }
-
--- M8: lazy init RTManager + blur shader. В tests/вне MTA этот init не вызывается,
--- но если backend_mta.lua загружен, создаём пустые объекты только при наличии dxCreateRenderTarget.
-if dxCreateRenderTarget then
-    DXUI.MtaDriver.rtManager = DXUI.RTManager.new()
-    local ok, shader = pcall(dxCreateShader, BLUR_SHADER_CODE)
-    if ok and shader then
-        DXUI.MtaDriver.blurShader = shader
-    end
-end

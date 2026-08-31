@@ -1,106 +1,68 @@
 --[[
-    events.lua
+    events.lua — DXUI V2
 
-    Реализует ADR-005: только всплытие (bubble), без фазы захвата (capture).
-    Событие обрабатывается сначала на целевом узле (найденном hit-test'ом),
-    затем поднимается по цепочке parent через storage.parent до C.NIL_ID,
-    с возможностью остановки через event.stopPropagation().
+    Event system: target → bubble (up the parent chain). No capture phase
+    (no DOM clone is built). The event is handled on the target node, then
+    travels up the parent chain, stoppable via event:stopPropagation().
 
-    Публичный API регистрации (proxy:on("click", fn)) принимает строки —
-    это cold path (вызывается один раз при настройке UI, не каждый кадр),
-    поэтому строка -> числовая константа мапится один раз здесь и хранится
-    уже в числовом виде (ADR-006: строк в hot path диспетчеризации нет).
+    EventBus is stateless: listeners live on the node itself (node._listeners,
+    see Widget:on), and emit simply walks the parent chain. So bubbling stays
+    inside the context tree (parent never crosses contexts) — context
+    isolation is free.
 ]]
 
 DXUI = DXUI or {}
-local C = DXUI.Constants
-
-local NAME_TO_EVENT = {
-    click      = C.EVENT_CLICK,
-    mousedown  = C.EVENT_MOUSEDOWN,
-    mouseup    = C.EVENT_MOUSEUP,
-    mouseenter = C.EVENT_MOUSEENTER,
-    mouseleave = C.EVENT_MOUSELEAVE,
-    close      = C.EVENT_CLOSE,  -- M12 (ADR-016)
-    wheel      = C.EVENT_WHEEL, -- M13 (ADR-017)
-    scroll     = C.EVENT_SCROLL,-- M13 (ADR-017)
-    focus      = C.EVENT_FOCUS,  -- M14 (ADR-018)
-    blur       = C.EVENT_BLUR,   -- M14 (ADR-018)
-    text       = C.EVENT_TEXT,   -- M14 (ADR-018)
-    key        = C.EVENT_KEY,    -- M14 (ADR-018)
-}
 
 local EventBus = {}
-EventBus.__index = EventBus
-DXUI.EventBus = EventBus
 
-function EventBus.new(storage)
-    local self = setmetatable({}, EventBus)
-    self.storage = storage
-    -- listeners[id] = { [numericEventType] = { fn1, fn2, ... } }
-    self.listeners = {}
-
-    -- Слушатели узла больше не нужны после его уничтожения — используем тот
-    -- же generic destroy-hook, что и Renderer (Storage не знает о EventBus,
-    -- разделение ответственности сохраняется).
-    storage:onNodeDestroyed(function(id)
-        self.listeners[id] = nil
-    end)
-
-    return self
-end
-
---- Регистрирует обработчик. eventName — строка публичного API ("click" и т.п.).
-function EventBus:on(id, eventName, fn)
-    local eventType = NAME_TO_EVENT[eventName]
-    assert(eventType, "EventBus:on: unknown event name '" .. tostring(eventName) .. "'")
-
-    local nodeListeners = self.listeners[id]
-    if not nodeListeners then
-        nodeListeners = {}
-        self.listeners[id] = nodeListeners
+--- Deliver event eventName starting at target, bubbling up.
+-- eventData — arbitrary data table (x, y, button, ...). It receives
+-- type/target/currentTarget/stopPropagation/preventDefault.
+-- bubble = false — target event without bubbling (focus/blur/key/text).
+-- Returns the event (so the caller can check defaultPrevented).
+function EventBus.emit(target, eventName, eventData, bubble)
+    -- A destroyed node gets no events: destroy removes subscriptions,
+    -- emit on a dead reference is a predictable no-op.
+    if target._destroyed then
+        local event = eventData or {}
+        event.type = eventName
+        event.target = target
+        return event
     end
-    local typeListeners = nodeListeners[eventType]
-    if not typeListeners then
-        typeListeners = {}
-        nodeListeners[eventType] = typeListeners
-    end
-    typeListeners[#typeListeners + 1] = fn
-end
+    bubble = bubble ~= false -- bubbles by default
+    local event = eventData or {}
+    event.type = eventName
+    event.target = target
+    event.stopped = false
+    event.defaultPrevented = false
+    event.stopPropagation = function() event.stopped = true end
+    event.preventDefault = function() event.defaultPrevented = true end
 
---- Доставляет событие численного типа eventType, начиная с targetId, с
--- бабблингом вверх по родителям. eventData — произвольная таблица, в неё
--- добавляются target/currentTarget/stopPropagation.
-function EventBus:emit(targetId, eventType, eventData)
-    eventData = eventData or {}
-    eventData.target = targetId
-    eventData.stopped = false
-    eventData.stopPropagation = function() eventData.stopped = true end
-    -- M12: preventDefault -- отмена действия по умолчанию (close -> destroy)
-    eventData.defaultPrevented = false
-    eventData.preventDefault = function() eventData.defaultPrevented = true end
-
-    local storage = self.storage
-    local currentId = targetId
-
-    while currentId ~= C.NIL_ID and currentId ~= nil do
-        if not storage:isAlive(currentId) then break end -- узел мог быть уничтожен обработчиком выше по цепочке
-
-        eventData.currentTarget = currentId
-        local nodeListeners = self.listeners[currentId]
-        if nodeListeners then
-            local typeListeners = nodeListeners[eventType]
-            if typeListeners then
-                for i = 1, #typeListeners do
-                    typeListeners[i](eventData)
-                    if eventData.stopped then break end
+    local current = target
+    while current do
+        event.currentTarget = current
+        local listeners = current._listeners
+        if listeners then
+            local list = listeners[eventName]
+            if list then
+                for i = 1, #list do
+                    -- dev mode: a listener error doesn't break the chain
+                    if DXUI.config.debug then
+                        local ok, err = pcall(list[i], event)
+                        if not ok then
+                            DXUI._warn("listener error on '" .. eventName .. "': " .. tostring(err))
+                        end
+                    else
+                        list[i](event)
+                    end
+                    if event.stopped then break end
                 end
             end
         end
-
-        if eventData.stopped then break end
-
-        local slot = storage.idToSlot[currentId]
-        currentId = slot and storage.parent[slot] or C.NIL_ID
+        if event.stopped or not bubble then break end
+        current = current._parent
     end
+    return event
 end
+
+DXUI.EventBus = EventBus

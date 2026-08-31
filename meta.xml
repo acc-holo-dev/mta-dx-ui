@@ -1,42 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <meta>
-    <info
-        name="dxui"
-        description="High-performance retained-mode DX GUI framework for MTA:SA (M20 — polish: opacity-anim, tooltip delay, modal auto-focus, slider click-to-jump/vertical)"
-        author="project"
-        type="script"
-        version="1.0.0-M20"
-    />
-
-    <!--
-        Порядок загрузки предсказуемый и фиксированный (§46 ТЗ: не создавать
-        runtime dependency loader без необходимости). Каждый файл require()
-        нижестоящие модули только по имени файла — MTA грузит client-скрипты
-        в общее Lua-окружение ресурса, поэтому require здесь используется
-        как локальная эмуляция module-паттерна для читаемости и для того,
-        чтобы тот же код был тестируем вне MTA обычным lua5.1 (см. tests/).
-    -->
-    <script src="client/core/constants.lua" type="client" cache="false" />
-    <script src="client/core/storage.lua"   type="client" cache="false" />
-    <script src="client/core/proxy.lua"     type="client" cache="false" />
-    <script src="client/render/commands.lua"    type="client" cache="false" />
-    <script src="client/render/culling.lua"     type="client" cache="false" />
-    <script src="client/render/layout.lua"      type="client" cache="false" />
-    <script src="client/render/clip.lua"        type="client" cache="false" />
-    <script src="client/render/builder.lua"     type="client" cache="false" />
-    <script src="client/render/batcher.lua"     type="client" cache="false" />
-    <script src="client/render/state_cache.lua" type="client" cache="false" />
-    <script src="client/render/rt_manager.lua"  type="client" cache="false" />
-    <script src="client/render/profiler.lua"    type="client" cache="false" />
-    <script src="client/render/backend_mta.lua" type="client" cache="false" />
-    <script src="client/anim/animation.lua"    type="client" cache="false" />
-    <script src="client/input/events.lua"    type="client" cache="false" />
-    <script src="client/input/hittest.lua"   type="client" cache="false" />
-    <script src="client/input/dispatcher.lua" type="client" cache="false" />
-    <script src="client/debug/debug.lua"        type="client" cache="false" />
-    <script src="client/core/kernel.lua"    type="client" cache="false" />
-    <script src="client/core/selftest.lua"  type="client" cache="false" />
-    <script src="client/widgets/ui.lua"     type="client" cache="false" />
-    <script src="client/bootstrap.lua"      type="client" cache="false" />
-    <!-- M9: benchmark — cold path, вызывается вручную DXUI.Bench.runAll(DXUI.instance) -->
-    <script src="bench/bench.lua"           type="client" cache="false" />
+    <info name="dxui" author="dxui-team" type="script" version="2.0.0" description="High-performance retained-mode DX GUI framework for MTA:SA" />
+    <min_mtaversion server="1.5.8-9.20957" client="1.5.8-9.20957" />
+    <script src="client/utils/color.lua" type="client" />
+    <script src="client/core/node.lua" type="client" />
+    <script src="client/core/widget.lua" type="client" />
+    <script src="client/api/context.lua" type="client" />
+    <script src="client/api/ui.lua" type="client" />
+    <script src="client/layout/layout.lua" type="client" />
+    <script src="client/input/hit_test.lua" type="client" />
+    <script src="client/input/events.lua" type="client" />
+    <script src="client/input/dispatcher.lua" type="client" />
+    <script src="client/render/render_list.lua" type="client" />
+    <script src="client/render/renderer.lua" type="client" />
+    <script src="client/render/state.lua" type="client" />
+    <script src="client/render/effects.lua" type="client" />
+    <script src="client/render/backend_mta.lua" type="client" />
+    <script src="client/resources/manager.lua" type="client" />
+    <script src="client/style/theme.lua" type="client" />
+    <script src="client/text/text.lua" type="client" />
+    <script src="client/animation/easing.lua" type="client" />
+    <script src="client/animation/animation.lua" type="client" />
+    <script src="client/translation.lua" type="client" />
+    <script src="client/widgets/panel.lua" type="client" />
+    <script src="client/widgets/label.lua" type="client" />
+    <script src="client/widgets/image.lua" type="client" />
+    <script src="client/widgets/button.lua" type="client" />
+    <script src="client/widgets/toggle.lua" type="client" />
+    <script src="client/widgets/checkbox.lua" type="client" />
+    <script src="client/widgets/radiobutton.lua" type="client" />
+    <script src="client/widgets/slider.lua" type="client" />
+    <script src="client/widgets/progressbar.lua" type="client" />
+    <script src="client/widgets/edit.lua" type="client" />
+    <script src="client/widgets/scrollpanel.lua" type="client" />
+    <script src="client/widgets/gridlist.lua" type="client" />
+    <script src="client/widgets/tabpanel.lua" type="client" />
+    <script src="client/widgets/combobox.lua" type="client" />
+    <script src="client/widgets/popup.lua" type="client" />
+    <script src="client/widgets/contextmenu.lua" type="client" />
+    <script src="client/widgets/tooltip.lua" type="client" />
+    <script src="client/widgets/window.lua" type="client" />
+    <script src="client/widgets/memo.lua" type="client" />
+    <script src="client/widgets/menu.lua" type="client" />
+    <script src="client/widgets/selector.lua" type="client" />
+    <script src="client/widgets/switchbutton.lua" type="client" />
+    <script src="client/widgets/line.lua" type="client" />
+    <script src="client/widgets/layout.lua" type="client" />
+    <script src="client/widgets/scalepane.lua" type="client" />
+    <script src="client/widgets/builders.lua" type="client" />
+    <script src="client/export.lua" type="client" />
+    <script src="client/init.lua" type="client" />
+    <export function="getUI" type="client" />
+    <file src="README.md" />
+    <file src="ARCHITECTURE.md" />
 </meta>
