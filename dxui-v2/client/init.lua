@@ -56,5 +56,6 @@ addEventHandler("onClientResourceStart", resourceRoot, function()
 end)
 
 addEventHandler("onClientResourceStop", resourceRoot, function()
-    -- Контексты — чистые Lua-таблицы; явного освобождения не требуют.
+    -- Контексты — чистые Lua-таблицы; кэшированные dx-ресурсы освобождаем.
+    DXUI.releaseResources()
 end)

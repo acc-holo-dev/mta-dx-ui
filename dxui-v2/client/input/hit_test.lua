@@ -16,12 +16,13 @@ DXUI = DXUI or {}
 local HitTest = {}
 
 --- Возвращает верхний интерактивный узел под точкой (x, y), или nil.
+-- Использует world-координаты (Stage 5 layout), не локальные x/y.
 function HitTest.pick(context, x, y)
     local list = context.interactiveList
     for i = context.interactiveCount, 1, -1 do
         local node = list[i]
-        if x >= node.x and x <= node.x + node.width
-           and y >= node.y and y <= node.y + node.height then
+        if x >= node.worldX and x <= node.worldX + node.width
+           and y >= node.worldY and y <= node.worldY + node.height then
             return node
         end
     end

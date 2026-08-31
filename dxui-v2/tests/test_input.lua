@@ -24,10 +24,16 @@ end
 -- ---------------------------------------------------------------------
 local Panel = DXUI.Widget:extend("Panel", {})
 function Panel:render(renderer)
-    renderer:rect(self.x, self.y, self.width, self.height, self.color)
+    renderer:rect(self.worldX, self.worldY, self.width, self.height, self.color)
 end
 
-local ctx = DXUI.createContext({}) -- пустой backend (render не важен)
+local ctx = DXUI.createContext({
+    setBlendMode = function() end,
+    drawRect = function() end,
+    drawImage = function() end,
+    drawText = function() end,
+    drawLine = function() end,
+})
 
 -- ---------------------------------------------------------------------
 -- Hit-test: верхний узел под точкой
@@ -76,6 +82,11 @@ eq(#clickLog, 1, "stopPropagation stops bubble (only child)")
 -- ---------------------------------------------------------------------
 -- Hover: mouseenter / mouseleave
 -- ---------------------------------------------------------------------
+-- Отключаем child и b, чтобы hover/focus тестировались чисто на a.
+child.enabled = false
+b.enabled = false
+ctx:renderFrame()
+
 local hoverLog = {}
 a:on("mouseenter", function() hoverLog[#hoverLog + 1] = "enter" end)
 a:on("mouseleave", function() hoverLog[#hoverLog + 1] = "leave" end)

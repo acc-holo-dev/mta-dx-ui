@@ -28,14 +28,14 @@ end
 -- ---------------------------------------------------------------------
 local Panel = DXUI.Widget:extend("Panel", {})
 function Panel:render(renderer)
-    renderer:rect(self.x, self.y, self.width, self.height, self.color)
+    renderer:rect(self.worldX, self.worldY, self.width, self.height, self.color)
 end
 
 local Label = DXUI.Widget:extend("Label", {
     text = { default = "", invalidates = { DXUI.DIRTY.RENDER } },
 })
 function Label:render(renderer)
-    renderer:text(self.text, self.x, self.y, self.width, self.height, self.color)
+    renderer:text(self.text, self.worldX, self.worldY, self.width, self.height, self.color)
 end
 
 -- ---------------------------------------------------------------------

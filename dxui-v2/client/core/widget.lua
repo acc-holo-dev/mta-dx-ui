@@ -32,7 +32,14 @@ local DIRTY = DXUI.DIRTY
 local Widget = DXUI.Node:extend("Widget", {
     -- Виджет добавляет цвет как first-class свойство (Node его не имеет —
     -- цвет — визуальная характеристика виджета, а не базового узла).
-    color = { default = 0xFFFFFFFF, invalidates = { DIRTY.RENDER } },
+    -- transform разрешает "#FFFFFF"/{r,g,b,a} в packed 0xAARRGGBB при записи.
+    color = { default = 0xFFFFFFFF, invalidates = { DIRTY.RENDER }, transform = DXUI.resolveColor },
+    -- Stage 7b: шрифт (handle из ui.font("Roboto", 12), cached; nil = default).
+    font = { default = nil, invalidates = { DIRTY.RENDER } },
+    -- Stage 10 (§36/§39): node-level эффекты на ЛЮБОМ виджете. Image рисуется
+    -- прямым шейдером (дешевле); остальные — через RT-группу (effect layer).
+    blur = { default = 0, invalidates = { DIRTY.RENDER } },
+    mask = { default = nil, invalidates = { DIRTY.RENDER } },
 })
 
 -- ---------------------------------------------------------------------
@@ -43,6 +50,21 @@ local Widget = DXUI.Node:extend("Widget", {
 -- Переопределяется каждым конкретным виджетом.
 function Widget:render(renderer)
     -- Базовый виджет ничего не рисует. Конкретные виджеты переопределяют.
+end
+
+--- Stage 7b: измеряет содержимое для autoSize — max extent детей
+-- (локальные координаты; layout-проход вызывает до размещения).
+function Widget:_measureContent()
+    local mx, my = 0, 0
+    local children = self._children
+    for i = 1, #children do
+        local c = children[i]
+        local x2 = c.x + c.width
+        local y2 = c.y + c.height
+        if x2 > mx then mx = x2 end
+        if y2 > my then my = y2 end
+    end
+    return mx, my
 end
 
 -- ---------------------------------------------------------------------
@@ -70,6 +92,22 @@ end
 --- Доставляет событие, начиная с этого узла, с бабблингом вверх (Stage 4).
 function Widget:emit(eventName, event)
     return DXUI.EventBus.emit(self, eventName, event)
+end
+
+--- Смена стиля после создания (§62): эквивалент присвоения self.style —
+--- оба пути идут через единый mutation layer (§7).
+function Widget:setStyle(name)
+    self.style = name
+    return self
+end
+
+--- Прикрепляет props.children к узлу (общий хелпер для билдеров виджетов).
+function Widget.attachChildren(node, props)
+    local children = props and props.children
+    if not children then return end
+    for i = 1, #children do
+        children[i]:setParent(node)
+    end
 end
 
 -- ---------------------------------------------------------------------
