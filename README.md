@@ -6,20 +6,22 @@ a real theme engine, pooled rendering and headless tests.
 ## Quick start (MTA resource)
 
 1. Add this resource to your server, then declare it as a client dependency
-   of your resource (`<export function="getUI" type="client" />`).
+   of your resource (`<include resource="dxui" />`). The engine exports
+   `getUI` (see `meta.xml`).
 2. In your client script:
 
 ```lua
-DXUI.bootstrap({ name = "app", design = { width = 800, height = 600 } })
-local ui = DXUI.getUI("app")
+local ui = exports.dxui:getUI("app", { design = { width = 800, height = 600 } })
 
 local win = ui:window({ title = "Hello", x = 0.3, y = 0.3, width = 200, height = 120 })
 ui:add(win)
 win:container():addChild(ui:button({ x = 10, y = 10, width = 90, height = 28, text = "OK" }))
 ```
 
-That's the whole setup: `bootstrap` owns the frame loop, input glue,
-viewport mapping (`guiGetScreenSize`), and resource-stop cleanup.
+That's the whole setup: the engine owns the frame loop, input glue, viewport
+mapping (`guiGetScreenSize`), and per-resource cleanup. Each consumer
+resource gets its own UI instance (keyed by its resource root), released
+automatically when that resource stops.
 
 ## Feature highlights
 
@@ -41,7 +43,7 @@ viewport mapping (`guiGetScreenSize`), and resource-stop cleanup.
 - **Diagnostics** — `DXUI.Diagnostics.{snapshot, describe, report,
   idleRatio, enableZeroWork}` — the idle contract is assert-tested.
 - **Testability** — the whole engine runs under lupa with a table backend;
-  `python readme/tests/run.py` → **126 assertions, 0 failed**.
+  `python readme/tests/run.py` → **260 assertions, 0 failed**.
 
 ## Bootstrap vs. roll-your-own
 
@@ -55,6 +57,7 @@ the dispatcher via `ui:mouseMove/mouseDown/mouseUp/scroll/key`.
 |-----|------|
 | [`readme/documents/ARCHITECTURE.md`](readme/documents/ARCHITECTURE.md) | full V3 architecture map + decisions |
 | [`readme/documents/ADR.md`](readme/documents/ADR.md) | architecture decision records (ADR-001…009) |
+| [`readme/documents/CODE_STYLE.md`](readme/documents/CODE_STYLE.md) | unified code comment style |
 | [`readme/examples/demo.lua`](readme/examples/demo.lua) | runnable usage example |
 | [`readme/tests/`](readme/tests/) | headless test runner + suites |
 | [`readme/ai/001-v2-audit.md`](readme/ai/001-v2-audit.md) | V2 audit that motivated the rewrite |

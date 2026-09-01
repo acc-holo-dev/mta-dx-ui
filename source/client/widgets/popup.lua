@@ -20,6 +20,7 @@ local Popup = DXUI.Widget:extend("Popup", {
 
 DXUI.Part.declare(Popup, { "content" })
 
+--- Creates the content part and hides the popup until opened.
 Popup._build = function(node)
     node.visible = false
     local content = DXUI.Widget:new({})
@@ -33,6 +34,7 @@ Popup._build = function(node)
     end, "dxui-popup")
 end
 
+--- Returns the content part.
 function Popup:container()
     return self:getPart("content")
 end
@@ -47,6 +49,7 @@ function Popup:open(x, y)
     return self
 end
 
+--- Hides the popup and unregisters it from the popup manager.
 function Popup:close()
     self.visible = false
     if self._context and self._context.dispatcher then
@@ -55,11 +58,10 @@ function Popup:close()
     return self
 end
 
+--- Draws the popup surface.
 function Popup:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
-    local r = self.radius or 8
-    renderer:roundedRect(wx, wy, w, h, r, self.color)
-    renderer:roundedRect(wx, wy, w, h, r, self.borderColor)
+    renderer:borderedRect(wx, wy, w, h, self.radius or 8, self.color, self.borderColor, 1)
 end
 
 DXUI.Builders.register("Popup", Popup)

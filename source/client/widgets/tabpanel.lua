@@ -13,6 +13,7 @@
 
 DXUI = DXUI or {}
 
+--- Rebuilds the tab strip labels from the current labels list.
 local function buildTabs(node)
     local tabsPart = node:getPart("tabs")
     if not tabsPart then return end
@@ -70,6 +71,7 @@ local TabPanel = DXUI.Widget:extend("TabPanel", {
 
 DXUI.Part.declare(TabPanel, { "tabs", "content" })
 
+--- Creates the tabs and content parts.
 TabPanel._build = function(node)
     local th = node.tabHeight or 26
     local tabBar = DXUI.Widget:new({})
@@ -89,6 +91,7 @@ TabPanel._build = function(node)
     buildTabs(node)
 end
 
+--- Adds a page and shows it only when it is the active index.
 function TabPanel:addPage(child)
     local pages = self._pages or {}
     pages[#pages + 1] = child
@@ -105,6 +108,7 @@ function TabPanel:addPage(child)
     return child
 end
 
+--- Draws the active tab's underline indicator.
 function TabPanel:render(renderer)
     local wx, wy = self.worldX, self.worldY
     local th = self.tabHeight or 26

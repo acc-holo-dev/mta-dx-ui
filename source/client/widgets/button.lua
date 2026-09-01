@@ -22,25 +22,15 @@ local Button = DXUI.Widget:extend("Button", {
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
+--- Draws the button surface and its centered text.
 function Button:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     if w <= 0 or h <= 0 then return end
     local r = self.radius or 0
-    if r > 0 then
-        renderer:roundedRect(wx, wy, w, h, r, self.color)
-    else
-        renderer:rect(wx, wy, w, h, self.color)
-    end
     local bc = self.borderColor
-    if bc then
-        if r > 0 then
-            renderer:roundedRect(wx, wy, w, h, r, bc)
-        else
-            renderer:outline(wx, wy, w, h, 1, bc)
-        end
-    end
+    renderer:borderedRect(wx, wy, w, h, r, self.color, bc, 1)
     if self.text and self.text ~= "" then
-        renderer:text(self.text, wx, wy, w, h, self.textColor, self.font, "center", "middle", 1)
+        renderer:text(self.text, wx, wy, w, h, self.textColor, self.font, "center", "center", 1)
     end
 end
 

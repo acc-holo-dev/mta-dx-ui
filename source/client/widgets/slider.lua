@@ -33,6 +33,7 @@ function Slider:_valueFromX(lx)
     return v
 end
 
+--- Applies a value, emitting "change" (unless silent) and "input".
 function Slider:_applyValue(v, silent)
     if self.value ~= v then
         self.value = v
@@ -41,6 +42,7 @@ function Slider:_applyValue(v, silent)
     if self.emit then self:emit("input", v) end
 end
 
+--- Draws the track, the filled section, and the thumb.
 function Slider:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local ts = self.thumbSize or 14
@@ -54,10 +56,11 @@ function Slider:render(renderer)
         renderer:roundedRect(wx, ty, tcx - wx, trackH, 2, self.color)
     end
     -- thumb
-    renderer:roundedRect(tcx - ts / 2, wy + (h - ts) / 2, ts, ts, ts / 2, self.thumbColor)
-    renderer:roundedRect(tcx - ts / 2, wy + (h - ts) / 2, ts, ts, ts / 2, self.thumbBorderColor)
+    renderer:borderedRect(tcx - ts / 2, wy + (h - ts) / 2, ts, ts, ts / 2,
+        self.thumbColor, self.thumbBorderColor, 1)
 end
 
+--- Wires drag and click to update the value.
 Slider._build = function(node)
     node:on("drag-start", function(n)
         n._sliderDragging = true

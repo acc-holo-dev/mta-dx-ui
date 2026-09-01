@@ -31,6 +31,8 @@ DXUI = DXUI or {}
 -- effects.lua caches by inputs, so identity is stable).
 local lastFx, lastFxBase = nil, nil
 
+--- Applies an effect's shader params, skipping re-application when the
+-- effect and base texture are unchanged (identity dedup).
 local function applyEffect(effect, baseTexture)
     if not effect or not effect.shader then
         lastFx, lastFxBase = nil, nil
@@ -38,7 +40,8 @@ local function applyEffect(effect, baseTexture)
     end
     local base = effect.texture or baseTexture
     if effect == lastFx and base == lastFxBase then
-        return effect.shader -- unchanged — shader already has these params
+        -- unchanged — shader already has these params
+        return effect.shader
     end
     lastFx, lastFxBase = effect, base
     if effect.params then
@@ -55,6 +58,7 @@ end
 -- Active RT-group stack: { { rt, offX, offY, prevTarget }, ... }.
 local groupStack = {}
 
+--- Translates a point into the active RT group's local space.
 local function adjust(x, y)
     local n = #groupStack
     if n > 0 then
@@ -65,25 +69,30 @@ local function adjust(x, y)
 end
 
 DXUI.BackendMTA = {
+    --- Sets the native blend mode.
     setBlendMode = function(mode)
         dxSetBlendMode(mode)
     end,
 
+    --- Draws a filled rectangle.
     drawRect = function(x, y, w, h, color)
         x, y = adjust(x, y)
         dxDrawRectangle(x, y, w, h, color)
     end,
 
+    --- Draws a rounded rectangle (SDF shader, or flat rect fallback).
     drawRoundedRect = function(x, y, w, h, radius, color, effect)
         x, y = adjust(x, y)
         local shader = applyEffect(effect)
         if shader then
             dxDrawImage(x, y, w, h, shader, 0, 0, 0, color)
         else
-            dxDrawRectangle(x, y, w, h, color) -- fallback: flat rect
+            -- fallback: flat rect
+            dxDrawRectangle(x, y, w, h, color)
         end
     end,
 
+    --- Draws an image (full or section), optionally through an effect shader.
     drawImage = function(x, y, w, h, texture, color, effect, section)
         x, y = adjust(x, y)
         local shader = applyEffect(effect, texture)
@@ -97,13 +106,15 @@ DXUI.BackendMTA = {
         end
     end,
 
+    --- Draws text with alignment and scale.
     drawText = function(text, x, y, w, h, color, font, align, valign, scaleX, scaleY)
         x, y = adjust(x, y)
         dxDrawText(text, x, y, x + w, y + h, color,
             scaleX or 1, scaleY or 1, font or "default",
-            align or "left", valign or "top")
+            align or "left", valign or "top", true, false, false, false)
     end,
 
+    --- Draws a line segment.
     drawLine = function(x1, y1, x2, y2, color, width)
         x1, y1 = adjust(x1, y1)
         x2, y2 = adjust(x2, y2)
@@ -121,6 +132,7 @@ DXUI.BackendMTA = {
 
     -- RT-groups (expensive path / effect layer) -------------------------
 
+    --- Begins an RT group, redirecting draws into a pooled render target.
     beginGroup = function(x, y, w, h)
         local rt = DXUI.Effects and DXUI.Effects.acquireRT(w, h)
         if not rt then return false end
@@ -131,6 +143,7 @@ DXUI.BackendMTA = {
         return true
     end,
 
+    --- Ends the RT group and composites it back with effect and alpha.
     endGroup = function(x, y, w, h, effect, alpha)
         local g = table.remove(groupStack)
         if not g then return end

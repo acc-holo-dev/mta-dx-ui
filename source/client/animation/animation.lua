@@ -3,11 +3,11 @@
 
     Animation engine: ONE centralized manager per UI instance, ONE tick per
     frame (the instance frame loop calls anim:update()). No per-animation
-    timers, MTA handlers or coroutines (§44).
+    timers, MTA handlers or coroutines.
 
     Animations write REAL node properties through the normal mutation layer
     (_set with owner "system") — no duplicated state; invalidation is
-    automatic. Explicit animation > automatic theme transition (§52).
+    automatic. Explicit animation > automatic theme transition.
 
         local anim = button:animate({ x = 100 }, 300, "out")
         anim:after({ opacity = 0.5 }, 200):onDone(function() ... end)
@@ -23,16 +23,19 @@ local AnimHandle = {}
 AnimHandle.__index = AnimHandle
 DXUI.AnimHandle = AnimHandle
 
+--- Resolves an ease name/function to a callable easing function.
 local function resolveEase(ease)
     if type(ease) == "function" then return ease end
     local name = ease or DXUI.Settings and DXUI.Settings.defaults.animationEasing or "inout"
     return DXUI.EASING[name] or DXUI.EASING.inout
 end
 
+--- Creates an animation manager bound to an instance context.
 function AnimationManager.new(context)
     local self = setmetatable({}, AnimationManager)
     self.context = context
-    self.active = {}       -- { {node, prop, from, to, start, dur, ease, token}, ... }
+    -- { {node, prop, from, to, start, dur, ease, token}, ... }
+    self.active = {}
     self.activeCount = 0
     return self
 end
@@ -128,6 +131,7 @@ function AnimationManager:stop(node)
     end
 end
 
+--- Whether the node has any running animation.
 function AnimationManager:isAnimating(node)
     for i = 1, self.activeCount do
         if self.active[i].node == node then return true end
@@ -135,6 +139,7 @@ function AnimationManager:isAnimating(node)
     return false
 end
 
+--- Decrements a token's remaining count and fires onDone when it reaches zero.
 local function finishEntry(entry)
     local token = entry.token
     if not token then return end
@@ -148,7 +153,8 @@ end
 -- node:_set(prop, value, "system") — normal mutation layer, automatic
 -- invalidation. Paused chains freeze (timestamps shift on resume).
 function AnimationManager:update()
-    if self.activeCount == 0 then return end -- zero-work idle
+    -- zero-work idle
+    if self.activeCount == 0 then return end
     local now = self.context.clock()
     local i = 1
     while i <= self.activeCount do
@@ -166,7 +172,8 @@ function AnimationManager:update()
                 local t = (now - a.start) / a.dur
                 if t >= 1 then
                     node:_set(a.prop, a.to, "system")
-                    removeAt(self, i) -- remove FIRST (callbacks may chain)
+                    -- remove FIRST (callbacks may chain)
+                    removeAt(self, i)
                     finishEntry(a)
                 else
                     if t < 0 then t = 0 end

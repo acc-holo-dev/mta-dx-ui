@@ -20,11 +20,13 @@ local Tooltip = DXUI.Widget:extend("Tooltip", {
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
 })
 
+--- Approximate intrinsic size while autoSize is on (before layout runs).
 function Tooltip:_measureContent()
     local w = #(self.text or "") * 7 + 2 * (self.padX or 8)
     return w, 15 + 2 * (self.padY or 4)
 end
 
+--- Positions the tooltip in WORLD coords and brings it to the front.
 function Tooltip:showAt(x, y)
     self:setPosition(x, y)
     self.visible = true
@@ -32,14 +34,17 @@ function Tooltip:showAt(x, y)
     return self
 end
 
+--- Hides the tooltip; the node stays mounted (next showAt re-reveals it).
 function Tooltip:hide()
     self.visible = false
     return self
 end
 
+--- Initial build: tooltips start hidden and float above everything else.
 Tooltip._build = function(node)
     node.visible = false
-    node.zIndex = 1000 -- topmost layer for tooltips
+    -- tooltips float above everything else
+    node.zIndex = 1000
 end
 
 --- Binds to a target node: shows near it on hover-start, hides on hover-end.
@@ -58,6 +63,10 @@ function Tooltip:attach(target, anchor)
     return self
 end
 
+--- Recomputes position around the attached target for the current anchor.
+-- The tooltip is PARENTED to its target, so setPosition expects local
+-- coords; the intended world anchor point is converted back through the
+-- parent's origin.
 function Tooltip:refresh()
     self.autoSize = true
     local t = self._target
@@ -84,12 +93,14 @@ function Tooltip:refresh()
     self:setPosition(wx - lx, wy - ly)
 end
 
+--- Paints the rounded background + centered text at the current position.
+-- Only draws while visible (hidden tooltips emit nothing).
 function Tooltip:render(renderer)
     if not self.visible then return end
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local r = self.radius or 4
     renderer:roundedRect(wx, wy, w, h, r, self.color)
-    renderer:text(self.text or "", wx, wy, w, h, self.textColor, self.font, "center", "middle", 1)
+    renderer:text(self.text or "", wx, wy, w, h, self.textColor, self.font, "center", "center", 1)
 end
 
 DXUI.Builders.register("Tooltip", Tooltip)

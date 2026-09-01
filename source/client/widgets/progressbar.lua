@@ -18,6 +18,7 @@ local ProgressBar = DXUI.Widget:extend("ProgressBar", {
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
 })
 
+--- Sets the value, clamped to 0..1.
 function ProgressBar:setProgress(v)
     local cl = v
     if cl < 0 then cl = 0 elseif cl > 1 then cl = 1 end
@@ -25,6 +26,7 @@ function ProgressBar:setProgress(v)
     return self
 end
 
+--- Draws the background and the filled portion.
 function ProgressBar:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     if w <= 0 or h <= 0 then return end

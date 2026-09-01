@@ -7,7 +7,7 @@
     Identity rule (state cache contract): effects are SHARED tables keyed by
     inputs — identical items use the same table, so the backend's
     shader-parameter dedup works by pointer identity. Texel sizes are baked
-    at CREATION (no per-item clones — the V2 fitBlurTexel flaw is gone).
+    at creation, so identical items share one table.
 
     Outside MTA (tests): dx functions absent → effects return nil, widgets
     degrade to flat draws. Tests stub fake dx functions BEFORE first use.
@@ -92,6 +92,7 @@ local blurCache, blurCount = {}, 0
 local maskCache, maskCount = {}, 0
 local EFFECT_CAP = 512
 
+--- Inserts a value into a cache, resetting that cache when it overflows.
 local function cacheInsert(cache, capName, key, value)
     if capName >= EFFECT_CAP then
         if cache == roundCache then roundCache, roundCount = {}, 0
@@ -108,17 +109,22 @@ end
 -- White pixel (1x1 RT filled white) — basis for the rounded quad.
 local whiteTexture = nil
 
+--- Returns the shared 1x1 white texture, creating it lazily on first use.
 function Effects.whiteTexture()
-    if whiteTexture ~= nil then return whiteTexture end
-    whiteTexture = false -- nil-detector
+    if whiteTexture ~= nil then return whiteTexture ~= false and whiteTexture or nil end
+    -- false marks "dx unavailable" (no retry); nil means "not yet attempted"
+    whiteTexture = false
     if dxCreateRenderTarget and dxGetRenderTarget and dxSetRenderTarget then
-        local ok, rt = pcall(dxCreateRenderTarget, 2, 2)
+        local ok, rt = pcall(dxCreateRenderTarget, 2, 2, true)
         if ok and rt then
             local prev = dxGetRenderTarget()
             dxSetRenderTarget(rt)
             dxDrawRectangle(0, 0, 2, 2, 0xFFFFFFFF)
             dxSetRenderTarget(prev)
             whiteTexture = rt
+        else
+            -- transient failure: allow a retry on the next call
+            whiteTexture = nil
         end
     end
     return whiteTexture ~= false and whiteTexture or nil
@@ -157,7 +163,8 @@ function Effects.blur(w, h, strength)
                 shader = sh,
                 params = {
                     gBlur = strength,
-                    gTexelSize = { 1 / w, 1 / h }, -- baked once, shared
+                    -- baked once, shared by every item with this size
+                    gTexelSize = { 1 / w, 1 / h },
                 },
             }
         end
@@ -212,7 +219,8 @@ end
 -- Render-target pool
 -- ---------------------------------------------------------------------
 
-local rtPool, rtCap = {}, 0
+local rtPool = {}
+local RT_POOL_CAP = 64
 
 --- Acquires an RT of at least w×h (exact match first). Creation on miss.
 function Effects.acquireRT(w, h)
@@ -230,7 +238,9 @@ function Effects.acquireRT(w, h)
         return reuseEntry.rt
     end
     if dxCreateRenderTarget then
-        local ok, rt = pcall(dxCreateRenderTarget, w, h)
+        -- withAlpha=true keeps transparency inside the group (rounded
+        -- corners, faded children); false would render opaque black.
+        local ok, rt = pcall(dxCreateRenderTarget, w, h, true)
         if ok and rt then return rt end
     end
     return nil
@@ -239,14 +249,14 @@ end
 --- Returns an RT to the pool with its size key (bounded; overflow destroys
 -- the RT instead of pooling). Re-acquire is an exact-size match.
 function Effects.releaseRT(rt, key)
-    if rtCap >= 64 then
+    if #rtPool >= RT_POOL_CAP then
         if isElement and isElement(rt) then destroyElement(rt) end
         return
     end
-    rtCap = rtCap + 1
     rtPool[#rtPool + 1] = { rt = rt, key = key }
 end
 
+--- Destroys every pooled RT and the white texture (full teardown).
 function Effects.releasePool()
     if isElement and destroyElement then
         for i = 1, #rtPool do
@@ -258,8 +268,25 @@ function Effects.releasePool()
         end
     end
     rtPool = {}
-    rtCap = 0
     whiteTexture = nil
+end
+
+--- Destroys every cached shader/RT (called by releaseResources on stop).
+function Effects.clearCaches()
+    if isElement and destroyElement then
+        for key, fx in pairs(roundCache) do
+            if fx.shader and isElement(fx.shader) then destroyElement(fx.shader) end
+        end
+        for key, fx in pairs(blurCache) do
+            if fx.shader and isElement(fx.shader) then destroyElement(fx.shader) end
+        end
+        for key, fx in pairs(maskCache) do
+            if fx.shader and isElement(fx.shader) then destroyElement(fx.shader) end
+        end
+    end
+    roundCache, roundCount = {}, 0
+    blurCache, blurCount = {}, 0
+    maskCache, maskCount = {}, 0
 end
 
 DXUI.Effects = Effects

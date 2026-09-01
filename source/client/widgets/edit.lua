@@ -9,7 +9,7 @@
         e:on("change", function(n, text) ... end)
 
     Keys: printable chars, space, backspace, enter (submit), left/right
-    moves cursor, home/end, delete (mac?) not, Escape blurs.
+    moves cursor, home/end, Escape blurs.
 ]]
 
 DXUI = DXUI or {}
@@ -25,7 +25,7 @@ local Edit = DXUI.Widget:extend("Edit", {
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     focusBorderColor = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
-    padding = { left = 8, right = 8, top = 0, bottom = 0 },
+    padding = { default = { left = 8, right = 8, top = 0, bottom = 0 }, invalidates = { DXUI.DIRTY.LAYOUT } },
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
@@ -41,6 +41,7 @@ function Edit:_insert(ch)
     if self.emit then self:emit("change", self.text) end
 end
 
+--- Deletes the character before the cursor.
 function Edit:_backspace()
     local pos = self.cursor or 0
     if pos <= 0 then return end
@@ -50,18 +51,18 @@ function Edit:_backspace()
     if self.emit then self:emit("change", self.text) end
 end
 
+--- Draws the input box, text/placeholder, and the caret when focused.
 function Edit:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local r = self.radius or 4
     local fmt = self:getState()
     local border = (fmt == "focused") and (self.focusBorderColor or self.borderColor) or self.borderColor
-    renderer:roundedRect(wx, wy, w, h, r, self.bgColor)
-    renderer:roundedRect(wx, wy, w, h, r, border)
+    renderer:borderedRect(wx, wy, w, h, r, self.bgColor, border, 1)
 
     local text = self.text
     local shown = (text == EMPTY or text == nil) and self.placeholder or text
     local color = (text == EMPTY or text == nil) and (self.placeholderColor or self.textColor) or self.textColor
-    renderer:text(shown, wx + 8, wy, w - 16, h, color, self.font, "left", "middle", 1)
+    renderer:text(shown, wx + 8, wy, w - 16, h, color, self.font, "left", "center", 1)
 
     if fmt == "focused" and text ~= EMPTY then
         local cx = DXUI.Text and DXUI.Text.charX(text, self.font, 1, self.cursor or 0) or 0
@@ -70,8 +71,7 @@ function Edit:render(renderer)
     end
 end
 
---- Tracks focus for the focused style state: onSet for focusable state is
--- driven by dispatcher focus/blur events.
+--- Wires focus/blur/key/character events for text editing.
 Edit._build = function(node)
     node:on("focus", function(n)
         n.cursor = #n.text
@@ -92,10 +92,11 @@ Edit._build = function(node)
             n.cursor = math.min(#n.text, (n.cursor or 0) + 1)
         elseif keyName == "home" then n.cursor = 0
         elseif keyName == "end" then n.cursor = #n.text
-        elseif keyName == "space" then n:_insert(" ")
-        elseif #keyName == 1 then n:_insert(keyName)
         end
         return true
+    end, "dxui-edit")
+    node:on("character", function(n, ch)
+        n:_insert(ch)
     end, "dxui-edit")
 end
 

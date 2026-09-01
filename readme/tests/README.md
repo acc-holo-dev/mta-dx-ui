@@ -37,4 +37,4 @@ runtime and observable backend (draw counters).
   through real (`ui:mouse*`, `ui:key`) calls.
 - Theme switch re-application and the owner guard (user props survive).
 
-Exit code 0 = all suites green (current: **245 assertions, 0 failed**).
+Exit code 0 = all suites green (current: **260 assertions, 0 failed**).

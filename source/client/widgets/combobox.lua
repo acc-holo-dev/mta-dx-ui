@@ -33,10 +33,12 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
 
 DXUI.Part.declare(ComboBox, { "head", "dropdown" })
 
+--- Returns the display text for an item (string or {text=...}).
 local function rowText(item)
     return (type(item) == "table") and (item.text or "") or tostring(item)
 end
 
+--- Rebuilds the dropdown rows from the current items.
 local function rebuildRows(node)
     local dd = node:getPart("dropdown")
     if not dd then return end
@@ -74,10 +76,12 @@ local function rebuildRows(node)
     end
 end
 
+--- Measures the head width and row height for autoSize.
 function ComboBox:_measureContent()
     return (self._data and self._data.width) or 140, self.rowHeight or 22
 end
 
+--- Builds the head and dropdown parts and wires open/close behavior.
 ComboBox._build = function(node, props)
     local Label = DXUI.Widgets and DXUI.Widgets.Label or DXUI.Widget
     local headH = node.rowHeight or 22
@@ -86,14 +90,16 @@ ComboBox._build = function(node, props)
     head.layoutHeight = { k = "px", v = headH }
     head.layoutMode = "relative"
     head.align = "left"
-    head.valign = "middle"
+    head.valign = "center"
     node:setPart("head", head)
 
     local dd = DXUI.Widget:new({})
-    dd.layoutMode = "absolute" -- y is a pixel offset below the head
+    -- y is a pixel offset below the head
+    dd.layoutMode = "absolute"
     dd.layoutWidth = DXUI.percent(100)
     dd.layoutHeight = DXUI.auto()
-    dd.y = headH -- dropdown hangs below the head
+    -- dropdown hangs below the head
+    dd.y = headH
     dd.zIndex = 5
     dd.visible = false
     node:setPart("dropdown", dd)
@@ -137,6 +143,7 @@ function ComboBox:showDropdown()
     return self
 end
 
+--- Closes the dropdown and unregisters it from the popup manager.
 function ComboBox:hideDropdown()
     self.open = false
     local dd = self:getPart("dropdown")
@@ -149,6 +156,7 @@ function ComboBox:hideDropdown()
     return self
 end
 
+--- Appends an item and rebuilds the rows.
 function ComboBox:addItem(item)
     self.items[#self.items + 1] = item
     rebuildRows(self)
@@ -162,12 +170,12 @@ ComboBox._spec.items.onSet = function(node, v)
     rebuildRows(node)
 end
 
+--- Draws the head box and the caret arrow.
 function ComboBox:render(renderer)
     local wx, wy, w = self.worldX, self.worldY, self.width
     local headH = self.rowHeight or 22
     local r = self.radius or 4
-    renderer:roundedRect(wx, wy, w, headH, r, self.headColor)
-    renderer:roundedRect(wx, wy, w, headH, r, self.borderColor)
+    renderer:borderedRect(wx, wy, w, headH, r, self.headColor, self.borderColor, 1)
     -- caret arrow (two strokes forming a down-triangle)
     local ax = wx + w - 13
     local ay = wy + headH / 2

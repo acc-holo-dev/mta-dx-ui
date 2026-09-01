@@ -37,6 +37,7 @@ end
 -- Widget factories (late-bound to widgets.lua registry)
 -- ---------------------------------------------------------------------
 
+--- Returns a factory that builds a widget of the given class name.
 local function widgetFactory(name)
     return function(self, props)
         local cls = DXUI.Widgets and DXUI.Widgets[name]
@@ -50,6 +51,7 @@ local function widgetFactory(name)
     end
 end
 
+--- Builds a widget by class name (generic factory).
 function UI:widget(name, props)
     local cls = DXUI.Widgets and DXUI.Widgets[name]
     if not cls then
@@ -71,27 +73,35 @@ end
 -- Value factories
 -- ---------------------------------------------------------------------
 
+--- Packs an RGBA color into a 0xAARRGGBB integer (or proxy).
 function UI:color(r, g, b, a)
     if DXUI.color then return DXUI.color(r, g, b, a) end
     return 0xFF000000
 end
 
+--- Returns a percent sizing value.
 function UI:percent(n) return DXUI.percent and DXUI.percent(n) or n end
+--- Returns the auto sizing value.
 function UI:auto() return DXUI.auto and DXUI.auto() or nil end
+--- Returns the fill sizing value.
 function UI:fill() return DXUI.fill and DXUI.fill() or nil end
 
 -- ---------------------------------------------------------------------
 -- Resources
 -- ---------------------------------------------------------------------
 
+--- Loads (or returns the cached) texture for a path.
 function UI:texture(path) return DXUI.texture and DXUI.texture(path) end
+--- Loads (or returns the cached) font for a file path and size.
 function UI:font(name, size) return DXUI.font and DXUI.font(name, size) end
+--- Compiles (or returns the cached) shader for source code.
 function UI:shader(code) return DXUI.shader and DXUI.shader(code) end
 
 -- ---------------------------------------------------------------------
 -- Translation shortcuts
 -- ---------------------------------------------------------------------
 
+--- Binds a translation key to a target's text property.
 function UI:setTextKey(key, target, textProp)
     if target and target.setTextKey then
         target:setTextKey(key, textProp)
@@ -99,11 +109,13 @@ function UI:setTextKey(key, target, textProp)
     return self
 end
 
+--- Registers a locale dictionary.
 function UI:addLocale(lang, dict)
     if DXUI.addLocale then DXUI.addLocale(lang, dict) end
     return self
 end
 
+--- Activates a locale.
 function UI:setLocale(lang)
     if DXUI.setLocale then DXUI.setLocale(lang) end
     return self
@@ -120,6 +132,7 @@ function UI:add(node)
     return node
 end
 
+--- Removes a node from its parent.
 function UI:remove(node)
     if node and node.removeFromParent then node:removeFromParent() end
     return self

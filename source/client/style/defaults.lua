@@ -70,7 +70,8 @@ local theme = {
                     borderColor = "@color.danger",
                 },
                 ghost = {
-                    color = 0x00000000, -- transparent fill
+                    -- transparent fill
+                    color = 0x00000000,
                     textColor = "@color.text",
                     borderColor = 0x00000000,
                 },

@@ -42,8 +42,10 @@ local function contentExtent(node)
     return mx, my
 end
 
+--- Creates the content part and wires wheel scrolling.
 ScrollPanel._build = function(node)
-    node.clip = true -- contents never overflow the viewport
+    -- contents never overflow the viewport
+    node.clip = true
     local content = DXUI.Widget:new({})
     node:setPart("content", content)
     node:on("scroll", function(n, wheel)
@@ -52,6 +54,7 @@ ScrollPanel._build = function(node)
     end, "dxui-scroll")
 end
 
+--- Returns the scrollable content part.
 function ScrollPanel:container()
     return self:getPart("content")
 end
@@ -65,6 +68,7 @@ function ScrollPanel:setScroll(x, y)
     return self
 end
 
+--- Scrolls by a pixel delta, clamped to the content extent.
 function ScrollPanel:scrollBy(dx, dy)
     local cx, cy = contentExtent(self:getPart("content"))
     local sx = 0
@@ -83,6 +87,7 @@ function ScrollPanel:scrollBy(dx, dy)
     return self
 end
 
+--- Moves the content part to reflect the current scroll fractions.
 function ScrollPanel:_applyScroll()
     local content = self:getPart("content")
     if not content then return end
@@ -92,6 +97,7 @@ function ScrollPanel:_applyScroll()
     content:setPosition(-ox, -oy)
 end
 
+--- Draws the vertical and horizontal scrollbar thumbs.
 function ScrollPanel:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local cx, cy = contentExtent(self:getPart("content"))

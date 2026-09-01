@@ -20,10 +20,11 @@
 DXUI = DXUI or {}
 
 -- ---------------------------------------------------------------------
--- Configuration / warnings (error handling, §71)
+-- Configuration / warnings (error handling)
 -- ---------------------------------------------------------------------
 DXUI.config = DXUI.config or { dev = false }
 
+--- Logs a warning in dev mode only.
 function DXUI._warn(msg)
     if DXUI.config.dev then
         if outputDebugString then
@@ -48,7 +49,7 @@ DXUI.DIRTY = {
 }
 local DIRTY = DXUI.DIRTY
 
--- Category -> instance frame flags (see readme/ai/002-v3-contracts.md §3).
+-- Category -> instance frame flags.
 local CATEGORY_FLAGS = {
     [DIRTY.LAYOUT]     = { layout = true, render = true, interactive = true },
     [DIRTY.STYLE]      = { render = true },
@@ -56,7 +57,7 @@ local CATEGORY_FLAGS = {
     [DIRTY.INPUT]      = { interactive = true },
     [DIRTY.CONTENT]    = { layout = true, render = true, order = true, interactive = true },
     [DIRTY.VISIBILITY] = { render = true, interactive = true },
-    [DIRTY.ORDER]      = { render = true, order = true },
+    [DIRTY.ORDER]      = { render = true, order = true, interactive = true },
 }
 
 DXUI.LAYER = {
@@ -88,7 +89,8 @@ Node.properties = {
     visible  = { default = true, invalidates = { DIRTY.VISIBILITY } },
     enabled  = { default = true, invalidates = { DIRTY.INPUT, DIRTY.RENDER }, onSet = function(node)
         if node._class and node._class._applyStyleState then
-            node:_applyStyleState() -- disabled state visually re-applies
+            -- disabled state visually re-applies
+            node:_applyStyleState()
         end
     end },
     opacity  = { default = 1,    type = "number", min = 0, max = 1, invalidates = { DIRTY.RENDER } },
@@ -114,8 +116,10 @@ Node.properties = {
     flexDirection = { default = nil, invalidates = { DIRTY.LAYOUT },
         validate = function(v) return v == nil or v == "row" or v == "column" end },
     gap      = { default = 0, type = "number", min = 0, invalidates = { DIRTY.LAYOUT } },
-    align    = { default = nil, invalidates = { DIRTY.LAYOUT } },   -- start|center|end|stretch
-    justify  = { default = nil, invalidates = { DIRTY.LAYOUT } },   -- start|center|end|spaceBetween|spaceAround|spaceEvenly
+    -- start|center|end|stretch
+    align    = { default = nil, invalidates = { DIRTY.LAYOUT } },
+    -- start|center|end|spaceBetween|spaceAround|spaceEvenly
+    justify  = { default = nil, invalidates = { DIRTY.LAYOUT } },
     grow     = { default = 0, type = "number", min = 0, invalidates = { DIRTY.LAYOUT } },
     shrink   = { default = 0, type = "number", min = 0, invalidates = { DIRTY.LAYOUT } },
     wrap     = { default = false, invalidates = { DIRTY.LAYOUT } },
@@ -126,7 +130,8 @@ Node.properties = {
     layoutHeight = { default = nil, invalidates = { DIRTY.LAYOUT } },
     -- clipping / compositing
     clip     = { default = false, invalidates = { DIRTY.RENDER, DIRTY.INPUT } },
-    clipMode = { default = nil,   invalidates = { DIRTY.RENDER } },  -- "rt" (expensive path)
+    -- "rt" (expensive path)
+    clipMode = { default = nil,   invalidates = { DIRTY.RENDER } },
     autoSize = { default = false, invalidates = { DIRTY.LAYOUT } },
     interactive = { default = false, invalidates = { DIRTY.INPUT }, onSet = function(node)
         if DXUI.HitTest then DXUI.HitTest.invalidate(node) end
@@ -145,7 +150,7 @@ Node.parts = nil
 
 -- read-only computed fields (managed by the engine)
 local READONLY = {
-    parent = true, children = true, context = true, destroyed = true,
+    children = true, context = true, destroyed = true,
     worldX = true, worldY = true, parts = true,
 }
 
@@ -156,6 +161,7 @@ local nextId = 1
 -- Instance metatable (shared)
 -- ---------------------------------------------------------------------
 local mt = {
+    --- Resolves property reads: pseudo-properties, value objects, parts, data, methods.
     __index = function(self, key)
         if key == "parent"    then return self._parent end
         if key == "children"  then return self._children end
@@ -164,14 +170,15 @@ local mt = {
         if key == "worldX"    then return self._worldX end
         if key == "worldY"    then return self._worldY end
         if key == "parts"     then return self._parts end
-        -- value objects (§11): cached proxies, never allocated per access
+        -- value objects: cached proxies, never allocated per access
         if key == "position" then return DXUI.PointProxy(self) end
         if key == "size"     then return DXUI.SizeProxy(self) end
 
-        -- parts (§14-16): named child slots
+        -- parts: named child slots
         local pk = self._partKeys
         if pk and pk[key] then
-            return self._parts[key] -- nil when the part is not set
+            -- nil when the part is not set
+            return self._parts[key]
         end
 
         local spec = self._spec[key]
@@ -190,12 +197,17 @@ local mt = {
         return nil
     end,
 
+    --- Routes property writes: reparent, part replacement, spec writes, raw fields.
     __newindex = function(self, key, value)
+        -- parent is a writable pseudo-property: reparents
+        if key == "parent" then
+            return self:setParent(value)
+        end
         if READONLY[key] then
             DXUI._warn("read-only property: " .. key)
             return
         end
-        -- part replacement: node.header = customButton (§16)
+        -- part replacement: node.header = customButton
         local pk = self._partKeys
         if pk and pk[key] then
             return self:setPart(key, value)
@@ -219,13 +231,12 @@ function Node:new(props)
     return self:_instantiate(self, props)
 end
 
+--- Builds a node instance from a class, applying props and theme defaults.
 function Node:_instantiate(cls, props)
     local self = setmetatable({}, mt)
     rawset(self, "_class", cls)
     rawset(self, "_spec", cls._spec)
     rawset(self, "_data", {})
-    rawset(self, "_dirty", {})
-    rawset(self, "_queued", false)
     rawset(self, "_context", nil)
     rawset(self, "_parent", nil)
     rawset(self, "_children", {})
@@ -235,11 +246,14 @@ function Node:_instantiate(cls, props)
     rawset(self, "_worldX", 0)
     rawset(self, "_worldY", 0)
     rawset(self, "_state", "normal")
-    rawset(self, "_owner", {})       -- who last wrote each property
-    rawset(self, "_themeApplied", {})-- properties currently owned by the theme
+    -- who last wrote each property
+    rawset(self, "_owner", {})
+    -- properties currently owned by the theme
+    rawset(self, "_themeApplied", {})
     rawset(self, "_parts", {})
     rawset(self, "_partKeys", cls.parts or {})
-    rawset(self, "_values", nil)      -- lazily created value-object cache
+    -- lazily created value-object cache
+    rawset(self, "_values", nil)
 
     -- defaults (class chain already merged into _spec)
     for k, spec in pairs(cls._spec) do
@@ -264,7 +278,8 @@ function Node:_instantiate(cls, props)
                 if isMethod then
                     error("props key shadows a method: " .. tostring(k), 3)
                 end
-                self[k] = v -- arbitrary user field
+                -- arbitrary user field
+                self[k] = v
             end
         end
     end
@@ -272,7 +287,7 @@ function Node:_instantiate(cls, props)
     -- theme defaults for properties not given in props (late-bound; Widget
     -- is loaded before any node is created at runtime).
     if DXUI.Widget and DXUI.Widget.applyThemeDefaults then
-        DXUI.Widget.applyThemeDefaults(self, props)
+        DXUI.Widget.applyThemeDefaults(self)
     end
 
     rawset(self, "_building", nil)
@@ -292,7 +307,8 @@ function Node:extend(name, properties)
     Sub._spec = {}
     for k, v in pairs(self._spec) do Sub._spec[k] = v end
     for k, v in pairs(Sub.properties) do
-        if k ~= "parts" then Sub._spec[k] = v end -- parts are slot names, not props
+        -- parts are slot names, not props
+        if k ~= "parts" then Sub._spec[k] = v end
     end
     -- parts merge: subclass parts are added to the ancestor's
     Sub.parts = {}
@@ -315,6 +331,7 @@ end
 -- Mutation layer (single point of property changes)
 -- ---------------------------------------------------------------------
 
+--- Builds (and caches) the validator for a property spec.
 local function getValidator(spec)
     if spec._validator ~= nil then return spec._validator end
     local checks = {}
@@ -401,23 +418,11 @@ function Node:_set(key, value, owner)
     return self
 end
 
-function Node:_hasDirty()
-    local d = self._dirty
-    for _, v in pairs(d) do if v then return true end end
-    return false
-end
-
 --- Marks the node dirty for the given categories and propagates the
--- category -> instance frame flags (see CATEGORY_FLAGS above). Node-local
--- flags are always recorded (consumed when the node mounts later).
+-- category -> instance frame flags (see CATEGORY_FLAGS above).
 function Node:_invalidate(categories)
-    local d = self._dirty
-    for i = 1, #categories do
-        d[categories[i]] = true
-    end
     local c = self._context
     if c then
-        if not self._queued then c:_queueNode(self) end
         for i = 1, #categories do
             local flags = CATEGORY_FLAGS[categories[i]]
             if flags then
@@ -446,10 +451,12 @@ function Node:setPosition(x, y)
     return self
 end
 
+--- Returns the node's x, y position.
 function Node:getPosition()
     return self.x, self.y
 end
 
+--- Sets width/height from a table or two numbers.
 function Node:setSize(w, h)
     if type(w) == "table" then
         self:_set("width", w.width or w[1])
@@ -461,24 +468,40 @@ function Node:setSize(w, h)
     return self
 end
 
+--- Returns the node's width, height.
 function Node:getSize()
     return self.width, self.height
 end
 
+--- Sets visibility (coerces to boolean).
 function Node:setVisible(v) self:_set("visible", v and true or false) return self end
+--- Returns whether the node is visible.
 function Node:isVisible() return self.visible end
+--- Shows the node.
 function Node:show() return self:setVisible(true) end
+--- Hides the node.
 function Node:hide() return self:setVisible(false) end
+--- Sets the enabled flag (coerces to boolean).
 function Node:setEnabled(v) self:_set("enabled", v and true or false) return self end
+--- Returns whether the node is enabled.
 function Node:isEnabled() return self.enabled end
+--- Sets opacity.
 function Node:setOpacity(v) self:_set("opacity", v) return self end
+--- Returns opacity.
 function Node:getOpacity() return self.opacity end
+--- Sets the z-order index.
 function Node:setZIndex(z) self:_set("zIndex", z) return self end
+--- Returns the z-order index.
 function Node:getZIndex() return self.zIndex end
+--- Sets the render layer.
 function Node:setLayer(l) self:_set("layer", l) return self end
+--- Returns the render layer.
 function Node:getLayer() return self.layer end
+--- Sets the layout mode.
 function Node:setMode(mode) self:_set("layoutMode", mode) return self end
+--- Sets the anchor.
 function Node:setAnchor(a) self:_set("anchor", a) return self end
+--- Sets margin (one value or per-side).
 function Node:setMargin(l, t, r, b)
     if t == nil then t = l end
     if r == nil then r = l end
@@ -486,6 +509,7 @@ function Node:setMargin(l, t, r, b)
     self:_set("margin", { left = l, top = t, right = r, bottom = b })
     return self
 end
+--- Sets padding (one value or per-side).
 function Node:setPadding(l, t, r, b)
     if t == nil then t = l end
     if r == nil then r = l end
@@ -505,6 +529,7 @@ function Node:setState(state)
     end
     return self
 end
+--- Returns the current visual state.
 function Node:getState() return self._state end
 
 -- ---------------------------------------------------------------------
@@ -520,11 +545,13 @@ function Node:onProperty(key, fn)
     return self
 end
 
+--- Removes a property listener (or all for the key).
 function Node:offProperty(key, fn)
     local list = self._propListeners and self._propListeners[key]
     if list then
         if fn == nil then
-            self._propListeners[key] = nil -- key-only: clear all for the prop
+            -- key-only: clear all for the prop
+            self._propListeners[key] = nil
         else
             for i = #list, 1, -1 do
                 if list[i] == fn then table.remove(list, i) end
@@ -538,6 +565,7 @@ end
 -- Tree: parent / children / context propagation
 -- ---------------------------------------------------------------------
 
+--- Adds a child node.
 function Node:addChild(child)
     child:setParent(self)
     return self
@@ -551,6 +579,7 @@ function Node:removeFromParent()
     return self
 end
 
+--- Reparents the node, propagating context and invalidating both sides.
 function Node:setParent(parent)
     if parent == self._parent then return self end
     if parent == self then error("cannot set a node as its own parent", 2) end
@@ -588,6 +617,7 @@ function Node:setParent(parent)
     return self
 end
 
+--- Removes a child from the children list.
 function Node:_removeChild(child)
     local children = self._children
     for i = 1, #children do
@@ -598,11 +628,11 @@ function Node:_removeChild(child)
     end
 end
 
+--- Propagates the context to the subtree and fires mount hooks.
 function Node:_setContextRecursive(ctx)
     local entering = ctx ~= nil and self._context ~= ctx
     self._context = ctx
     if ctx then
-        if self:_hasDirty() then ctx:_queueNode(self) end
         if ctx.dispatcher then
             ctx.dispatcher:_updateNodeState(self)
         end
@@ -632,6 +662,7 @@ function Node:bringToFront()
     return self
 end
 
+--- Returns the node's depth in the tree.
 function Node:getDepth()
     local d = 0
     local p = self._parent
@@ -640,7 +671,7 @@ function Node:getDepth()
 end
 
 -- ---------------------------------------------------------------------
--- Parts (§14-17)
+-- Parts
 -- ---------------------------------------------------------------------
 
 --- Attaches a part node to a named slot. Deterministic replacement:
@@ -653,7 +684,8 @@ function Node:setPart(name, partNode)
     local old = self._parts[name]
     if old == partNode then return self end
     if old and not old._destroyed then
-        old:destroy() -- the part was owned by this widget
+        -- the part was owned by this widget
+        old:destroy()
     end
     if partNode then
         partNode:setParent(self)
@@ -665,6 +697,7 @@ function Node:setPart(name, partNode)
     return self
 end
 
+--- Returns the part node in a named slot.
 function Node:getPart(name)
     return self._parts[name]
 end
@@ -718,13 +751,16 @@ end
 -- Animation (delegates to the instance's animation manager, late-bound)
 -- ---------------------------------------------------------------------
 
+--- Animates properties via the instance's animation manager.
 function Node:animate(props, duration, ease)
     if self._context and self._context.anim then
         return self._context.anim:animate(self, props, duration, ease)
     end
-    return self -- not mounted: no-op, keeps chaining
+    -- not mounted: no-op, keeps chaining
+    return self
 end
 
+--- Stops all animations on this node.
 function Node:stopAnimations()
     if self._context and self._context.anim then
         self._context.anim:stop(self)
@@ -732,6 +768,7 @@ function Node:stopAnimations()
     return self
 end
 
+--- Returns whether the node is currently animating.
 function Node:isAnimating()
     if self._context and self._context.anim then
         return self._context.anim:isAnimating(self)
@@ -743,12 +780,14 @@ end
 -- Lifecycle
 -- ---------------------------------------------------------------------
 
+--- Destroys the node and its subtree, releasing references.
 function Node:destroy()
     if self._destroyed then return end
     self._destroyed = true
 
     if self._onDestroy then
-        self:_onDestroy() -- context still alive here
+        -- context still alive here
+        self:_onDestroy()
     end
 
     -- children first (parent owns children)
@@ -768,18 +807,18 @@ function Node:destroy()
 
     -- clear references (frees node-owned state; subscriptions dropped —
     -- no events from a dead node)
+    if DXUI.Events then DXUI.Events.clear(self) end
     self._context = nil
     self._children = {}
     self._data = {}
-    self._dirty = {}
-    self._queued = false
-    self._listeners = nil
     self._propListeners = nil
     self._parts = {}
     self._values = nil
 end
 
+--- Returns whether the node is destroyed.
 function Node:isDestroyed() return self._destroyed end
+--- Returns whether the node is alive (not destroyed).
 function Node:isAlive() return not self._destroyed end
 
 -- ---------------------------------------------------------------------

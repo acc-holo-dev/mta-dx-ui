@@ -6,7 +6,7 @@
     only on invalidation; an idle frame just draws it (zero rebuild).
 
     Items are pooled tables (RenderList.obtain/recycle) so rebuilds do not
-    churn allocations (fixed in V3 vs per-rebuild table spray).
+    churn allocations.
 
     Item kinds: rect | rrect | image | text | line | rtgroup
         { kind="rect", x,y,w,h,color }
@@ -23,7 +23,8 @@ local RenderList = {}
 RenderList.__index = RenderList
 
 local POOL_CAP = 4096
-local pool = {}   -- recycled item tables
+-- recycled item tables
+local pool = {}
 
 --- Obtains an item table (reused or fresh).
 function RenderList.obtain()
@@ -43,6 +44,7 @@ function RenderList.recycle(items, count)
     end
 end
 
+--- Creates a new empty render list.
 function RenderList.new()
     local self = setmetatable({}, RenderList)
     self.items = {}
@@ -64,6 +66,7 @@ function RenderList:release()
     self.count = 0
 end
 
+--- Appends an item to the list.
 function RenderList:add(item)
     self.count = self.count + 1
     self.items[self.count] = item

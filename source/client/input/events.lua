@@ -15,15 +15,17 @@ DXUI = DXUI or {}
 
 local Events = {}
 
-DXUI.STOP = {} -- sentinel: return this from a handler to stop propagation
+-- sentinel: return this from a handler to stop propagation
+DXUI.STOP = {}
 
+--- Returns the index of fn in list, or nil.
 local function listIndex(list, fn)
     for i = 1, #list do
         if list[i] == fn then return i end
     end
 end
 
---- Attaches fn to node's event. ids: tag used by removeForOwner.
+--- Attaches fn to node's event. id: tag used by removeForOwner.
 function Events.add(node, eventName, fn, id)
     local map = node._events
     if not map then
@@ -43,6 +45,7 @@ function Events.add(node, eventName, fn, id)
     return fn
 end
 
+--- Detaches fn from node's event; nil fn removes every handler for the name.
 function Events.remove(node, eventName, fn)
     local map = node._events
     if not map then return end
@@ -60,6 +63,7 @@ function Events.remove(node, eventName, fn)
     end
 end
 
+--- Removes every handler registered under the given owner id.
 function Events.removeForOwner(node, id)
     local map = node._events
     if not map then return end
@@ -77,19 +81,23 @@ function Events.removeForOwner(node, id)
     if not next(map) then node._events = nil end
 end
 
+--- Removes all event handlers from the node.
 function Events.clear(node)
     node._events = nil
 end
 
+--- Whether the node has at least one handler for the event.
 function Events.has(node, eventName)
     local map = node._events
     return map ~= nil and map[eventName] ~= nil and #map[eventName] > 0
 end
 
 --- Emits on node and bubbles through ancestors (snapshot per level).
--- Returns true if any handler consumed propagation stopped it.
+-- Returns true if a handler stopped propagation. A throwing handler is
+-- isolated: rethrown in dev mode, warned-and-skipped in production, so one
+-- bad listener can never abort the frame.
 function Events.bc(node, eventName, ...)
-    if not node then return false end
+    if not node or node._destroyed then return false end
     local current = node
     while current do
         local map = current._events
@@ -101,8 +109,16 @@ function Events.bc(node, eventName, ...)
                 for i = 1, #snap do
                     local h = snap[i]
                     if h and h.fn then
-                        local r = h.fn(current, ...)
-                        if r == DXUI.STOP then return true end
+                        local ok, r = pcall(h.fn, current, ...)
+                        if not ok then
+                            if DXUI.config and DXUI.config.dev then
+                                error(r, 0)
+                            else
+                                DXUI._warn("event handler error (" .. tostring(eventName) .. "): " .. tostring(r))
+                            end
+                        elseif r == DXUI.STOP then
+                            return true
+                        end
                     end
                 end
             end

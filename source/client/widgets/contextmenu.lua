@@ -27,14 +27,17 @@ local ContextMenu = DXUI.Widget:extend("ContextMenu", {
 
 DXUI.Part.declare(ContextMenu, { "list" })
 
+--- Returns the display text for an item (string or {text=...}).
 local function rowTextOf(item)
     return (type(item) == "table") and (item.text or "") or tostring(item)
 end
 
+--- True when the item is the "--" separator marker.
 local function tx_is_separator(item)
     return type(item) == "string" and item == "--"
 end
 
+--- Rebuilds the menu rows from the current items and sizes the menu.
 local function rebuildItems(node)
     local list = node:getPart("list")
     if not list then return end
@@ -87,6 +90,7 @@ local function rebuildItems(node)
     end
 end
 
+--- Creates the list part and hides the menu until opened.
 ContextMenu._build = function(node)
     local list = DXUI.Widget:new({})
     list.layoutMode = "relative"
@@ -100,10 +104,12 @@ ContextMenu._build = function(node)
     rebuildItems(node)
 end
 
+--- Rebuilds rows when items are set.
 ContextMenu._spec.items.onSet = function(node, v)
     rebuildItems(node)
 end
 
+--- Shows the menu at the given position and registers it as a popup.
 function ContextMenu:open(x, y)
     self:setPosition(x or self.x, y or self.y)
     self.visible = true
@@ -113,6 +119,7 @@ function ContextMenu:open(x, y)
     return self
 end
 
+--- Hides the menu and unregisters it from the popup manager.
 function ContextMenu:close()
     self.visible = false
     if self._context and self._context.dispatcher then
@@ -121,12 +128,11 @@ function ContextMenu:close()
     return self
 end
 
+--- Draws the menu surface and separator lines.
 function ContextMenu:render(renderer)
     if not self.visible then return end
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
-    local r = self.radius or 4
-    renderer:roundedRect(wx, wy, w, h, r, self.color)
-    renderer:roundedRect(wx, wy, w, h, r, 0xFFD1D5DB)
+    renderer:borderedRect(wx, wy, w, h, self.radius or 4, self.color, 0xFFD1D5DB, 1)
     -- separators
     local items = self.items or {}
     local rh = self.rowHeight or 22

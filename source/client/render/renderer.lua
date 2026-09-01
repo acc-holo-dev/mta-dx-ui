@@ -8,7 +8,7 @@
             renderer:rect(self.worldX, self.worldY, self.width, self.height,
                           self.color)
             renderer:text(self.text, ..., self.textColor, self.font,
-                          "center", "middle")
+                          "center", "center")
         end
 
     Design-space in, screen-space out: the pass loads the design→screen
@@ -24,6 +24,7 @@ DXUI = DXUI or {}
 local Renderer = {}
 Renderer.__index = Renderer
 
+--- Intersects a rect with the renderer's clip region; nil when fully clipped.
 local function clipRect(renderer, x, y, w, h)
     if not renderer.hasClip then return x, y, w, h end
     local cx, cy = renderer.clipX, renderer.clipY
@@ -38,6 +39,7 @@ local function clipRect(renderer, x, y, w, h)
     return nx, ny, nx2 - nx, ny2 - ny
 end
 
+--- Scales a packed color's alpha by an opacity factor.
 local function modulate(color, op)
     if color == nil or op >= 1 then return color end
     if op <= 0 then return 0 end
@@ -47,6 +49,7 @@ local function modulate(color, op)
     return color - a * 0x1000000 + na * 0x1000000
 end
 
+--- Creates a renderer bound to a render list.
 function Renderer.new(renderList)
     local self = setmetatable({}, Renderer)
     self.list = renderList
@@ -56,7 +59,8 @@ function Renderer.new(renderList)
     self.effOpacity = 1
     self.scaleX, self.scaleY = 1, 1
     self.offsetX, self.offsetY = 0, 0
-    self.fx = nil -- current effect (blur/mask) set by the pass
+    -- current effect (blur/mask) set by the pass
+    self.fx = nil
     return self
 end
 
@@ -84,10 +88,12 @@ end
 -- Primitives (design space; emitted in screen space)
 -- ---------------------------------------------------------------------
 
+--- Emits a filled rectangle item.
 function Renderer:rect(x, y, w, h, color)
     if self.effOpacity <= 0 then return end
     local nx, ny, nw, nh = clipRect(self, x, y, w, h)
-    if nx == nil then return end -- fully clipped — skip
+    -- fully clipped — skip
+    if nx == nil then return end
     color = DXUI.ColorToInt(color)
     color = modulate(color, self.effOpacity)
     local sx, ox, sy, oy = self.scaleX, self.offsetX, self.scaleY, self.offsetY
@@ -101,6 +107,7 @@ function Renderer:rect(x, y, w, h, color)
     self.list:add(it)
 end
 
+--- Emits a rounded-rectangle item (SDF effect when radius > 0).
 function Renderer:roundedRect(x, y, w, h, radius, color)
     if self.effOpacity <= 0 then return end
     local nx, ny, nw, nh = clipRect(self, x, y, w, h)
@@ -116,29 +123,64 @@ function Renderer:roundedRect(x, y, w, h, radius, color)
     it.h = nh * sy
     it.radius = radius * (sx + sy) / 2
     it.color = color
-    it.effect = self:resolveEffect(self.fx, "round")
+    -- rounded corners need the SDF shader; nil degrades to a flat rect
+    if it.radius > 0 and DXUI.Effects then
+        it.effect = DXUI.Effects.round(it.w, it.h, it.radius)
+    else
+        it.effect = nil
+    end
     self.list:add(it)
 end
 
-function Renderer:outline(x, y, w, h, width, color)
-    self:rect(x, y, w, width, color)                 -- top
-    self:rect(x, y + h - width, w, width, color)     -- bottom
-    self:rect(x, y + width, width, h - 2 * width, color)      -- left
-    self:rect(x + w - width, y + width, width, h - 2 * width, color) -- right
+--- Filled rectangle with a border ring. The border is drawn first and the
+-- fill is inset by `borderWidth`, so the border never covers the fill
+-- (rounded corners keep a 1px ring). radius == 0 uses the same inset path.
+function Renderer:borderedRect(x, y, w, h, radius, fillColor, borderColor, borderWidth)
+    local bw = borderWidth or 1
+    if borderColor then
+        if radius and radius > 0 then
+            self:roundedRect(x, y, w, h, radius, borderColor)
+        else
+            self:rect(x, y, w, h, borderColor)
+        end
+    end
+    local ix, iy, iw, ih = x + bw, y + bw, w - 2 * bw, h - 2 * bw
+    if iw <= 0 or ih <= 0 then return end
+    local ir = (radius and radius > bw) and (radius - bw) or 0
+    if ir > 0 then
+        self:roundedRect(ix, iy, iw, ih, ir, fillColor)
+    else
+        self:rect(ix, iy, iw, ih, fillColor)
+    end
 end
 
+--- Emits four rects forming a border ring.
+function Renderer:outline(x, y, w, h, width, color)
+    -- top
+    self:rect(x, y, w, width, color)
+    -- bottom
+    self:rect(x, y + h - width, w, width, color)
+    -- left
+    self:rect(x, y + width, width, h - 2 * width, color)
+    -- right
+    self:rect(x + w - width, y + width, width, h - 2 * width, color)
+end
+
+--- Emits a text item.
 function Renderer:text(text, x, y, w, h, color, font, align, valign, scale)
     if text == nil or text == "" or self.effOpacity <= 0 then return end
+    local nx, ny, nw, nh = clipRect(self, x, y, w, h)
+    if nx == nil then return end
     color = DXUI.ColorToInt(color)
     color = modulate(color, self.effOpacity)
     local sx, ox, sy, oy = self.scaleX, self.offsetX, self.scaleY, self.offsetY
     local it = DXUI.RenderList.obtain()
     it.kind = "text"
     it.text = text
-    it.x = x * sx + ox
-    it.y = y * sy + oy
-    it.w = w * sx
-    it.h = h * sy
+    it.x = nx * sx + ox
+    it.y = ny * sy + oy
+    it.w = nw * sx
+    it.h = nh * sy
     it.color = color
     it.font = font
     it.align = align or "left"
@@ -148,6 +190,7 @@ function Renderer:text(text, x, y, w, h, color, font, align, valign, scale)
     self.list:add(it)
 end
 
+--- Emits an image item (full or section).
 function Renderer:image(texture, x, y, w, h, color, section)
     if texture == nil or self.effOpacity <= 0 then return end
     local nx, ny, nw, nh = clipRect(self, x, y, w, h)
@@ -168,6 +211,7 @@ function Renderer:image(texture, x, y, w, h, color, section)
     self.list:add(it)
 end
 
+--- Emits a line item.
 function Renderer:line(x1, y1, x2, y2, color, width)
     if self.effOpacity <= 0 then return end
     if self.hasClip then
@@ -192,15 +236,11 @@ function Renderer:line(x1, y1, x2, y2, color, width)
     self.list:add(it)
 end
 
---- Resolves the effect table for an item kind (shared/cached; identity
--- stable across items — the state cache dedups on it). "round" has no
--- node-level fx; images get blur/mask fx. Returns nil when absent.
+--- Resolves the effect table for an image item (blur/mask fx set by the
+-- pass). Returns nil when absent.
 function Renderer:resolveEffect(fx, kind)
     if fx == nil then return nil end
     if kind == "image" then return fx end
-    if kind == "round" and DXUI.Effects then
-        return DXUI.Effects.effectFor(fx, self.node)
-    end
     return nil
 end
 

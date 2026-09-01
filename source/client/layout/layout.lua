@@ -31,6 +31,7 @@ local function freeDim(node, k)
     return v == nil or v == 0
 end
 
+--- Resolves a node's width/height from its layout mode and content box.
 local function resolveSize(node, contentW, contentH)
     local w, h = node.width, node.height
     local lwC, lhC = node.layoutWidth, node.layoutHeight
@@ -96,7 +97,8 @@ function Layout._walk(node, pwx, pwy, pw, ph, ppad)
     elseif mode == "stretch" or mode == "fill" or mode == "flex" then
         wx = pwx + mL + pL
         wy = pwy + mT + pT
-    else -- absolute
+    -- absolute
+    else
         wx = pwx + x + mL + pL
         wy = pwy + y + mT + pT
     end
@@ -107,13 +109,16 @@ function Layout._walk(node, pwx, pwy, pw, ph, ppad)
     -- children
     local children = node._children
     if node.flexDirection then
-        local cw = w - pL - pR
-        local ch = h - pT - pB
+        -- the flex content box subtracts THIS node's own padding (not the
+        -- parent's — a flex container lays out inside its own box)
+        local nL, nT, nR, nB = Dimension.box(node.padding)
+        local cw = w - nL - nR
+        local ch = h - nT - nB
         if cw < 0 then cw = 0 end
         if ch < 0 then ch = 0 end
         DXUI.Flex.flex(node, children, cw, ch)
         for i = 1, #children do
-            Layout._place(children[i], wx + pL, wy + pT, cw, ch)
+            Layout._place(children[i], wx + nL, wy + nT, cw, ch)
         end
         return
     end
@@ -129,9 +134,14 @@ function Layout._place(node, px, py, pw, ph)
     place(node, px, py)
     local children = node._children
     if node.flexDirection then
-        DXUI.Flex.flex(node, children, node.width, node.height)
+        local nL, nT, nR, nB = Dimension.box(node.padding)
+        local cw = node.width - nL - nR
+        local ch = node.height - nT - nB
+        if cw < 0 then cw = 0 end
+        if ch < 0 then ch = 0 end
+        DXUI.Flex.flex(node, children, cw, ch)
         for i = 1, #children do
-            Layout._place(children[i], node.worldX, node.worldY, node.width, node.height)
+            Layout._place(children[i], node.worldX + nL, node.worldY + nT, cw, ch)
         end
     else
         for i = 1, #children do

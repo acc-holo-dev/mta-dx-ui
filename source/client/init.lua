@@ -3,12 +3,22 @@
 
     MTA bootstrap (loads LAST in meta.xml, when every module is ready):
       1. wires the DX backend (backend_mta) + text measurement hook;
-      2. creates the resource's UI instance (lazy, via getUI);
-      3. registers the MTA event glue (render loop, resize, input) that
-         drives the pure-Lua runtime.
+      2. registers the MTA event glue (render loop, resize, input) that
+         drives every UI instance in DXUI._uis;
+      3. cleans up instances on resource stop.
 
     All MTA-specific event handling lives HERE — core/ and api/ stay pure.
-    Idempotent: safe if meta.xml's load order is ever changed.
+    Handlers are registered ONCE at load time; the frame loop ticks every
+    instance in DXUI._uis, both the dxui resource's own and consumer-owned
+    instances created via exports.dxui:getUI().
+
+    Input events (verified against the MTA wiki):
+      - onClientCursorMove  — raw cursor movement (no GUI element needed);
+                              params 3-4 are absolute screen pixels.
+      - onClientClick       — button, state ("down"/"up"), absX, absY.
+      - onClientKey         — keys AND the mouse wheel ("mouse_wheel_up" /
+                              "mouse_wheel_down", which never send a release).
+      - onClientCharacter   — printable characters (respects layout/shift).
 ]]
 
 DXUI = DXUI or {}
@@ -18,87 +28,107 @@ DXUI = DXUI or {}
 if DXUI.backendInitMTA then DXUI.backendInitMTA() end
 DXUI.Runtime.backend = DXUI.BackendMTA
 
--- 2. instance bootstrap ------------------------------------------------
-
-local frameJobs = {} -- ui handles to tick each render
-local frameCount = 0
+-- 2. instance bootstrap --------------------------------------------------
 
 --- Creates (or returns) the resource's UI and schedules it into the frame
--- loop. opts: { name, design, settings }.
--- Call ONCE at resource start from your own code, or rely on dxui:getUI()
--- lazily. The instance is ticked automatically while it exists.
+-- loop. opts: { name, design, settings }. The instance is ticked
+-- automatically while it exists (the frame loop walks DXUI._uis).
 function DXUI.bootstrap(opts)
     opts = opts or {}
-    local name = opts.name or "main"
-    local ui = DXUI.getUI(name, opts)
-
-    for i = 1, frameCount do
-        if frameJobs[i] == ui then return ui end -- already scheduled
-    end
-    frameCount = frameCount + 1
-    frameJobs[frameCount] = ui
-
-    -- render loop
-    addEventHandler("onClientRender", resourceRoot, function()
-        if #frameJobs == 0 then return end
-        for i = 1, #frameJobs do
-            frameJobs[i]:tick()
-        end
-    end)
-
-    -- resize: MTA has no direct resize event; size is read on demand
-    -- (the first tick inside onClientRender refresh below is cheap:
-    -- setViewport only recomputes on actual size change)
-    local lastW, lastH = -1, -1
-    local function ensureViewport()
-        local w, h = guiGetScreenSize()
-        if w ~= lastW or h ~= lastH then
-            lastW, lastH = w, h
-            for i = 1, #frameJobs do
-                frameJobs[i]:setViewport(w, h)
-            end
-        end
-    end
-    addEventHandler("onClientRender", resourceRoot, function()
-        ensureViewport()
-    end, false, 1)
-
-    -- input glue (screen coords -> design coords inside the runtime)
-    addEventHandler("onClientMouseMove", resourceRoot, function(rx, ry, absX, absY)
-        for i = 1, #frameJobs do
-            frameJobs[i]:mouseMove(absX, absY)
-        end
-    end)
-    addEventHandler("onClientClick", resourceRoot, function(button, state, absX, absY)
-        for i = 1, #frameJobs do
-            if state == "down" then
-                frameJobs[i]:mouseDown(button, absX, absY)
-            else
-                frameJobs[i]:mouseUp(button, absX, absY)
-            end
-        end
-    end)
-    addEventHandler("onClientScrollWheel", resourceRoot, function(wheel, absX, absY)
-        for i = 1, #frameJobs do
-            frameJobs[i]:scroll(wheel, absX, absY)
-        end
-    end)
-    addEventHandler("onClientKey", resourceRoot, function(keyName, pressed)
-        for i = 1, #frameJobs do
-            frameJobs[i]:key(keyName, pressed)
-        end
-    end)
-
-    return ui
+    return DXUI.getUI(opts.name or "main", opts)
 end
 
--- 3. resource stop cleanup ---------------------------------------------
+-- 3. MTA event glue (registered once at load) ----------------------------
 
-addEventHandler("onClientResourceStop", resourceRoot, function()
-    for i = 1, #frameJobs do
-        frameJobs[i]:destroy()
+-- render loop: tick every instance
+addEventHandler("onClientRender", resourceRoot, function()
+    local uis = DXUI._uis
+    if not uis then return end
+    for i = 1, #uis do
+        uis[i]:tick()
     end
-    frameJobs = {}
-    frameCount = 0
+end)
+
+-- viewport: MTA has no resize event, so read the size each frame and
+-- recompute the design->screen mapping only on an actual change.
+local lastW, lastH = -1, -1
+addEventHandler("onClientRender", resourceRoot, function()
+    local w, h = guiGetScreenSize()
+    if w ~= lastW or h ~= lastH then
+        lastW, lastH = w, h
+        local uis = DXUI._uis
+        if uis then
+            for i = 1, #uis do
+                uis[i]:setViewport(w, h)
+            end
+        end
+    end
+end)
+
+-- mouse movement (absolute screen pixels)
+addEventHandler("onClientCursorMove", resourceRoot, function(_, _, absX, absY)
+    local uis = DXUI._uis
+    if not uis then return end
+    for i = 1, #uis do
+        uis[i]:mouseMove(absX, absY)
+    end
+end)
+
+-- clicks
+addEventHandler("onClientClick", resourceRoot, function(button, state, absX, absY)
+    local uis = DXUI._uis
+    if not uis then return end
+    for i = 1, #uis do
+        if state == "down" then
+            uis[i]:mouseDown(button, absX, absY)
+        else
+            uis[i]:mouseUp(button, absX, absY)
+        end
+    end
+end)
+
+-- keys + mouse wheel (wheel has no dedicated raw-dx event; onClientKey
+-- delivers "mouse_wheel_up"/"mouse_wheel_down" with no release).
+addEventHandler("onClientKey", resourceRoot, function(keyName, pressed)
+    local uis = DXUI._uis
+    if not uis then return end
+    if keyName == "mouse_wheel_up" or keyName == "mouse_wheel_down" then
+        local wheel = (keyName == "mouse_wheel_up") and 1 or -1
+        local cx, cy = getCursorPosition()
+        local sw, sh = guiGetScreenSize()
+        local ax, ay = (cx or 0) * sw, (cy or 0) * sh
+        for i = 1, #uis do
+            uis[i]:scroll(wheel, ax, ay)
+        end
+    else
+        for i = 1, #uis do
+            uis[i]:key(keyName, pressed)
+        end
+    end
+end)
+
+-- printable characters (text input for Edit and friends)
+addEventHandler("onClientCharacter", resourceRoot, function(ch)
+    local uis = DXUI._uis
+    if not uis then return end
+    for i = 1, #uis do
+        uis[i]:character(ch)
+    end
+end)
+
+-- this resource stopping: destroy its own instances + release assets
+addEventHandler("onClientResourceStop", resourceRoot, function()
+    DXUI.releaseResource("default")
     if DXUI.releaseResources then DXUI.releaseResources() end
 end)
+
+-- a CONSUMER resource stopping: release the instances it owns
+local rootEl = root or (getRootElement and getRootElement() or nil)
+if rootEl then
+    addEventHandler("onClientResourceStop", rootEl, function()
+        local stopped = source
+        if stopped and stopped ~= resourceRoot then
+            DXUI.releaseResource(stopped)
+        end
+    end)
+end

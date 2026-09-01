@@ -18,14 +18,16 @@
                  an RT is a single quad, so nothing can interleave anyway).
 
     Arrays: group contents live in per-group arrays from a small module
-    pool; they are recycled by the state cache AFTER the group is drawn
-    (not at build time) — the rtgroup item references them.
+    pool; they are recycled at the START of the NEXT build — the cached
+    draw list still references them between frames (recycling at draw time
+    corrupted idle-frame draws).
 ]]
 
 DXUI = DXUI or {}
 
 local RenderPass = {}
 
+--- Sort comparator: layer, then zIndex, then insertion id.
 local nodeLess
 nodeLess = function(a, b)
     if a._effLayer ~= b._effLayer then return a._effLayer < b._effLayer end
@@ -33,6 +35,7 @@ nodeLess = function(a, b)
     return a._id < b._id
 end
 
+--- Intersects a rect with an optional clip rect; false when empty.
 local function intersectClip(rect, x, y, w, h)
     local x2, y2 = x + w, y + h
     if rect then
@@ -47,13 +50,28 @@ local function intersectClip(rect, x, y, w, h)
     return { x, y, w, h }
 end
 
+--- Whether screen-space culling is enabled for the instance.
 local function screenCullingEnabled(instance)
     local perf = DXUI.Settings and DXUI.Settings.performance
     return not perf or perf.screenCulling ~= false
 end
 
+--- Whether the node needs an RT group (effects available and required).
 local function hasGroup(node)
     return DXUI.Effects ~= nil and DXUI.Effects.canGroup() and DXUI.Effects.needsGroup(node)
+end
+
+--- Clears the per-frame visibility/clip flags of a node's whole subtree.
+-- Called on early outs (invisible / clipped-out / culled nodes) so stale
+-- flags never linger on descendants that were not visited this frame.
+local function clearSubtreeFlags(node)
+    local children = node._children
+    for i = 1, #children do
+        local c = children[i]
+        rawset(c, "_visible", false)
+        rawset(c, "_hitClip", nil)
+        clearSubtreeFlags(c)
+    end
 end
 
 --- Collect phase. Returns the number of pushed nodes.
@@ -63,8 +81,10 @@ end
 local function collect(instance, node, nodes, count, parentVisible, parentOpacity, parentLayer, parentClip, insideGroup)
     local visible = parentVisible and node.visible
     if not visible then
-        rawset(node, "_visible", false) -- explicit (stale-proof for group walks)
+        -- explicit (stale-proof for group walks)
+        rawset(node, "_visible", false)
         rawset(node, "_hitClip", nil)
+        clearSubtreeFlags(node)
         return count
     end
     -- accumulate draw state
@@ -78,6 +98,7 @@ local function collect(instance, node, nodes, count, parentVisible, parentOpacit
         if rect == false then
             rawset(node, "_visible", false)
             rawset(node, "_hitClip", parentClip)
+            clearSubtreeFlags(node)
             return count
         end
         clip = rect
@@ -102,6 +123,7 @@ local function collect(instance, node, nodes, count, parentVisible, parentOpacit
         local y2 = node.worldY + node.height
         if x2 <= 0 or y2 <= 0 or node.worldX >= lw or node.worldY >= lh then
             rawset(node, "_visible", false)
+            clearSubtreeFlags(node)
             return count
         end
     end
@@ -138,14 +160,17 @@ local function emitSingle(node, renderer, list)
     end
 end
 
--- Group content arrays: pooled, recycled after draw (state cache).
+-- Group content arrays: pooled, recycled at the START of the next build
+-- (they are still referenced by the cached draw list until then).
 local arrPool = {}
 local ARR_POOL_CAP = 16
 
+--- Obtains a group content array from the pool (or a fresh one).
 local function acquireArr()
     return table.remove(arrPool) or {}
 end
 
+--- Returns a group content array to the pool, clearing its contents.
 function RenderPass.releaseArr(arr)
     if #arrPool < ARR_POOL_CAP then
         arrPool[#arrPool + 1] = arr
@@ -153,33 +178,39 @@ function RenderPass.releaseArr(arr)
     for i = 1, #arr do arr[i] = nil end
 end
 
---- Tree walk INSIDE an RT group: the group node + its visible subtree,
--- local tree order (documented: RT = one composite quad).
-local function emitTree(node, renderer, list, baseOpacity, sx, sy, ox, oy)
-    if hasGroup(node) then
-        -- nested group
-        local effOp = node._effOpacity or 1
-        if effOp <= 0 then return end
-        local it = DXUI.RenderList.obtain()
-        it.kind = "rtgroup"
-        it.x = node.worldX * sx + ox
-        it.y = node.worldY * sy + oy
-        it.w = node.width * sx
-        it.h = node.height * sy
-        it.scaleX, it.scaleY = sx, sy
-        it.effect = (node.blur and node.blur > 0 and DXUI.Effects.blur(node.width, node.height, node.blur))
-            or (node.mask and DXUI.Effects.mask(node.mask))
-        it.alpha = effOp * baseOpacity
-        local arr = acquireArr()
-        local sub = { items = arr, count = 0 }
-        emitTree(node, renderer, sub, (1 / effOp) * baseOpacity, sx, sy, ox, oy)
-        it.items = arr
-        it.count = sub.count
-        it.fromPool = true
-        it.releaseArr = true
-        list:add(it)
-        return
+--- Registers a group content array so build can recycle it next frame.
+local function trackArr(arr)
+    local buildArrs = RenderPass._buildArrs
+    if not buildArrs then
+        buildArrs = {}
+        RenderPass._buildArrs = buildArrs
     end
+    buildArrs[#buildArrs + 1] = arr
+    return arr
+end
+
+--- Recycles the arrays of the previous build (contents back to the item
+-- pool, arrays back to the array pool). Called at the start of build.
+local function recyclePrevGroupArrs()
+    local prev = RenderPass._prevGroupArrs
+    RenderPass._prevGroupArrs = nil
+    if not prev then return end
+    for i = 1, #prev do
+        local arr = prev[i]
+        if DXUI.RenderList and DXUI.RenderList.recycle then
+            DXUI.RenderList.recycle(arr, #arr)
+        end
+        releaseArr(arr)
+    end
+end
+
+-- forward-declared (walkNode and emitTree are mutually recursive)
+local emitTree
+
+--- Walks a node's own primitives and visible children into `list`.
+-- Used for RT group contents; child nodes that are themselves groups emit
+-- nested rtgroup items (the composite is a local painter's order).
+local function walkNode(node, renderer, list, baseOpacity, sx, sy, ox, oy)
     renderer:_loadClip(node)
     renderer.fx = nil
     if node._class ~= DXUI.Node and node.render then
@@ -198,6 +229,34 @@ local function emitTree(node, renderer, list, baseOpacity, sx, sy, ox, oy)
     end
 end
 
+--- In-group emission. A group root becomes one rtgroup item whose contents
+-- are its own primitives + visible subtree; ordinary nodes emit directly.
+emitTree = function(node, renderer, list, baseOpacity, sx, sy, ox, oy)
+    if hasGroup(node) then
+        local effOp = node._effOpacity or 1
+        if effOp <= 0 then return end
+        local it = DXUI.RenderList.obtain()
+        it.kind = "rtgroup"
+        it.x = node.worldX * sx + ox
+        it.y = node.worldY * sy + oy
+        it.w = node.width * sx
+        it.h = node.height * sy
+        it.scaleX, it.scaleY = sx, sy
+        it.effect = (node.blur and node.blur > 0 and DXUI.Effects.blur(node.width, node.height, node.blur))
+            or (node.mask and DXUI.Effects.mask(node.mask))
+        it.alpha = effOp * baseOpacity
+        local arr = trackArr(acquireArr())
+        local sub = { items = arr, count = 0 }
+        walkNode(node, renderer, sub, (1 / effOp) * baseOpacity, sx, sy, ox, oy)
+        it.items = arr
+        it.count = sub.count
+        list:add(it)
+        return
+    end
+    walkNode(node, renderer, list, baseOpacity, sx, sy, ox, oy)
+end
+
+--- Emits a group root as an rtgroup item with its subtree contents.
 local function emitGroup(node, renderer, list)
     local effOp = node._effOpacity or 1
     if effOp <= 0 then return end
@@ -213,20 +272,21 @@ local function emitGroup(node, renderer, list)
     it.effect = (node.blur and node.blur > 0 and DXUI.Effects.blur(node.width, node.height, node.blur))
         or (node.mask and DXUI.Effects.mask(node.mask))
     it.alpha = effOp
-    local arr = acquireArr()
+    local arr = trackArr(acquireArr())
     local sub = { items = arr, count = 0 }
-    emitTree(node, renderer, sub, 1 / effOp, sx, sy, ox, oy)
+    walkNode(node, renderer, sub, 1 / effOp, sx, sy, ox, oy)
     it.items = arr
     it.count = sub.count
-    it.fromPool = true
-    it.releaseArr = true
     list:add(it)
 end
 
 --- Rebuilds instance.renderList. Returns the item count.
 function RenderPass.build(instance)
     local list = instance.renderList
-    list:release() -- recycle the previous frame's item tables
+    -- recycle the previous frame's item tables
+    list:release()
+    -- previous frame's group contents can be freed
+    recyclePrevGroupArrs()
 
     local renderer = instance.renderer
     renderer:reset(list)
@@ -234,6 +294,8 @@ function RenderPass.build(instance)
     renderer.scaleY = instance._mapScaleY or 1
     renderer.offsetX = instance._mapOffX or 0
     renderer.offsetY = instance._mapOffY or 0
+
+    RenderPass._buildArrs = nil
 
     local nodes = instance._renderNodes
     -- root is never rendered/culled itself — collect starts at its children
@@ -243,7 +305,12 @@ function RenderPass.build(instance)
         count = collect(instance, root._children[i], nodes, count, true, 1, DXUI.LAYER.BASE, nil, false)
     end
 
-    table.sort(nodes, nodeLess, 1, count)
+    -- drop the stale tail (Lua table.sort takes no range) so the sort and
+    -- the hit-test list only ever see THIS frame's nodes
+    for i = count + 1, #nodes do
+        nodes[i] = nil
+    end
+    table.sort(nodes, nodeLess)
 
     for i = 1, count do
         local node = nodes[i]
@@ -253,6 +320,8 @@ function RenderPass.build(instance)
             emitSingle(node, renderer, list)
         end
     end
+    RenderPass._prevGroupArrs = RenderPass._buildArrs
+    RenderPass._buildArrs = nil
     return list.count
 end
 

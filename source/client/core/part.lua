@@ -1,7 +1,7 @@
 --[[
     part.lua — DXUI V3
 
-    Part: a named child slot of a composite widget (§14-17).
+    Part: a named child slot of a composite widget.
 
     A part is a REAL Node/Widget with its own visual state, layout, input
     and theme section. Slots are declared per widget class:
@@ -48,7 +48,8 @@ end
 --- Looks up the theme role section name for a part (class + role).
 -- Returns nil when the part has no role-specific theme.
 function Part.themeRole(rootClass, roleName)
-    return roleName -- components.<RootClass>.parts.<roleName>
+    -- components.<RootClass>.parts.<roleName>
+    return roleName
 end
 
 --- Replaces or removes a part from a node (deterministic ownership).

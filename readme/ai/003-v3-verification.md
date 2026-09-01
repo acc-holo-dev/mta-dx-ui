@@ -23,9 +23,9 @@ resource, docs, and the self-review gates (§82/§85/§86).**
    mutation → exactly one rebuild, resource stop destroys + releases.
 
 3. **Test resource** — `readme/tests/`: python runner (lupa, no MTA) with
-   five suites (core 42 / style 16 / basic 21 / composite 33 / boot 14 =
-   **126 assertions green**). Runner mirrors meta.xml load order; the boot
-   suite loads init.lua under fake MTA globals.
+   seven suites (core 42 / style 16 / basic 21 / composite 33 / api 107 /
+   perf 19 / boot 22 = **260 assertions green**). Runner mirrors meta.xml
+   load order; the boot suite loads init.lua under fake MTA globals.
 
 4. **Engine bugs found & fixed by the tests**
    - `resources/manager.lua`: `local _themeKeep` declared AFTER the
@@ -105,5 +105,5 @@ example resource (`meta.xml` demo pattern hardened against live MTA).
     expectations were mis-computed; anchor enum is tl/tc/tr/ml/mc/mr/bl/
     bc/br ("center" invalid); `Part.declare(class, names)` signature;
     onProperty fn(value, old, node) — value is FIRST arg.
-- Total suite now **245 assertions, 0 failed** (core 42 / style 16 /
-  basic 21 / composite 33 / api 100 / perf 19 / boot 14).
+- Total suite now **260 assertions, 0 failed** (core 42 / style 16 /
+  basic 21 / composite 33 / api 107 / perf 19 / boot 22).

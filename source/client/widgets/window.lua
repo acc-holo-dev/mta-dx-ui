@@ -36,6 +36,7 @@ local Window = Panel:extend("Window", {
 
 DXUI.Part.declare(Window, { "header", "content" })
 
+--- Builds the header and content parts from declarative props.
 local function buildWindow(node, props)
     local headerH = props.headerHeight or node.headerHeight
 
@@ -47,7 +48,7 @@ local function buildWindow(node, props)
     header.layoutMode = "relative"
     header.zIndex = 2
     header.align = "left"
-    header.valign = "middle"
+    header.valign = "center"
     header.padding = { left = 10, right = 10 }
 
     local content = DXUI.Widget:new({})

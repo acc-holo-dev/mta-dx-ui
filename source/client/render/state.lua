@@ -8,8 +8,7 @@
 
     Identity rule: effect tables are SHARED via the Effects cache (identical
     inputs → same table), so pointer identity is a valid "unchanged" test.
-    The V2 flaw (per-item texel clones defeating identity) is gone: texel
-    sizes are baked into the shared effect table at creation.
+    Texel sizes are baked into the shared effect table at creation.
 ]]
 
 DXUI = DXUI or {}
@@ -19,6 +18,7 @@ StateCache.__index = StateCache
 
 local BLEND_DEFAULT = "blend"
 
+--- Creates a state cache bound to a backend.
 function StateCache.new(backend)
     local self = setmetatable({}, StateCache)
     self.backend = backend
@@ -26,8 +26,10 @@ function StateCache.new(backend)
     return self
 end
 
+--- Sets the blend mode, skipping the native call when unchanged.
 function StateCache:setBlendMode(mode)
-    if self.currentBlendMode == mode then return end -- stable: ~1 call total
+    -- stable: ~1 call total
+    if self.currentBlendMode == mode then return end
     self.currentBlendMode = mode
     self.backend.setBlendMode(mode)
 end
@@ -54,7 +56,9 @@ function StateCache:draw(item)
             for j = 1, item.count do
                 self:draw(children[j])
             end
-            b.endGroup(item.x, item.y, item.w * (item.scaleX or 1), item.h * (item.scaleY or 1), item.effect, item.alpha)
+            -- positions are ALREADY screen-space (scale applied at emit);
+            -- endGroup must not scale them again
+            b.endGroup(item.x, item.y, item.w, item.h, item.effect, item.alpha)
         else
             -- RT unavailable: draw contents directly (graceful degradation)
             local children = item.items
@@ -62,12 +66,8 @@ function StateCache:draw(item)
                 self:draw(children[j])
             end
         end
-        if DXUI.RenderList and item.fromPool then
-            DXUI.RenderList.recycle(item.items, item.count)
-        end
-        if item.releaseArr and DXUI.RenderPass then
-            DXUI.RenderPass.releaseArr(item.items)
-        end
+        -- NOTE: item.items is NOT recycled here. The cached draw list still
+        -- references it until the next rebuild (RenderPass.recyclePrevGroupArrs).
     end
 end
 

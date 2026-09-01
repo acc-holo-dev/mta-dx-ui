@@ -27,26 +27,29 @@ local RadioButton = DXUI.Widget:extend("RadioButton", {
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
+--- Measures the circle plus label text for autoSize.
 function RadioButton:_measureContent()
     return (self.indent or 18) + (#self.text * 7) + 4, self.indent or 18
 end
 
+--- Draws the circle, the dot when checked, and the label.
 function RadioButton:render(renderer)
     local wx, wy = self.worldX, self.worldY
     local d = self.indent or 18
     local r = d / 2
-    renderer:roundedRect(wx, wy, d, d, r, self.color)         -- ring fill
-    renderer:roundedRect(wx, wy, d, d, r, self.borderColor)   -- ring edge
+    -- ring: border color under the inset fill (ring stays visible)
+    renderer:borderedRect(wx, wy, d, d, r, self.color, self.borderColor, 1)
     if self.checked then
         local dot = d * 0.42
         renderer:roundedRect(wx + (d - dot) / 2, wy + (d - dot) / 2, dot, dot, dot / 2, self.dotColor)
     end
     if self.text and self.text ~= "" then
         renderer:text(self.text, wx + d + 6, wy, self.width - d - 6, self.height,
-            self.textColor, self.font, "left", "middle", 1)
+            self.textColor, self.font, "left", "center", 1)
     end
 end
 
+--- Selects the radio on click.
 RadioButton._build = function(node)
     node:on("click", function(n)
         n.checked = true
@@ -58,6 +61,7 @@ local RadioGroup = DXUI.Widget:extend("RadioGroup", {
     gap = { default = 6, invalidates = { DXUI.DIRTY.LAYOUT } },
     direction = { default = "column", invalidates = { DXUI.DIRTY.LAYOUT } },
 })
+--- Adds a radio to the group and enforces mutual exclusivity on change.
 function RadioGroup:addRadio(radio)
     radio:setParent(self)
     radio:on("change", function(n, checked)

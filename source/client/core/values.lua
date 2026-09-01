@@ -28,7 +28,8 @@ function DXUI.color(r, g, b, a)
     return (a or 255) * 0x1000000 + (r or 0) * 0x10000 + (g or 0) * 0x100 + (b or 0)
 end
 
-local function clamp01(v)
+--- Clamps a byte value to the 0-255 range.
+local function clampByte(v)
     return (v < 0) and 0 or ((v > 255) and 255 or v)
 end
 
@@ -50,7 +51,8 @@ function DXUI.resolveColor(c)
     if t == "string" then
         local hex = c:match("^#(.*)$")
         if hex then
-            if #hex == 3 then -- #RGB
+            -- #RGB shorthand: each hex digit is doubled
+            if #hex == 3 then
                 local function dup(ch) return ch:sub(1, 1) .. ch:sub(1, 1) end
                 return 0xFF000000
                     + (tonumber(dup(hex:sub(1, 1)), 16) or 0) * 0x10000
@@ -65,13 +67,15 @@ function DXUI.resolveColor(c)
         end
         local lhex = c:match("^0x(.*)$")
         if lhex then
-            if #lhex == 6 then -- 0xRRGGBB
+            -- 0xRRGGBB (alpha defaults to 255)
+            if #lhex == 6 then
                 return 0xFF000000
                     + (tonumber(lhex:sub(1, 2), 16) or 0) * 0x10000
                     + (tonumber(lhex:sub(3, 4), 16) or 0) * 0x100
                     + (tonumber(lhex:sub(5, 6), 16) or 0)
             end
-            if #lhex == 8 then -- 0xAARRGGBB (same layout as packed)
+            -- 0xAARRGGBB (same layout as the packed int)
+            if #lhex == 8 then
                 return (tonumber(lhex:sub(1, 2), 16) or 255) * 0x1000000
                     + (tonumber(lhex:sub(3, 4), 16) or 0) * 0x10000
                     + (tonumber(lhex:sub(5, 6), 16) or 0) * 0x100
@@ -100,9 +104,16 @@ end
 -- ---------------------------------------------------------------------
 
 local colorMt = {
+    --- Reads a color channel (r/g/b/a) or the packed value from the proxy.
     __index = function(self, key)
         local packed = rawget(self, "_packed")
-        if packed == nil then packed = DXUI.ColorToInt(rawget(self, "_node")._data[rawget(self, "_key")]) end
+        if packed == nil then
+            local node = rawget(self, "_node")
+            if node and not node._destroyed then
+                packed = DXUI.ColorToInt(node._data[rawget(self, "_key")])
+            end
+        end
+        if packed == nil then return nil end
         if key == "r" then return math.floor(packed / 0x10000) % 256 end
         if key == "g" then return math.floor(packed / 0x100) % 256 end
         if key == "b" then return packed % 256 end
@@ -110,6 +121,7 @@ local colorMt = {
         if key == "value" then return packed end
         return nil
     end,
+    --- Writes a color channel, repacking through node:_set.
     __newindex = function(self, key, value)
         local node = rawget(self, "_node")
         local prop = rawget(self, "_key")
@@ -119,15 +131,16 @@ local colorMt = {
         local g = math.floor(packed / 0x100) % 256
         local b = packed % 256
         local a = math.floor(packed / 0x1000000)
-        if key == "r" then r = clamp01(value)
-        elseif key == "g" then g = clamp01(value)
-        elseif key == "b" then b = clamp01(value)
-        elseif key == "a" then a = clamp01(value)
+        if key == "r" then r = clampByte(value)
+        elseif key == "g" then g = clampByte(value)
+        elseif key == "b" then b = clampByte(value)
+        elseif key == "a" then a = clampByte(value)
         else
             error("Color: unknown field '" .. tostring(key) .. "'", 2)
         end
         node:_set(prop, DXUI.color(r, g, b, a))
     end,
+    --- Formats the color as "#RRGGBBAA".
     __tostring = function(self)
         local packed = rawget(self, "_packed")
         if packed == nil then packed = DXUI.ColorToInt(rawget(self, "_node")._data[rawget(self, "_key")]) end
@@ -169,28 +182,29 @@ end
 
 --- Point: fields x/y over node props {xProp, yProp}.
 -- Size:   fields width/height over node props {wProp, hProp}.
-local function vec2Mt(readKeys, writeKeys)
+-- Each proxy accepts ONLY its own two fields (a Point has no width, a Size
+-- has no x); unknown fields raise.
+local function vec2Mt(keys)
+    local k1, k2 = keys[1], keys[2]
     return {
+        --- Reads one of the two mapped fields from the node.
         __index = function(self, key)
-            if key == "x" then return rawget(self, "_node")._data[readKeys[1]] end
-            if key == "y" then return rawget(self, "_node")._data[readKeys[2]] end
-            if key == "width" then return rawget(self, "_node")._data[readKeys[1]] end
-            if key == "height" then return rawget(self, "_node")._data[readKeys[2]] end
+            if key == k1 then return rawget(self, "_node")._data[k1] end
+            if key == k2 then return rawget(self, "_node")._data[k2] end
             return nil
         end,
+        --- Writes one of the two mapped fields through node:_set.
         __newindex = function(self, key, value)
             local node = rawget(self, "_node")
-            if key == "x" then return node:_set(readKeys[1], value) end
-            if key == "y" then return node:_set(readKeys[2], value) end
-            if key == "width" then return node:_set(writeKeys[1], value) end
-            if key == "height" then return node:_set(writeKeys[2], value) end
+            if key == k1 then return node:_set(k1, value) end
+            if key == k2 then return node:_set(k2, value) end
             error("Vec2: unknown field '" .. tostring(key) .. "'", 2)
         end,
     }
 end
 
-local pointMt = vec2Mt({ "x", "y" }, { "x", "y" })
-local sizeMt  = vec2Mt({ "width", "height" }, { "width", "height" })
+local pointMt = vec2Mt({ "x", "y" })
+local sizeMt  = vec2Mt({ "width", "height" })
 
 --- Cached Point proxy over node.x / node.y.
 function DXUI.PointProxy(node)

@@ -19,6 +19,7 @@ local Modal = DXUI.Widget:extend("Modal", {
 
 DXUI.Part.declare(Modal, { "content" })
 
+--- Creates the centered content part and hides the modal until opened.
 Modal._build = function(node)
     node.visible = false
     -- overlay fills the screen
@@ -33,10 +34,12 @@ Modal._build = function(node)
     node:setPart("content", content)
 end
 
+--- Returns the content part.
 function Modal:container()
     return self:getPart("content")
 end
 
+--- Shows the modal and pushes it onto the dispatcher modal stack.
 function Modal:open()
     self.visible = true
     if self._context then
@@ -49,6 +52,7 @@ function Modal:open()
     return self
 end
 
+--- Hides the modal, pops the modal stack, and emits "close".
 function Modal:close()
     self.visible = false
     if self._context then
@@ -62,6 +66,7 @@ function Modal:close()
     return self
 end
 
+--- Draws the dimmed overlay and the dialog surface.
 function Modal:render(renderer)
     if not self.visible then return end
     local ui = self._context

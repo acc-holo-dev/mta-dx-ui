@@ -17,8 +17,10 @@ local Label = DXUI.Widget:extend("Label", {
     autoSize = { default = true, invalidates = { DIRTY.LAYOUT } },
     text = { default = "", invalidates = { DIRTY.RENDER, DIRTY.LAYOUT } },
     textColor = { default = 0xFFFFFFFF, invalidates = { DIRTY.RENDER }, transform = DXUI.resolveColor },
-    align = { default = "left", invalidates = { DIRTY.RENDER } },   -- left|center|right
-    valign = { default = "top", invalidates = { DIRTY.RENDER } },   -- top|middle|bottom
+    -- horizontal alignment: left|center|right
+    align = { default = "left", invalidates = { DIRTY.RENDER } },
+    -- vertical alignment: top|center|bottom
+    valign = { default = "top", invalidates = { DIRTY.RENDER } },
     wrap = { default = false, invalidates = { DIRTY.RENDER, DIRTY.LAYOUT } },
     ellipsis = { default = false, invalidates = { DIRTY.RENDER } },
     shadow = { default = nil, invalidates = { DIRTY.RENDER }, transform = DXUI.resolveColor },
@@ -34,6 +36,7 @@ function Label:_measureContent()
     return w + pL + pR, h + pT + pB
 end
 
+--- Draws the text (with optional shadow) honoring wrap/ellipsis/alignment.
 function Label:render(renderer)
     if self.text == nil or self.text == "" then return end
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
@@ -61,7 +64,7 @@ function Label:render(renderer)
     local w9, h9 = laid.width, laid.height
     local x0 = wx + pL
     local yTop = wy + pT
-    if self.valign == "middle" then yTop = wy + pT + (availH - h9) / 2
+    if self.valign == "center" then yTop = wy + pT + (availH - h9) / 2
     elseif self.valign == "bottom" then yTop = wy + pT + availH - h9 end
 
     local font = self.font

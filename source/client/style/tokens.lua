@@ -1,7 +1,7 @@
 --[[
     tokens.lua — DXUI V3
 
-    Design-token registry (§45-47): named values (colors, radii, etc.)
+    Design-token registry: named values (colors, radii, etc.)
     referenced from theme components as "@category.name" (dotted paths).
     Tokens are plain nested tables; a theme defines its own token set and
     may reference tokens from a parent theme (fallback chain).
@@ -10,9 +10,9 @@
         tokens.get("color.primary")   --> value or nil (deterministic)
 
     Resolution is iterative ("@a.b" and nested "@") with a depth cap and
-    cycle guard — always terminates. Missing tokens return nil: the theme
-    compile step keeps the raw "@..." as-is when unresolved? No — it drops
-    the property (deterministic fallback to widget defaults, §54).
+    cycle guard — always terminates. A missing token resolves to nil, and
+    the theme compile step DROPS the property (deterministic fallback to
+    the widget class default).
 ]]
 
 DXUI = DXUI or {}
@@ -23,12 +23,15 @@ local Tokens = {}
 Tokens.registry = {}
 local MAX_DEPTH = 8
 
+--- Registers (or merges into) a named token table; later defines merge
+-- deeper scopes into the existing table.
 function Tokens.define(name, tbl)
     local cur = Tokens.registry[name]
     if not cur then
         cur = {}
         Tokens.registry[name] = cur
     end
+    --- Recursively merges src into dst (tables merge, scalars overwrite).
     local function deepMerge(dst, src)
         for k, v in pairs(src) do
             local dv = dst[k]

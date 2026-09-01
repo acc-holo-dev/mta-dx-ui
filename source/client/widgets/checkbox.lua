@@ -22,23 +22,25 @@ local Checkbox = DXUI.Widget:extend("Checkbox", {
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     checkedColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
-    indent = { default = 18, invalidates = { DXUI.DIRTY.RENDER } }, -- box size / text offset
+    -- box size and text offset
+    indent = { default = 18, invalidates = { DXUI.DIRTY.RENDER } },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
+--- Measures the box plus label text for autoSize.
 function Checkbox:_measureContent()
     local w = (self.indent or 18) + (#self.text * 7) + 4
     return w, self.indent or 18
 end
 
+--- Draws the box, the check mark when checked, and the label.
 function Checkbox:render(renderer)
     local wx, wy, h = self.worldX, self.worldY, self.height
     local box = self.indent or 18
-    -- box
+    -- box: border ring drawn under the inset fill
     local r = self.radius or 4
-    renderer:roundedRect(wx, wy, box, box, r, self.boxColor)
-    renderer:roundedRect(wx, wy, box, box, r, self.borderColor)
+    renderer:borderedRect(wx, wy, box, box, r, self.boxColor, self.borderColor, 1)
     -- check mark (two thick strokes)
     if self.checked then
         local c = self.checkedColor or 0xFFFFFFFF
@@ -47,13 +49,13 @@ function Checkbox:render(renderer)
     end
     if self.text and self.text ~= "" then
         renderer:text(self.text, wx + box + 6, wy, self.width - box - 6, h,
-            self.textColor, self.font, "left", "middle", 1)
+            self.textColor, self.font, "left", "center", 1)
     end
 end
 
 DXUI.Builders.register("Checkbox", Checkbox)
 
--- click toggles `checked` (per-instance handler; users may add their own)
+--- Toggles `checked` on click (per-instance handler; users may add their own).
 Checkbox._build = function(node, props)
     node:on("click", function(n)
         n.checked = not n.checked

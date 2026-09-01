@@ -12,6 +12,7 @@
 
 DXUI = DXUI or {}
 
+--- Returns the display text for an item (string or {text=...}).
 local function rowText(item)
     return (type(item) == "table") and (item.text or "") or tostring(item)
 end
@@ -31,6 +32,7 @@ local GridList = DXUI.Widget:extend("GridList", {
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
+--- Returns the row index at the given design coordinates, or nil.
 function GridList:_rowAt(designX, designY)
     local rh = self.rowHeight or 22
     local total = #(self.items or {}) * rh
@@ -44,6 +46,7 @@ function GridList:_rowAt(designX, designY)
     return idx
 end
 
+--- Wires click selection and wheel scrolling.
 GridList._build = function(node)
     node.clip = true
     node:on("click", function(n, _, x, y)
@@ -56,11 +59,13 @@ GridList._build = function(node)
     end, "dxui-grid")
 end
 
+--- Appends an item to the list.
 function GridList:addItem(item)
     self.items[#self.items + 1] = item
     return self
 end
 
+--- Draws the visible rows and the scrollbar thumb.
 function GridList:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local rh = self.rowHeight or 22
@@ -78,7 +83,7 @@ function GridList:render(renderer)
                 or (hoverIdx == i and self.hoverColor) or nil
             if bg then renderer:rect(wx, y0, w, rh, bg) end
             local tc = sel == i and (self.selectedTextColor or self.textColor) or self.textColor
-            renderer:text(rowText(items[i]), wx + 6, y0, w - 12, rh, tc, self.font, "left", "middle", 1)
+            renderer:text(rowText(items[i]), wx + 6, y0, w - 12, rh, tc, self.font, "left", "center", 1)
         end
     end
     -- scrollbar thumb

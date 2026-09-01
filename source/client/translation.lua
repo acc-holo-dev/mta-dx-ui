@@ -8,7 +8,8 @@
 
 DXUI = DXUI or {}
 
-DXUI._translations = DXUI._translations or {} -- lang -> { key = text }
+-- lang -> { key = text }
+DXUI._translations = DXUI._translations or {}
 DXUI.locale = DXUI.locale or "en"
 
 -- Weak registry of text-bound nodes (alive keys only)
@@ -33,20 +34,27 @@ function DXUI.setLocale(lang)
     end
 end
 
+--- Returns the active locale.
 function DXUI.getLocale()
     return DXUI.locale
 end
 
 --- Looks up key in the active locale; substitutions %1..%N applied.
--- Falls back to the key itself when missing.
+-- Falls back to the key itself when missing. Single-pass gsub: arguments
+-- with more than one digit (%10) resolve, and replacement text is inserted
+-- literally (a "%" inside a value cannot corrupt the pattern).
 function DXUI.tr(key, ...)
     local dict = DXUI._translations[DXUI.locale]
     local text = (dict and dict[key]) or key
     local n = select("#", ...)
     if n > 0 then
-        for i = 1, n do
-            text = text:gsub("%%" .. i, tostring((select(i, ...))))
-        end
+        local args = { ... }
+        text = text:gsub("%%(%d+)", function(i)
+            local v = args[tonumber(i)]
+            if v ~= nil then return tostring(v) end
+            -- unknown index: keep the original %N
+            return nil
+        end)
     end
     return text
 end

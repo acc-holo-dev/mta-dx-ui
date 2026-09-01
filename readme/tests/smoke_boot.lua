@@ -63,6 +63,21 @@ local r2 = ui.stats.rebuilds
 renderFrames(1)
 eq(ui.stats.rebuilds == r2 + 1, true, 'single mutation -> single rebuild')
 
+-- global getUI export + per-resource ownership
+eq(type(getUI) == 'function', true, 'global getUI exported')
+local a = DXUI.getUI('owned', nil, 'resA')
+local b = DXUI.getUI('owned', nil, 'resB')
+eq(a ~= b, true, 'per-resource ownership isolates instances')
+DXUI.releaseResource('resA')
+eq(a._destroyed, true, 'releaseResource destroys owned instance')
+eq(b._destroyed, false, 'releaseResource leaves other owners intact')
+
+-- input glue: correct MTA event names registered
+eq(mta.handlers['onClientCursorMove'] ~= nil, true, 'onClientCursorMove registered')
+eq(mta.handlers['onClientCharacter'] ~= nil, true, 'onClientCharacter registered')
+eq(mta.handlers['onClientKey'] ~= nil, true, 'onClientKey registered')
+eq(mta.handlers['onClientScrollWheel'] == nil, true, 'no onClientScrollWheel (does not exist in MTA)')
+
 -- resource stop cleanup
 local released = false
 local base = DXUI.releaseResources

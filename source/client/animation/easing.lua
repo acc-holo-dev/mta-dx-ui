@@ -1,7 +1,7 @@
 --[[
     easing.lua — DXUI V3
 
-    Easing functions for animation (§44). Named strings are readable:
+    Easing functions for animation. Named strings are readable:
     "linear", "in", "out", "inout", "back", "elastic", "bounce". Spring is
     a time-based function of (t, omega, damping) — see Anim.spring below.
 ]]
@@ -11,11 +11,17 @@ DXUI = DXUI or {}
 local c1 = 1.70158
 local c3 = c1 + 1
 
+-- Easing curve families: each entry maps a name t in [0,1] to an eased
+-- t' in [0,1] (back/elastic/bounce overshoot or oscillate; in/out/inout
+-- shape the motion; linear is identity). Aliases at the bottom expose the
+-- most common named strings used by animation specs.
 local easing = {
     linear = function(t) return t end,
-    ["in"]  = function(t) return t * t * t end,           -- cubic in
+    -- cubic in
+    ["in"]  = function(t) return t * t * t end,
     out     = function(t) local u = 1 - t return 1 - u * u * u end,
-    inout   = function(t) return t * t * (3 - 2 * t) end,  -- smoothstep
+    -- smoothstep
+    inout   = function(t) return t * t * (3 - 2 * t) end,
     backIn  = function(t) return c3 * t * t * t - c1 * t * t end,
     backOut = function(t) local u = t - 1 return 1 + c3 * u * u * u + c1 * u * u end,
     backInOut = function(t)
@@ -49,7 +55,26 @@ local easing = {
         end
     end,
     bounceIn = function(t) return 1 - easing.bounceOut(1 - t) end,
+    elasticInOut = function(t)
+        if t == 0 or t == 1 then return t end
+        if t < 0.5 then
+            local u = 2 * t - 1
+            return -0.5 * math.pow(2, 10 * u) * math.sin((u * 1.5 - 0.75) * (2 * math.pi / 3))
+        end
+        local u = 2 * t - 1
+        return 0.5 * math.pow(2, -10 * u) * math.sin((u * 1.5 - 0.75) * (2 * math.pi / 3)) + 1
+    end,
+    bounceInOut = function(t)
+        if t < 0.5 then return easing.bounceIn(2 * t) / 2 end
+        return easing.bounceOut(2 * t - 1) / 2 + 0.5
+    end,
 }
+
+-- Readable aliases (the header names): each resolves to its most common
+-- "out" variant, the default for UI entrance animations.
+easing.back    = easing.backOut
+easing.elastic = easing.elasticOut
+easing.bounce  = easing.bounceOut
 
 DXUI.EASING = easing
 

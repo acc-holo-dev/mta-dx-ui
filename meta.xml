@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <meta>
     <info name="mta-dx-ui" version="3.0.0" type="script"
-        description="DXUI V3 — production МТА:SA UI engine (DX9, Lua 5.1)" />
+        description="DXUI V3 — production MTA:SA UI engine (DX9, Lua 5.1)" />
+
+    <!-- Cross-resource entry point: exports.dxui:getUI() -->
+    <export function="getUI" type="client" />
 
     <!-- ============================================================
          DXUI V3 manifest. Script order is the dependency order:

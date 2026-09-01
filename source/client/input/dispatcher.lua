@@ -14,7 +14,7 @@
         key                       (focus target receives keys)
         focus / blur              (focusable nodes)
 
-    Rules (V2-consistent):
+    Rules:
       - modal stack: while a modal is open, only nodes inside it receive
         input; opening a modal locks hover/focus to it.
       - popup management: any click outside current popups dismisses the
@@ -30,20 +30,28 @@ DXUI = DXUI or {}
 local Dispatcher = {}
 Dispatcher.__index = Dispatcher
 
-Dispatcher.DRAG_THRESHOLD = 6 -- design units
+-- design units
+Dispatcher.DRAG_THRESHOLD = 6
 
+--- Creates a fresh input state for an instance.
 function Dispatcher.new(instance)
     return setmetatable({
         instance = instance,
         hover = nil,
         focus = nil,
-        pressed = nil,     -- node under the pressed button
+        -- node under the pressed button
+        pressed = nil,
         pressButton = nil,
-        pressX, pressY = nil, nil,
-        dragging = false,  -- drag-start already fired
-        dragged = false,   -- movement exceeded threshold (suppresses click)
-        modal = nil,       -- topmost modal node (nil = none)
-        popups = {},       -- open popups, topmost last
+        pressX = nil,
+        pressY = nil,
+        -- drag-start already fired
+        dragging = false,
+        -- movement exceeded threshold (suppresses click)
+        dragged = false,
+        -- open modal stack (topmost last)
+        modals = {},
+        -- open popups, topmost last
+        popups = {},
     }, Dispatcher)
 end
 
@@ -52,20 +60,23 @@ end
 -- ---------------------------------------------------------------------
 
 --- Opens a modal (blocks input to everything outside it, including lower
--- modals' areas). Returns the modal id (nil when already open).
+-- modals' areas). Returns the new modal depth.
 function Dispatcher:openModal(node)
-    local depth = self.modalDepth or 0
-    self.modalDepth = depth + 1
+    local modals = self.modals
+    if not modals then
+        modals = {}
+        self.modals = modals
+    end
+    modals[#modals + 1] = node
     self:setFocus(node)
-    self.modal = node
-    return self.modalDepth
+    return #modals
 end
 
+--- Closes the topmost modal and clears focus.
 function Dispatcher:closeModal(id)
-    self.modalDepth = (self.modalDepth or 1) - 1
-    if self.modalDepth <= 0 then
-        self.modalDepth = 0
-        self.modal = nil
+    local modals = self.modals or {}
+    if #modals > 0 then
+        table.remove(modals)
     end
     self:setFocus(nil)
 end
@@ -75,12 +86,14 @@ function Dispatcher:openPopup(node)
     self.popups[#self.popups + 1] = node
 end
 
+--- Removes a popup from the open-popup list.
 function Dispatcher:closePopup(node)
     for i = #self.popups, 1, -1 do
         if self.popups[i] == node then table.remove(self.popups, i) end
     end
 end
 
+--- Closes every open popup, emitting popup-close on each.
 function Dispatcher:closeAllPopups()
     local popups = self.popups
     for i = #popups, 1, -1 do
@@ -95,8 +108,9 @@ end
 --- Whether `node` is reachable for input right now: not blocked by a
 -- modal, and not outside an open popup chain.
 function Dispatcher:reachable(node)
-    local m = self.modal
-    if m then
+    local modals = self.modals
+    if modals and #modals > 0 then
+        local m = modals[#modals]
         local n = node
         while n do
             if n == m then return true end
@@ -111,6 +125,7 @@ end
 -- Focus
 -- ---------------------------------------------------------------------
 
+--- Moves focus to node, emitting blur on the old target and focus on the new.
 function Dispatcher:setFocus(node)
     if self.focus == node then return end
     local old = self.focus
@@ -127,6 +142,7 @@ end
 -- Pointer state
 -- ---------------------------------------------------------------------
 
+--- Whether node is ancestor or a descendant of it.
 local function containsAncestor(ancestor, node)
     local n = node
     while n do
@@ -136,6 +152,7 @@ local function containsAncestor(ancestor, node)
     return false
 end
 
+--- Updates hover and drag state for a pointer move at design coords.
 function Dispatcher:mouseMove(x, y)
     local target = DXUI.HitTest.topAt(self.instance, x, y)
     -- hover transitions
@@ -166,6 +183,7 @@ function Dispatcher:mouseMove(x, y)
     end
 end
 
+--- Starts a press on the topmost reachable node at design coords.
 function Dispatcher:mouseDown(button, x, y)
     self:closePopupsOutside(x, y)
     local target = DXUI.HitTest.topAt(self.instance, x, y)
@@ -182,6 +200,7 @@ function Dispatcher:mouseDown(button, x, y)
     end
 end
 
+--- Releases the press, emitting click or drag-end as appropriate.
 function Dispatcher:mouseUp(button, x, y)
     local pressed = self.pressed
     self.pressed = nil
@@ -228,8 +247,10 @@ function Dispatcher:closePopupsOutside(x, y)
     end
 end
 
+--- Routes a wheel event to the nearest scroll handler, bubbling up.
 function Dispatcher:scroll(wheel, x, y)
     local target = DXUI.HitTest.topAt(self.instance, x, y) or self.hover or self.focus
+    if target and not self:reachable(target) then return false end
     local n = target
     while n do
         if DXUI.Events.has(n, "scroll") then
@@ -241,9 +262,11 @@ function Dispatcher:scroll(wheel, x, y)
     return false
 end
 
+--- Routes a key event to the focused node, bubbling up.
 function Dispatcher:key(keyName, pressed2, ...)
     local target = self.focus
     if not target then return false end
+    if not self:reachable(target) then return false end
     if DXUI.Events.has(target, "key") then
         target:emit("key", keyName, pressed2, ...)
         return true
@@ -259,6 +282,26 @@ function Dispatcher:key(keyName, pressed2, ...)
     return false
 end
 
+--- Routes a printable character to the focused node (text input).
+function Dispatcher:character(ch)
+    local target = self.focus
+    if not target then return false end
+    if not self:reachable(target) then return false end
+    if DXUI.Events.has(target, "character") then
+        target:emit("character", ch)
+        return true
+    end
+    local n = target._parent
+    while n do
+        if DXUI.Events.has(n, "character") then
+            n:emit("character", ch)
+            return true
+        end
+        n = n._parent
+    end
+    return false
+end
+
 --- Node destroyed: drop it from all input state (runtime calls on destroy).
 function Dispatcher:nodeDestroyed(node)
     if self.hover == node then self.hover = nil end
@@ -267,7 +310,12 @@ function Dispatcher:nodeDestroyed(node)
     for i = #self.popups, 1, -1 do
         if self.popups[i] == node then table.remove(self.popups, i) end
     end
-    if self.modal == node then self.modal = nil end
+    local modals = self.modals
+    if modals then
+        for i = #modals, 1, -1 do
+            if modals[i] == node then table.remove(modals, i) end
+        end
+    end
 end
 
 --- Called when a node mounts/changes in the tree (hook for future cursor

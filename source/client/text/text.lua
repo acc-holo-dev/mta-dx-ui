@@ -1,7 +1,7 @@
 --[[
     text.lua — DXUI V3
 
-    Text subsystem (§38): measurement, layout, caching — rendering stays in
+    Text subsystem: measurement, layout, caching — rendering stays in
     the renderer/backend (align/valign native dxDrawText params).
 
     Measurement backend is INJECTED by the backend driver (backend_mta sets
@@ -16,7 +16,8 @@ DXUI = DXUI or {}
 
 local Text = {}
 
-local CHAR_W = 7  -- monospace estimate fallback
+-- monospace estimate fallback
+local CHAR_W = 7
 local LINE_H = 15
 local CACHE_CAP = 4096
 local LAYOUT_CACHE_CAP = 256
@@ -25,7 +26,8 @@ local LAYOUT_CACHE_CAP = 256
 -- Measurement
 -- ---------------------------------------------------------------------
 
-local measurer = nil   -- fn(text, scale, font) -> w, h (screen-independent)
+-- fn(text, scale, font) -> w, h (screen-independent)
+local measurer = nil
 local measureCache = {}
 local measureCacheCount = 0
 local layoutCache = {}
@@ -74,6 +76,7 @@ end
 -- Layout: word-wrap with color-code carry, ellipsis
 -- ---------------------------------------------------------------------
 
+--- Returns the last #RRGGBB color code in a string, or nil.
 local function activeColorCode(s)
     local code = nil
     for c in s:gmatch("#%x%x%x%x%x%x") do code = c end
@@ -191,6 +194,7 @@ function Text.charX(line, font, scale, col)
     return w
 end
 
+--- Clears the measurement and layout caches.
 function Text.clearCache()
     measureCache, measureCacheCount = {}, 0
     layoutCache, layoutCacheCount = {}, 0

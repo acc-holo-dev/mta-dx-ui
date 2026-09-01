@@ -1,10 +1,10 @@
 # DXUI V3 — Internal Contracts (source of truth for implementation)
 
 Status: LOCKED by the main agent after the V2 audit (readme/ai/001-v2-audit.md).
-Load order (meta.xml): values → settings → node → widget → part → text → color(utils) → resources →
-theme → tokens → layout(dimension/flex/layout) → render(list/state/pass/renderer/effects/backend_mta) →
-input(events/hit_test/dispatcher) → animation(easing/animation) → runtime → ui → widgets(…) → builders →
-exports → init.
+Load order (meta.xml): settings → values → node → widget → part → translation → text → tokens → theme →
+defaults → easing → animation → resources(manager) → layout(dimension/flex/layout) → render(list/effects/
+backend_mta/renderer/state/pass) → input(events/hit_test/dispatcher) → runtime → ui → exports → diagnostics →
+builders → widgets(…) → init.
 
 ## 1. Globals & module convention
 - `DXUI = DXUI or {}` in each file; each subsystem publishes ONE table: `DXUI.Values, DXUI.Node, DXUI.Widget,
@@ -150,7 +150,7 @@ function Button:render(renderer) … end           -- primitives only
 function Button:onMount(ctx) … end               -- parts that need context
 function Button.build(ui, props) → node          -- constructor (ui instance)
 ```
-- Registration `DXUI.UI.registerWidget("button", Button)` → `ui:button(props)` (mounts to root or parent
+- Registration `DXUI.Builders.register("Button", Button)` → `ui:button(props)` (mounts to root or parent
   builder `parent:button(props)`). New widgets never touch kernel.
 - Widget props that are functions (`onClick`, `render`) are consumed by builders explicitly; method-named
   props are rejected loudly in dev (no silent skip).

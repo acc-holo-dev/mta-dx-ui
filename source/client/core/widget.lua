@@ -2,11 +2,11 @@
     widget.lua — DXUI V3
 
     BaseWidget — extends BaseNode with the widget contract:
-      - visual traits: color, font, effects (capabilities, §36);
+      - visual traits: color, font, effects (capabilities);
       - the render(renderer) contract — called by the render pass, never
         by the widget itself; primitives only (no DX access);
       - style/theme application with the user/system/theme owner guard
-        (sparse overrides, §54);
+        (sparse overrides);
       - content measurement for autoSize;
       - translation binding.
 
@@ -28,8 +28,9 @@ local DIRTY = DXUI.DIRTY
 local Widget = DXUI.Node:extend("Widget", {
     -- surface color (packed). Value object access: button.color.r = 255.
     color = { default = 0xFFFFFFFF, invalidates = { DIRTY.RENDER }, transform = DXUI.resolveColor },
-    -- font handle (from ui:font(...), cached; nil = default).
-    font = { default = nil, invalidates = { DIRTY.RENDER } },
+    -- font handle (from ui:font(...), cached; nil = default). A font change
+    -- alters measured text size, so it invalidates layout too.
+    font = { default = nil, invalidates = { DIRTY.RENDER, DIRTY.LAYOUT } },
     -- visual capabilities (optional, cheap when unset)
     blur  = { default = 0,         invalidates = { DIRTY.RENDER } },
     mask  = { default = nil,       invalidates = { DIRTY.RENDER } },
@@ -53,6 +54,7 @@ function Widget:setColor(c)
     self:_set("color", DXUI.resolveColor(c))
     return self
 end
+--- Returns the packed color int.
 function Widget:getColor()
     return DXUI.ColorToInt(self._data.color)
 end
@@ -73,7 +75,7 @@ function Widget:_measureContent()
 end
 
 -- ---------------------------------------------------------------------
--- Style / theme application (§53-54): engine defaults -> global theme ->
+-- Style / theme application: engine defaults -> global theme ->
 -- resource theme -> component -> part role -> state -> instance override
 -- -> explicit runtime override. Only non-user/system props are theme-owned.
 -- ---------------------------------------------------------------------
@@ -139,7 +141,7 @@ function Widget:_applyStyleState()
 end
 
 --- Build-time: apply theme defaults (state is "normal" at build).
-function Widget.applyThemeDefaults(node, props)
+function Widget.applyThemeDefaults(node)
     if node._class and node._class._applyStyleState then
         node:_applyStyleState()
     end
@@ -185,6 +187,7 @@ function Widget:setTextKey(key, target)
     return self
 end
 
+--- Applies the bound translation key to the text property.
 function Widget:applyTranslation()
     if not self._textKey then return end
     local tr = DXUI.tr

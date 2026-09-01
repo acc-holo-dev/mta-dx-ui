@@ -176,4 +176,50 @@ eq(type(DXUI.Runtime.backend), 'table', 'Runtime.backend injectable')
 eq(type(DXUI.Runtime.create), 'function', 'Runtime.create exists')
 eq(type(DXUI.getUI), 'function', 'getUI exists')
 
+-- ---- regression: parent write reparents (not silently dropped) --------
+local pa = ui:panel({ x=0, y=0, width=50, height=50 })
+local pb = ui:panel({ x=0, y=0, width=50, height=50 })
+ui:add(pa); ui:add(pb)
+local ch = ui:label({ text='c' })
+ch.parent = pa
+eq(ch._parent, pa, 'parent write reparents (1)')
+ch.parent = pb
+eq(ch._parent, pb, 'parent write reparents (2)')
+
+-- ---- regression: Edit padding is a valid spec (no crash on write) -----
+local e2 = ui:edit({ x=0, y=0, width=100, height=24 })
+local okPad = pcall(function() e2.padding = { left = 4, right = 4, top = 0, bottom = 0 } end)
+eq(okPad, true, 'edit padding write does not crash')
+
+-- ---- regression: translation %N (multi-digit + literal % in value) ----
+DXUI.addLocale('xx', { greet = 'Hello %1, you are %2', pct = 'Progress %1',
+                       many = '%1 %2 %3 %4 %5 %6 %7 %8 %9 %10' })
+DXUI.setLocale('xx')
+eq(DXUI.tr('greet', 'Bob', 42), 'Hello Bob, you are 42', 'tr multi-arg')
+eq(DXUI.tr('pct', '100%'), 'Progress 100%', 'tr literal percent in value')
+eq(DXUI.tr('many', 'a','b','c','d','e','f','g','h','i','j'),
+   'a b c d e f g h i j', 'tr %10 multi-digit')
+DXUI.setLocale('en')
+
+-- ---- regression: RT-group path must not recurse infinitely ------------
+local function withGroups(fn)
+    local saved = { dxCreateShader, dxCreateRenderTarget, isElement, destroyElement }
+    dxCreateShader = function() return {} end
+    dxCreateRenderTarget = function() return {} end
+    isElement = function() return true end
+    destroyElement = function() end
+    local ok, err = pcall(fn)
+    dxCreateShader, dxCreateRenderTarget = saved[1], saved[2]
+    isElement, destroyElement = saved[3], saved[4]
+    if not ok then error(err, 0) end
+end
+withGroups(function()
+    local g = ui:panel({ x=0, y=0, width=100, height=100, blur=4 })
+    ui:add(g)
+    local gc = ui:label({ text='x', x=0, y=0 })
+    gc:setParent(g)
+    ui:tick()
+    expect(ui.stats.items >= 1, 'group node emits without recursion')
+end)
+
 print('smoke_api: all assertions executed')

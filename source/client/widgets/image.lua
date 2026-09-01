@@ -13,9 +13,11 @@ DXUI = DXUI or {}
 
 local Image = DXUI.Widget:extend("Image", {
     texture = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
-    section = { default = nil, invalidates = { DXUI.DIRTY.RENDER } }, -- {x,y,w,h} px
+    -- source crop region in pixels: {x, y, w, h}
+    section = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
 })
 
+--- Draws the texture quad with tint and optional crop.
 function Image:render(renderer)
     if not self.texture then return end
     renderer:image(self.texture, self.worldX, self.worldY, self.width, self.height,

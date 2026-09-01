@@ -11,15 +11,14 @@
             if interactiveDirty then HitTest.rebuild
             draw the CACHED render list          -- ~zero work idle
 
-    Invalidation: Node mutations set per-node category flags and call
-    instance:_queueNode(node) which ORs them into four instance-level flags
-    (layoutDirty/renderDirty/orderDirty/interactiveDirty). Consequent
-    mutations in the same frame coalesce; the flags are drained once.
+    Invalidation: Node mutations OR their category into four instance-level
+    flags (layoutDirty/renderDirty/orderDirty/interactiveDirty) directly.
+    Consequent mutations in the same frame coalesce; the flags are drained
+    once per frame.
 
-    Purposely no per-node dirty drilling in v1: collect() walks the tree
-    anyway (it must, for opacity/clip), so flag granularity is a
-    diagnostics/roadmap concern (orderDirty is reserved for incremental
-    work — v1 always re-sorts).
+    Purposely no per-node dirty drilling: collect() walks the tree anyway
+    (it must, for opacity/clip), so flag granularity is a diagnostics/
+    roadmap concern (orderDirty is reserved for incremental work).
 
     Pure Lua: rendering delegates to an injected backend (DXUI.BackendMTA
     in MTA; mock in tests); the clock is injectable too.
@@ -48,10 +47,11 @@ function Runtime.create(opts)
     self.name = opts.name or string.format("ui%d", DXUI.Runtime._counter)
     DXUI.Runtime._counter = (DXUI.Runtime._counter or 0) + 1
 
+    self._destroyed = false
     self.backend = opts.backend or Runtime.backend
     self.clock = opts.clock or Runtime.clockDefault
 
-    -- design resolution (else screen space behaior: design == screen)
+    -- design resolution (else screen space behavior: design == screen)
     local design = opts.design or {}
     self.layoutW = design.width or 0
     self.layoutH = design.height or 0
@@ -76,7 +76,8 @@ function Runtime.create(opts)
     }
     self._prevLayoutRuns = 0
     self._prevRebuilds = 0
-    self.perf = nil -- { zeroWork = true } asserts the idle-frame contract
+    -- { zeroWork = true } asserts the idle-frame contract
+    self.perf = nil
 
     -- subsystems
     self.anim = DXUI.Anim and DXUI.Anim.new(self) or nil
@@ -96,7 +97,6 @@ function Runtime.create(opts)
     if opts.settings then
         if DXUI.applySettings then DXUI.applySettings(opts.settings) end
     end
-    self.settings = (DXUI.config and DXUI.config.dev) or DXUI.Settings or {}
     return self
 end
 
@@ -104,13 +104,7 @@ end
 -- Dirty model integration (Node mutations call these)
 -- ---------------------------------------------------------------------
 
-function Runtime:_queueNode(node)
-    if node._layoutDirty then self.layoutDirty = true end
-    if node._renderDirty then self.renderDirty = true end
-    if node._orderDirty then self.orderDirty = true end
-    if node._interactiveDirty then self.interactiveDirty = true end
-end
-
+--- Handles a node's destruction: notifies subsystems and marks dirty.
 function Runtime:_onNodeDestroyed(node)
     if self.dispatcher then self.dispatcher:nodeDestroyed(node) end
     if self.anim then self.anim:stop(node) end
@@ -141,7 +135,8 @@ function Runtime:setViewport(w, h)
         self._mapScaleY = s
         self._mapOffX = (w - self.layoutW * s) / 2
         self._mapOffY = (h - self.layoutH * s) / 2
-    else -- stretch
+    -- stretch
+    else
         self._mapScaleX = w / self.layoutW
         self._mapScaleY = h / self.layoutH
         self._mapOffX = 0
@@ -167,6 +162,7 @@ end
 -- `self.perf.zeroWork = true` additionally asserts that no pass runs
 -- without its dirty flag (measures the "idle frame = zero work" contract).
 function Runtime:tick()
+    if self._destroyed then return end
     local stats = self.stats
     stats.frames = stats.frames + 1
 
@@ -190,16 +186,15 @@ function Runtime:tick()
         DXUI.Layout.update(self)
         stats.layoutRuns = stats.layoutRuns + 1
         self.layoutDirty = false
-        self.renderDirty = true -- positions changed
+        -- positions changed
+        self.renderDirty = true
         self.interactiveDirty = true
     end
 
     -- 3. render list rebuild + interactive list
     if self.renderDirty or self.orderDirty then
-        if self.backend ~= nil or not DXUI.Renderer then
-            stats.rebuilds = stats.rebuilds + 1
-            stats.items = DXUI.RenderPass.build(self)
-        end
+        stats.rebuilds = stats.rebuilds + 1
+        stats.items = DXUI.RenderPass.build(self)
         self.renderDirty = false
         self.orderDirty = false
     end
@@ -242,33 +237,44 @@ end
 -- Input bridge (screen coords in, design routing; MTA wiring in init.lua)
 -- ---------------------------------------------------------------------
 
+--- Routes a mouse-move to the dispatcher in design coordinates.
 function Runtime:mouseMove(sx, sy)
     if not self.dispatcher then return end
     local dx, dy = self:designPoint(sx, sy)
     self.dispatcher:mouseMove(dx, dy)
 end
 
+--- Routes a mouse-down to the dispatcher in design coordinates.
 function Runtime:mouseDown(button, sx, sy)
     if not self.dispatcher then return end
     local dx, dy = self:designPoint(sx, sy)
     self.dispatcher:mouseDown(button, dx, dy)
 end
 
+--- Routes a mouse-up to the dispatcher in design coordinates.
 function Runtime:mouseUp(button, sx, sy)
     if not self.dispatcher then return end
     local dx, dy = self:designPoint(sx, sy)
     self.dispatcher:mouseUp(button, dx, dy)
 end
 
+--- Routes a scroll event to the dispatcher in design coordinates.
 function Runtime:scroll(wheel, sx, sy)
     if not self.dispatcher then return end
     local dx, dy = self:designPoint(sx, sy)
     return self.dispatcher:scroll(wheel, dx, dy)
 end
 
+--- Routes a key event to the dispatcher.
 function Runtime:key(keyName, pressed2, ...)
     if not self.dispatcher then return false end
     return self.dispatcher:key(keyName, pressed2, ...)
+end
+
+--- Routes a character input to the dispatcher.
+function Runtime:character(ch)
+    if not self.dispatcher then return false end
+    return self.dispatcher:character(ch)
 end
 
 -- ---------------------------------------------------------------------

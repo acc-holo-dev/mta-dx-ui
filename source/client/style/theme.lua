@@ -1,7 +1,7 @@
 --[[
     theme.lua — DXUI V3
 
-    Theme engine (§45-59): named themes with token sets + component styles.
+    Theme engine: named themes with token sets + component styles.
 
         Theme.define("flat", { tokens = {...}, components = {
             button = {
@@ -13,7 +13,7 @@
 
         Theme.activate("flat")   -- switches live; re-styles mounted widgets
 
-    Lookup (deterministic fallback chain §51):
+    Lookup (deterministic fallback chain):
         widget.style variant > component base > widget class default.
     getComponentStyle(name, styleKey) returns COMPILED maps (tokens resolved
     once, cached per (theme, component, styleKey)) — runtime style apply is
@@ -24,7 +24,7 @@
     a component are skipped by the widget layer (spec guard).
 
     Switching themes re-applies styles to every mounted widget (sparse
-    overrides, owner guard: user-set props are never overwritten, §54).
+    overrides, owner guard: user-set props are never overwritten).
 ]]
 
 DXUI = DXUI or {}
@@ -48,6 +48,7 @@ function Theme.define(name, tbl)
     end
 end
 
+--- Resolves token references in a props table, dropping unresolved keys.
 local function resolveProps(themeName, props)
     local out = {}
     for k, v in pairs(props) do
@@ -77,7 +78,8 @@ local function compileComponent(themeName, componentName, styleKey)
     if styleKey and def.variants and def.variants[styleKey] then
         for k, v in pairs(def.variants[styleKey]) do chosen[k] = v end
     end
-    if def.props then -- `props` top-level alias for base
+    if def.props then
+        -- `props` is a top-level alias for base
         for k, v in pairs(def.props) do chosen[k] = v end
     end
 
@@ -90,6 +92,7 @@ local function compileComponent(themeName, componentName, styleKey)
     return styles
 end
 
+--- Returns the compiled style for (theme, component, styleKey), caching it.
 local function cached(themeName, componentName, styleKey)
     local key = themeName .. "\1" .. componentName .. "\1" .. tostring(styleKey or "")
     local hit = compiledCache[key]
@@ -105,7 +108,7 @@ local function cached(themeName, componentName, styleKey)
 end
 
 --- Public lookup used by Widget:_applyStyleState. Deterministic fallback
--- chain (§51): current theme component > fallback theme component >
+-- chain: current theme component > fallback theme component >
 -- widget class default (nil here).
 function Theme.getComponentStyle(componentName, styleKey)
     local cur = Theme._currentName
@@ -133,8 +136,12 @@ function Theme.activate(name)
     Theme._currentName = name
     Theme.current = theme
     compiledCache = {}
-    -- sweep assets owned by the old theme before the new one marks its own
-    if DXUI.releaseObsolete then DXUI.releaseObsolete(Theme._keep) end
+    -- sweep assets owned by the old theme. Only runs when asset tracking is
+    -- active (markAssetUsed populated the keep-set); with an empty keep-set
+    -- this is a no-op — releasing with an empty set would free LIVE assets.
+    if DXUI.releaseObsolete and Theme._keep and next(Theme._keep) then
+        DXUI.releaseObsolete(Theme._keep)
+    end
     Theme._keep = {}
     -- re-style all live widgets
     Theme.reapplyAll()
@@ -142,7 +149,7 @@ end
 
 --- Marks an asset path/desc as used by the active theme (component compile
 -- can call this when a token resolves to an asset path). Reserved for the
--- resource-ownership sweep (§59).
+-- resource-ownership sweep.
 function Theme.markAssetUsed(path)
     if DXUI.markTextureUsed and path then DXUI.markTextureUsed(path) end
     if Theme._keep then Theme._keep["t:" .. path] = true end
@@ -151,6 +158,7 @@ end
 --- Re-applies the current style to every mounted widget (tree walks).
 function Theme.reapplyAll()
     if not (DXUI._uis and DXUI.Widget) then return end
+    --- Re-applies the style to a node and recurses into its children.
     local function walk(node)
         local cls = node._class
         if cls and cls ~= DXUI.Node and cls._applyStyleState then

@@ -1,7 +1,7 @@
 --[[
     dimension.lua — DXUI V3
 
-    Human-readable dimensions (§28): ui.percent(50), ui.auto(), ui.fill()
+    Human-readable dimensions: ui.percent(50), ui.auto(), ui.fill()
     (plus plain numbers and "50%" strings at the cold path). All forms are
     COMPILED into a small tagged form at the cold path:
         { k = "px", v = n } | { k = "pct", v = n } | { k = "auto" } | { k = "fill" }
@@ -40,9 +40,11 @@ function Dimension.compile(v)
     error("dimension: unsupported type " .. t, 3)
 end
 
---- Public factory forms.
+--- Percent of the parent size.
 DXUI.percent = function(n) return { k = "pct", v = n } end
+--- Natural content size.
 DXUI.auto = function() return { k = "auto" } end
+--- Fill the remaining parent space.
 DXUI.fill = function() return { k = "fill" } end
 
 --- Resolves a compiled dimension against a parent size (hot-ish path:
@@ -52,7 +54,8 @@ function Dimension.resolve(v, parentSize)
     if v == nil then return nil end
     if v.k == "px" then return v.v end
     if v.k == "pct" then return parentSize * v.v / 100 end
-    return nil -- auto / fill
+    -- auto / fill
+    return nil
 end
 
 --- Normalizes a margin/padding box: nil | number | {left,top,right,bottom}

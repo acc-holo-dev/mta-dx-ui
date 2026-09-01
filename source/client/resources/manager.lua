@@ -5,10 +5,10 @@
     (identical resources created once: no "font per label").
 
         local tex  = ui:texture("icons/x.png")   -- cached
-        local font = ui:font("Roboto", 12)        -- cached
+        local font = ui:font("assets/Roboto.ttf", 12)  -- cached (FILE PATH)
         local sh   = ui:shader(code)              -- cached
 
-    Ownership (§59): caches are SHARED process-wide. The ACTIVE theme owns
+    Ownership: caches are SHARED process-wide. The ACTIVE theme owns
     the set of assets it references; switching themes sweeps obsolete assets
     (released) while shared ones remain. Hard release happens on the
     runtime resource stop (releaseResources).
@@ -32,14 +32,19 @@ function DXUI.texture(path)
     if dxCreateTexture then
         local ok, result = pcall(dxCreateTexture, path)
         tex = ok and result or false
+        if not ok or not result then
+            DXUI._warn("texture: failed to load '" .. tostring(path) .. "'")
+        end
     else
-        tex = path -- outside MTA: pass-through placeholder
+        -- outside MTA: pass-through placeholder
+        tex = path
     end
     textureCache[path] = tex
     return tex ~= false and tex or nil
 end
 
---- Creates a font, cached by (name, size). nil = default MTA font.
+--- Creates a font, cached by (path, size). `name` is a FILE PATH (or
+-- "default" for the built-in font), not a family name. nil = default font.
 function DXUI.font(name, size)
     local key = tostring(name) .. ":" .. tostring(size)
     local cached = fontCache[key]
@@ -48,6 +53,9 @@ function DXUI.font(name, size)
     if dxCreateFont then
         local ok, result = pcall(dxCreateFont, name, size)
         font = ok and result or false
+        if not ok or not result then
+            DXUI._warn("font: failed to load '" .. tostring(name) .. "'")
+        end
     end
     fontCache[key] = font
     return font ~= false and font or nil
@@ -61,16 +69,20 @@ function DXUI.shader(code)
     if dxCreateShader then
         local ok, result = pcall(dxCreateShader, code)
         sh = ok and result or false
+        if not ok or not result then
+            DXUI._warn("shader: failed to compile")
+        end
     end
     shaderCache[code] = sh
     return sh ~= false and sh or nil
 end
 
 -- ---------------------------------------------------------------------
--- Theme-asset ownership (§59): the active theme references a keep-set;
+-- Theme-asset ownership: the active theme references a keep-set;
 -- sweeping releases obsolete cached assets, shared ones survive.
 -- ---------------------------------------------------------------------
 
+--- Destroys v if it is an MTA element (userdata).
 local function destroyIfElement(_, v)
     if type(v) == "userdata" and isElement and isElement(v) then
         destroyElement(v)
@@ -101,10 +113,16 @@ function DXUI.releaseObsolete(keep)
     return freed
 end
 
---- Marks an asset key as used by the active theme (during compile).
-local _themeKeep = {} -- must be in scope BEFORE the functions below (Lua)
+-- The keep-set must be declared before the functions below (Lua scoping).
+local _themeKeep = {}
+
+--- Marks a texture path as used by the active theme (during compile).
 function DXUI.markTextureUsed(path)    _themeKeep["t:" .. path] = true end
+
+--- Marks a font (name, size) as used by the active theme (during compile).
 function DXUI.markFontUsed(name, size) _themeKeep["f:" .. tostring(name) .. ":" .. tostring(size)] = true end
+
+--- Resets the theme keep-set (start of a compile sweep).
 function DXUI._themeKeepStart() _themeKeep = {} end
 
 --- Fully release everything (runtime resource stop).
@@ -118,4 +136,5 @@ function DXUI.releaseResources()
     _themeKeep = {}
     if DXUI.Text and DXUI.Text.clearCache then DXUI.Text.clearCache() end
     if DXUI.Effects and DXUI.Effects.releasePool then DXUI.Effects.releasePool() end
+    if DXUI.Effects and DXUI.Effects.clearCaches then DXUI.Effects.clearCaches() end
 end

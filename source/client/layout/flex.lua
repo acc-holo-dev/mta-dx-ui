@@ -18,6 +18,7 @@ DXUI = DXUI or {}
 local Flex = {}
 local Dimension = DXUI.Dimension
 
+--- Resolves a child's main-axis size (px/pct/fill/auto) against the line.
 local function childMainSize(child, mainSize, axis)
     local key = (axis == "row") and "layoutWidth" or "layoutHeight"
     local compiled = child[key]
@@ -26,12 +27,15 @@ local function childMainSize(child, mainSize, axis)
         local k2 = (axis == "row") and "width" or "height"
         return child[k2]
     end
-    if compiled.k == "fill" then return nil end -- distributed
+    -- fill: distributed among growers
+    if compiled.k == "fill" then return nil end
     if compiled.k == "pct" then return mainSize * compiled.v / 100 end
     if compiled.k == "px" then return compiled.v end
-    return nil -- auto: measure
+    -- auto: measure
+    return nil
 end
 
+--- Measures a child's main-axis content size (0 when not auto-sized).
 local function measureMain(child, axis)
     if child.autoSize then
         local mw, mh = child:_measureContent()
@@ -40,6 +44,7 @@ local function measureMain(child, axis)
     return 0
 end
 
+--- Resolves a child's cross-axis size (px/pct/fill/auto) against the line.
 local function crossSize(child, crossSize, axis, align)
     local key = (axis == "row") and "layoutHeight" or "layoutWidth"
     local compiled = child[key]
@@ -67,8 +72,8 @@ function Flex.flex(container, children, contentW, contentH)
     local crossSize_ = (axis == "row") and contentH or contentW
 
     -- 1. measure pass: fixed/percent/auto sizes, grow weights
-    local items = {} -- { node, main, grow, shrink, cross }
-    local fixedTotal, growTotal = 0, 0
+    -- { node, main, grow, shrink, cross }
+    local items = {}
     for i = 1, #children do
         local c = children[i]
         local main = childMainSize(c, mainSize, axis)
@@ -76,18 +81,15 @@ function Flex.flex(container, children, contentW, contentH)
         if main == nil then
             local lwC = (axis == "row") and c.layoutWidth or c.layoutHeight
             if lwC and lwC.k == "fill" then
-                grow = grow + 1          -- fill items act as growers
+                -- fill items act as growers
+                grow = grow + 1
                 main = 0
             else
-                main = measureMain(c, axis) -- auto size (or 0)
+                -- auto size (or 0)
+                main = measureMain(c, axis)
             end
         end
         items[i] = { node = c, main = main, grow = grow, cross = nil }
-        if main and main > 0 then
-            fixedTotal = fixedTotal + main
-        else
-            growTotal = growTotal + grow
-        end
     end
 
     -- 2. wrap into lines
@@ -138,7 +140,10 @@ function Flex.flex(container, children, contentW, contentH)
             l[i].cross = cs or 0
             if cs and cs > lineCross then lineCross = cs end
         end
-        if container.align == "stretch" then lineCross = crossSize_ end
+        -- stretch: items fill the line's cross. A single (unwrapped) line
+        -- fills the container; wrapped lines keep their natural cross so
+        -- they don't balloon to the full container height.
+        if container.align == "stretch" and #lines == 1 then lineCross = crossSize_ end
 
         -- justify
         local contentMain = 0
@@ -174,7 +179,7 @@ function Flex.flex(container, children, contentW, contentH)
             if align_ == "center" then crossPos = (crossSize_ - it.cross) / 2
             elseif align_ == "end" then crossPos = crossSize_ - it.cross
             elseif align_ == "stretch" then
-                it.cross = crossSize_
+                it.cross = lineCross
             end
             if axis == "row" then
                 it.node:_set("x", math.floor(mainPos), "system")

@@ -1,7 +1,7 @@
 --[[
     settings.lua — DXUI V3
 
-    Engine settings (§47): ENGINE BEHAVIOR only — never appearance.
+    Engine settings: ENGINE BEHAVIOR only — never appearance.
     Theme (style/) owns appearance; settings owns behavior:
       - error policy (dev vs prod);
       - scaling / design resolution / quality;
@@ -24,16 +24,18 @@ local Settings = {
     designResolution = { width = nil, height = nil, mode = "stretch" },
 
     -- Supersampling / quality preset. "auto" picks per hardware at runtime;
-    -- "none" = 1x. Higher presets are future work (§32: configurable quality
-    -- strategy, NOT an automatic 2x assumption).
+    -- "none" = 1x. Higher presets are future work (a configurable quality
+    -- strategy, not an automatic 2x assumption).
     quality = "auto",
 
     -- Defaults for new widgets/animations.
     defaults = {
-        font = nil,          -- nil = MTA default font
+        -- nil = MTA default font
+        font = nil,
         textColor = 0xFFFFFFFF,
         surfaceColor = 0xFF333333,
-        animationDuration = 250,  -- ms
+        -- milliseconds
+        animationDuration = 250,
         animationEasing = "inout",
         scrollWheelStep = 40,
     },
@@ -44,8 +46,10 @@ local Settings = {
 
     -- Performance guardrails (hypothesis-level; tuned by measurement later).
     performance = {
-        screenCulling = true,      -- skip items fully outside the screen
-        maxInteractiveScan = 2000, -- hit-test bucket scan cap
+        -- skip items fully outside the screen
+        screenCulling = true,
+        -- hit-test bucket scan cap
+        maxInteractiveScan = 2000,
     },
 }
 

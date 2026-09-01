@@ -20,6 +20,7 @@ local Builders = {}
 
 DXUI.Widgets = DXUI.Widgets or {}
 
+--- Registers a widget class under its name (and lowercase alias).
 function Builders.register(name, cls)
     DXUI.Widgets[name] = cls
     DXUI.Widgets[name:lower()] = cls
