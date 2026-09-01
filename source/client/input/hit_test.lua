@@ -1,18 +1,14 @@
---[[
-    hit_test.lua — DXUI V3
-
-    Hit testing over the LAST render collect's state (_visible, _hitClip,
-    world coords — all maintained by RenderPass). The interactive list is
-    rebuilt on interactiveDirty (never per mouse move) and mirrors the
-    painter's order: the LAST interactive node is the TOPMOST one.
-
-    Node "interactive" when it (a) declares itself interactive via the
-    `interactive` property, or (b) is explicitly focusable, or (c) has any
-    input handler attached (mouse/click/key events). Cheap check, cached.
-
-    Coordinates are DESIGN space (the dispatcher/runtime convert screen
-    → design before hit-testing; the mapping is the inverse of render).
-]]
+---HitTest — hit testing over the LAST render collect's state (_visible,
+---_hitClip, world coords — all maintained by RenderPass). The interactive
+---list is rebuilt on interactiveDirty (never per mouse move) and mirrors
+---the painter's order: the LAST interactive node is the TOPMOST one.
+---
+---Node "interactive" when it (a) declares itself interactive via the
+---`interactive` property, or (b) is explicitly focusable, or (c) has any
+---input handler attached (mouse/click/key events). Cheap check, cached.
+---
+---Coordinates are DESIGN space (the dispatcher/runtime convert screen
+---→ design before hit-testing; the mapping is the inverse of render).
 
 DXUI = DXUI or {}
 

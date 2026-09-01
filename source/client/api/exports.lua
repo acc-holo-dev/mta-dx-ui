@@ -1,20 +1,16 @@
---[[
-    exports.lua — DXUI V3
-
-    Cross-resource integration point. The documented external API is:
-
-        local ui = exports.dxui:getUI()
-
-    getUI() returns the UI handle owned by the CALLING resource: each
-    consumer resource owns its own tree, and its nodes are released when
-    that resource stops. It is cheap and safe to call from anywhere EXCEPT
-    inside onClientRender (create your instance once at startup, not per
-    frame).
-
-    MTA sets `sourceResource` to the calling resource inside an exported
-    function; instances are keyed by that resource's root element so each
-    consumer owns its own nodes (see init.lua for the stop cleanup).
-]]
+---Cross-resource integration point. The documented external API is:
+---
+---    local ui = exports.dxui:getUI()
+---
+---getUI() returns the UI handle owned by the CALLING resource: each
+---consumer resource owns its own tree, and its nodes are released when
+---that resource stops. It is cheap and safe to call from anywhere EXCEPT
+---inside onClientRender (create your instance once at startup, not per
+---frame).
+---
+---MTA sets `sourceResource` to the calling resource inside an exported
+---function; instances are keyed by that resource's root element so each
+---consumer owns its own nodes (see init.lua for the stop cleanup).
 
 DXUI = DXUI or {}
 

@@ -1,13 +1,10 @@
---[[
-    combobox.lua — DXUI V3 (composite widget)
+---ComboBox — head showing the selected item + dropdown list. Opens on
+---click; registers its dropdown as a popup (outside click closes it).
+---items: array of strings (or {text=..., ...}); rows are rebuilt on set.
+---
+---    local cb = ui:combobox({ x=0, y=0, width=160, items={ "A", "B" } })
+---    cb:on("select", function(n, index, item) ... end)
 
-    ComboBox — head showing the selected item + dropdown list. Opens on
-    click; registers its dropdown as a popup (outside click closes it).
-    items: array of strings (or {text=..., ...}); rows are rebuilt on set.
-
-        local cb = ui:combobox({ x=0, y=0, width=160, items={ "A", "B" } })
-        cb:on("select", function(n, index, item) ... end)
-]]
 
 DXUI = DXUI or {}
 

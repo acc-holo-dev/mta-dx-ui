@@ -1,21 +1,17 @@
---[[
-    manager.lua — DXUI V3
-
-    Resource Manager: textures, fonts, shaders — with automatic caching
-    (identical resources created once: no "font per label").
-
-        local tex  = ui:texture("icons/x.png")   -- cached
-        local font = ui:font("assets/Roboto.ttf", 12)  -- cached (FILE PATH)
-        local sh   = ui:shader(code)              -- cached
-
-    Ownership: caches are SHARED process-wide. The ACTIVE theme owns
-    the set of assets it references; switching themes sweeps obsolete assets
-    (released) while shared ones remain. Hard release happens on the
-    runtime resource stop (releaseResources).
-
-    Outside MTA (tests): textures pass through as path placeholders, fonts/
-    shaders return nil (default font) — deterministic and testable.
-]]
+---Resource Manager: textures, fonts, shaders — with automatic caching
+---(identical resources created once: no "font per label").
+---
+---    local tex  = ui:texture("icons/x.png")   -- cached
+---    local font = ui:font("assets/Roboto.ttf", 12)  -- cached (FILE PATH)
+---    local sh   = ui:shader(code)              -- cached
+---
+---Ownership: caches are SHARED process-wide. The ACTIVE theme owns
+---the set of assets it references; switching themes sweeps obsolete assets
+---(released) while shared ones remain. Hard release happens on the
+---runtime resource stop (releaseResources).
+---
+---Outside MTA (tests): textures pass through as path placeholders, fonts/
+---shaders return nil (default font) — deterministic and testable.
 
 DXUI = DXUI or {}
 

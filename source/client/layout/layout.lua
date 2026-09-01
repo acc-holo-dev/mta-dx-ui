@@ -1,18 +1,14 @@
---[[
-    layout.lua — DXUI V3
-
-    Layout subsystem: resolves sizes (px / percent / auto / fill / stretch /
-    flex-grow) and computes node worldX/worldY from local descriptions plus
-    the parent context. Runs ONLY on layoutDirty (never every frame).
-
-    Modes: absolute | relative | center | stretch | fill, plus anchors (9)
-    and margin/padding boxes; flex containers (flexDirection row|column)
-    delegate child sizing AND placement to Flex.flex.
-
-    Sizes that the ENGINE computes (autoSize, stretch, flex, layoutWidth/
-    Height) are written via _set(..., "system") so width/height always
-    reflect reality; the same-value guard prevents invalidation loops.
-]]
+---Layout subsystem: resolves sizes (px / percent / auto / fill / stretch /
+---flex-grow) and computes node worldX/worldY from local descriptions plus
+---the parent context. Runs ONLY on layoutDirty (never every frame).
+---
+---Modes: absolute | relative | center | stretch | fill, plus anchors (9)
+---and margin/padding boxes; flex containers (flexDirection row|column)
+---delegate child sizing AND placement to Flex.flex.
+---
+---Sizes that the ENGINE computes (autoSize, stretch, flex, layoutWidth/
+---Height) are written via _set(..., "system") so width/height always
+---reflect reality; the same-value guard prevents invalidation loops.
 
 DXUI = DXUI or {}
 

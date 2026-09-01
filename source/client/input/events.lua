@@ -1,15 +1,11 @@
---[[
-    events.lua — DXUI V3
-
-    Namespaced node events with BUBBLING (child first, then ancestors),
-    run against a SNAPSHOT so handlers may add/remove/destroy during
-    dispatch without corrupting iteration (prod-safe). Node:on/off/emit
-    delegate here; EventBus is also used for UI-level channels later.
-
-    Event signature: emit(node, name, ...); each handler fn(node, ...).
-    stopPropagation: handlers may return the constant STOP to halt bubbling
-    (checked after every handler call).
-]]
+---Events — namespaced node events with BUBBLING (child first, then
+---ancestors), run against a SNAPSHOT so handlers may add/remove/destroy
+---during dispatch without corrupting iteration (prod-safe). Node:on/off/emit
+---delegate here; EventBus is also used for UI-level channels later.
+---
+---Event signature: emit(node, name, ...); each handler fn(node, ...).
+---stopPropagation: handlers may return the constant STOP to halt bubbling
+---(checked after every handler call).
 
 DXUI = DXUI or {}
 

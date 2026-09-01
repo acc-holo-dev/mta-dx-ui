@@ -1,13 +1,10 @@
---[[
-    image.lua — DXUI V3 (basic widget)
+---Image — texture quad with tint (color), section cropping and optional
+---blur/mask effect (via node.fx properties, rendered with the direct
+---shader path — the cheap one).
+---
+---    local img = ui:image({ texture = "assets/logo.png",
+---                           x=0, y=0, width=64, height=64 })
 
-    Image — texture quad with tint (color), section cropping and optional
-    blur/mask effect (via node.fx properties, rendered with the direct
-    shader path — the cheap one).
-
-        local img = ui:image({ texture = "assets/logo.png",
-                               x=0, y=0, width=64, height=64 })
-]]
 
 DXUI = DXUI or {}
 

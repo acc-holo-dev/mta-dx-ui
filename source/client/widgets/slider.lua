@@ -1,13 +1,10 @@
---[[
-    slider.lua — DXUI V3 (composite widget)
+---Slider — horizontal value 0..1 with draggable thumb. Drag events from
+---the dispatcher; click also sets value. Emits "change" (value) and
+---"input" (value) during drag.
+---
+---    local s = ui:slider({ x=0, y=0, width=200, height=18, value=0.5 })
+---    s:on("change", function(n, v) volume = v end)
 
-    Slider — horizontal value 0..1 with draggable thumb. Drag events from
-    the dispatcher; click also sets value. Emits "change" (value) and
-    "input" (value) during drag.
-
-        local s = ui:slider({ x=0, y=0, width=200, height=18, value=0.5 })
-        s:on("change", function(n, v) volume = v end)
-]]
 
 DXUI = DXUI or {}
 

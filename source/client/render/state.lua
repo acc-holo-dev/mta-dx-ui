@@ -1,15 +1,11 @@
---[[
-    state.lua — DXUI V3
-
-    Render state cache: deduplicates expensive native state transitions
-    (dxSetBlendMode, dxSetShaderValue). Per-draw bindings (texture, font)
-    are per-call MTA args and carry no state — only blend mode and effect
-    parameters are global state that must be deduped.
-
-    Identity rule: effect tables are SHARED via the Effects cache (identical
-    inputs → same table), so pointer identity is a valid "unchanged" test.
-    Texel sizes are baked into the shared effect table at creation.
-]]
+---StateCache — render state cache: deduplicates expensive native state
+---transitions (dxSetBlendMode, dxSetShaderValue). Per-draw bindings
+---(texture, font) are per-call MTA args and carry no state — only blend
+---mode and effect parameters are global state that must be deduped.
+---
+---Identity rule: effect tables are SHARED via the Effects cache (identical
+---inputs → same table), so pointer identity is a valid "unchanged" test.
+---Texel sizes are baked into the shared effect table at creation.
 
 DXUI = DXUI or {}
 

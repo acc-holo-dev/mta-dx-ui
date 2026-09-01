@@ -1,0 +1,49 @@
+{
+    "$schema": "https://raw.githubusercontent.com/LuaLS/lua-language-server/master/schema/config.schema.json",
+    "runtime.version": "Lua 5.1",
+    "runtime.special": {
+        "include": "require"
+    },
+    "runtime.path": ["source/client/?.lua"],
+    "workspace.library": ["source/client"],
+    "workspace.checkThirdParty": false,
+    "diagnostics.groupSeverity": {
+        "cast-local-type": "Hint",
+        "ambiguity-1": "Hint"
+    },
+    "diagnostics.globals": [
+        "DXUI",
+        "addEventHandler",
+        "removeEventHandler",
+        "outputDebugString",
+        "getTickCount",
+        "getCursorPosition",
+        "getKeyState",
+        "guiGetScreenSize",
+        "getRootElement",
+        "getResourceRootElement",
+        "source",
+        "sourceResource",
+        "resourceRoot",
+        "dxCreateTexture",
+        "dxCreateFont",
+        "dxCreateShader",
+        "dxCreateRenderTarget",
+        "dxDrawImage",
+        "dxDrawImageSection",
+        "dxDrawText",
+        "dxDrawRectangle",
+        "dxDrawLine",
+        "dxGetTextSize",
+        "dxGetMaterialSize",
+        "dxSetShaderValue",
+        "dxSetBlendMode",
+        "dxSetRenderTarget"
+    ],
+    "diagnostics.disable": ["lowercase-global"],
+    "format.defaultConfig": {
+        "indent_size": "4",
+        "quote_style": "double"
+    },
+    "completion.callSnippet": "Replace"
+}

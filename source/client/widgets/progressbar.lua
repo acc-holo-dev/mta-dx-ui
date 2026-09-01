@@ -1,10 +1,7 @@
---[[
-    progressbar.lua — DXUI V3 (composite widget)
+---ProgressBar — value 0..1 rendered as a filled bar (bg + fill).
+---
+---    local pb = ui:progressbar({ x=0, y=0, width=200, height=14, value=0.4 })
 
-    ProgressBar — value 0..1 rendered as a filled bar (bg + fill).
-
-        local pb = ui:progressbar({ x=0, y=0, width=200, height=14, value=0.4 })
-]]
 
 DXUI = DXUI or {}
 

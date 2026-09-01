@@ -1,27 +1,23 @@
---[[
-    part.lua — DXUI V3
-
-    Part: a named child slot of a composite widget.
-
-    A part is a REAL Node/Widget with its own visual state, layout, input
-    and theme section. Slots are declared per widget class:
-
-        local Window = DXUI.Widget:extend("Window", {
-            ...
-        }, { parts = { header = true, content = true } })  -- via properties.parts
-        -- or: Window.parts = { header = true, content = true }
-
-    Runtime:
-        node:setPart("header", headerNode)   -- replace (destroys the old)
-        node:getPart("header")
-        node:removePart("header")            -- nullable slots
-        node.header = customButton           -- property-style replacement
-        node.header.icon = ui:texture(...)   -- part is a real node
-
-    Theme role: a part's style is resolved under
-    `components.<Class>.parts.<roleName>` — the part itself is a normal
-    widget whose class style may be overridden by the role section.
-]]
+---Part: a named child slot of a composite widget.
+---
+---A part is a REAL Node/Widget with its own visual state, layout, input
+---and theme section. Slots are declared per widget class:
+---
+---    local Window = DXUI.Widget:extend("Window", {
+---        ...
+---    })  -- via properties.parts
+---    -- or: Window.parts = { header = true, content = true }
+---
+---Runtime:
+---    node:setPart("header", headerNode)   -- replace (destroys the old)
+---    node:getPart("header")
+---    node:removePart("header")            -- nullable slots
+---    node.header = customButton           -- property-style replacement
+---    node.header.icon = ui:texture(...)   -- part is a real node
+---
+---Theme role: a part's style is resolved under
+---`components.<Class>.parts.<roleName>` — the part itself is a normal
+---widget whose class style may be overridden by the role section.
 
 DXUI = DXUI or {}
 

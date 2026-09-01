@@ -1,27 +1,22 @@
---[[
-    pass.lua — DXUI V3
-
-    RenderPass: builds the persistent render list from the tree.
-
-      collect:   visibility + opacity + layer + clip accumulate + screen
-                 culling; pushes every VISIBLE NON-GROUP-MEMBER node into
-                 the flat scratch array (children emit as their own flat
-                 entries — the sorted array IS the global painter's order).
-      sort:      (effLayer, zIndex, insertion id) across the whole tree;
-                 the same order later feeds the hit-test list.
-      emit:      each flat node renders its own primitives ONCE (no child
-                 recursion inside emitSingle — children are siblings in the
-                 flat list); nodes needing an RT group (clipMode="rt" or
-                 container blur/mask) emit an rtgroup item whose contents
-                 are a TREE WALK of the group's own subtree (layer/zIndex
-                 inside an RT composite is local tree order — documented:
-                 an RT is a single quad, so nothing can interleave anyway).
-
-    Arrays: group contents live in per-group arrays from a small module
-    pool; they are recycled at the START of the NEXT build — the cached
-    draw list still references them between frames (recycling at draw time
-    corrupted idle-frame draws).
-]]
+---RenderPass: builds the persistent render list from the tree.
+---
+---collect: visibility + opacity + layer + clip accumulate + screen
+---culling; pushes every VISIBLE NON-GROUP-MEMBER node into the flat
+---scratch array (children emit as their own flat entries — the sorted
+---array IS the global painter's order).
+---sort: (effLayer, zIndex, insertion id) across the whole tree; the same
+---order later feeds the hit-test list.
+---emit: each flat node renders its own primitives ONCE (no child
+---recursion inside emitSingle — children are siblings in the flat
+---list); nodes needing an RT group (clipMode="rt" or container blur/mask)
+---emit an rtgroup item whose contents are a TREE WALK of the group's own
+---subtree (layer/zIndex inside an RT composite is local tree order —
+---documented: an RT is a single quad, so nothing can interleave anyway).
+---
+---Arrays: group contents live in per-group arrays from a small module
+---pool; they are recycled at the START of the NEXT build — the cached
+---draw list still references them between frames (recycling at draw time
+---corrupted idle-frame draws).
 
 DXUI = DXUI or {}
 

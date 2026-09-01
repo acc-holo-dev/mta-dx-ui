@@ -1,13 +1,10 @@
---[[
-    modal.lua — DXUI V3 (composite widget)
+---Modal — dimmed full-screen overlay + centered dialog surface. Opening
+---blocks input outside via the dispatcher modal stack.
+---
+---    local m = ui:modal({ width=300, height=200, children = { ... } })
+---    m:open()          -- centered
+---    m:on("close", function() afterClose() end)
 
-    Modal — dimmed full-screen overlay + centered dialog surface. Opening
-    blocks input outside via the dispatcher modal stack.
-
-        local m = ui:modal({ width=300, height=200, children = { ... } })
-        m:open()          -- centered
-        m:on("close", function() afterClose() end)
-]]
 
 DXUI = DXUI or {}
 

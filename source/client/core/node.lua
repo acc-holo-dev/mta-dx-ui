@@ -1,21 +1,17 @@
---[[
-    node.lua — DXUI V3
-
-    BaseNode — the public UI object. A plain Lua table with ONE metatable
-    that funnels every property write through a single mutation layer
-    (validation + transform + owner tracking + invalidation), exposing
-    value objects (color/position/size), parts, tree ops and an explicit
-    lifecycle.
-
-    Both API styles converge here:
-        button.x = 100            --> __newindex --> Node:_set("x", 100)
-        button:setPosition(100,0) --> _set("x",100) + _set("y",0)
-
-    Ownership: the parent owns its children (destroy cascades). The UI
-    instance owns the tree; the runtime owns the instances.
-
-    Pure Lua 5.1 — no MTA API (testable outside the game).
-]]
+---Node — the base public UI object: a plain Lua table whose metatable
+---funnels every property write through a single mutation layer
+---(validation + transform + owner tracking + invalidation), exposing
+---value objects (color/position/size), parts, tree ops and an explicit
+---lifecycle.
+---
+---Both API styles converge here:
+---    button.x = 100            --> __newindex --> Node:_set("x", 100)
+---    button:setPosition(100,0) --> _set("x",100) + _set("y",0)
+---
+---Ownership: the parent owns its children (destroy cascades). The UI
+---instance owns the tree; the runtime owns the instances.
+---
+---Pure Lua 5.1 — no MTA API (testable outside the game).
 
 DXUI = DXUI or {}
 

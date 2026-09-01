@@ -1,29 +1,25 @@
---[[
-    dispatcher.lua — DXUI V3
-
-    Per-instance input state machine. Input arrives in DESIGN space (the
-    runtime converts screen -> design before calling). The dispatcher owns
-    the correlation state: hover, focus, pressed, drag, modal stack, popups.
-
-    Events (emitted via the bubbling bus):
-        hover-start / hover-end   (mouse entering/leaving a node)
-        mousedown / mouseup       (raw press/release, bubbles)
-        click                     (press+release on the same node, no drag)
-        drag-start / drag-move / drag-end
-        scroll                    (wheel; bubbles up to an Edit/ScrollPanel)
-        key                       (focus target receives keys)
-        focus / blur              (focusable nodes)
-
-    Rules:
-      - modal stack: while a modal is open, only nodes inside it receive
-        input; opening a modal locks hover/focus to it.
-      - popup management: any click outside current popups dismisses the
-        topmost popup (popup nodes are tracked as they open).
-      - drag: press starts a potential drag; movement beyond DRAG_THRESHOLD
-        fires drag-start once and marks the press as a drag (click is then
-        suppressed on release). Drag events route to the pressed node and
-        bubble; capture ends on release.
-]]
+---Dispatcher — per-instance input state machine. Input arrives in DESIGN
+---space (the runtime converts screen -> design before calling). It owns
+---the correlation state: hover, focus, pressed, drag, modal stack, popups.
+---
+---Events (emitted via the bubbling bus):
+---    hover-start / hover-end   (mouse entering/leaving a node)
+---    mousedown / mouseup       (raw press/release, bubbles)
+---    click                     (press+release on the same node, no drag)
+---    drag-start / drag-move / drag-end
+---    scroll                    (wheel; bubbles up to an Edit/ScrollPanel)
+---    key                       (focus target receives keys)
+---    focus / blur              (focusable nodes)
+---
+---Rules:
+--- modal stack: while a modal is open, only nodes inside it receive
+--- input; opening a modal locks hover/focus to it.
+--- popup management: any click outside current popups dismisses the
+--- topmost popup (popup nodes are tracked as they open).
+--- drag: press starts a potential drag; movement beyond DRAG_THRESHOLD
+--- fires drag-start once and marks the press as a drag (click is then
+--- suppressed on release). Drag events route to the pressed node and
+--- bubble; capture ends on release.
 
 DXUI = DXUI or {}
 

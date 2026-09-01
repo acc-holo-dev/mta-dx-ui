@@ -1,13 +1,10 @@
---[[
-    tooltip.lua — DXUI V3 (composite widget)
+---Tooltip — small floating label; attach to a node to auto-show on hover:
+---
+---    local tt = ui:tooltip({ text = "Click to save" })
+---    tt:attach(button, "right")     -- shows near the button on hover
+---
+---Positioning anchors: top|bottom|left|right around the target.
 
-    Tooltip — small floating label; attach to a node to auto-show on hover:
-
-        local tt = ui:tooltip({ text = "Click to save" })
-        tt:attach(button, "right")     -- shows near the button on hover
-
-    Positioning anchors: top|bottom|left|right around the target.
-]]
 
 DXUI = DXUI or {}
 

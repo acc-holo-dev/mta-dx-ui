@@ -1,16 +1,12 @@
---[[
-    diagnostics.lua — DXUI V3
-
-    DXUI.Diagnostics: tools over the per-instance frame counters
-    (instance.stats). Read-only helpers — never part of the hot path.
-
-      local summary = DXUI.Diagnostics.describe(ui)
-      print(DXUI.Diagnostics.report(ui))
-
-    `enableZeroWork(ui)` turns on the idle-frame assertion: every tick
-    with nothing dirty must perform zero layout/rebuild work (the
-    persistent render-list contract). Useful in debug builds and tests.
-]]
+---Diagnostics: tools over the per-instance frame counters
+---(instance.stats). Read-only helpers — never part of the hot path.
+---
+---    local summary = DXUI.Diagnostics.describe(ui)
+---    print(DXUI.Diagnostics.report(ui))
+---
+---`enableZeroWork(ui)` turns on the idle-frame assertion: every tick
+---with nothing dirty must perform zero layout/rebuild work (the
+---persistent render-list contract). Useful in debug builds and tests.
 
 DXUI = DXUI or {}
 

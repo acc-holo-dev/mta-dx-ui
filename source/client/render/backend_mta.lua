@@ -1,29 +1,26 @@
---[[
-    backend_mta.lua — DXUI V4
-
-    The ONLY entry point to the external dx* API in the whole engine
-    (every direct dx* call lives here; tests inject a mock table instead).
-
-    Responsibilities:
-      - draw primitives (rect / rounded / image / text / line);
-      - global state: blend mode (deduped by RenderState),
-        blur/mask shader params (deduped by effect-table identity),
-        rounded-rect shader params (deduped by shadow compare);
-      - RT-groups (beginGroup/endGroup with the pooled allocator);
-      - measurement hooks: dxGetTextSize wired into Text.setMeasurer,
-        dxGetMaterialSize exposed as materialSize (image section culling).
-
-    interface (mirrored by the test mock):
-        setBlendMode(mode)
-        drawRect(x,y,w,h,color)
-        drawRoundedRect(x,y,w,h, rtl,rtr,rbr,rbl, fill, border, borderWidth)
-        drawImage(x,y,w,h,texture,color,effect,section)
-        drawText(text,x,y,w,h,color,font,align,valign,scaleX,scaleY)
-        drawLine(x1,y1,x2,y2,color,width)
-        beginGroup(x,y,w,h)  -> bool
-        endGroup(x,y,w,h,effect,alpha)
-        materialSize(tex)    -> w,h
-]]
+---BackendMTA — the ONLY entry point to the external dx* API in the whole
+---engine (every direct dx* call lives here; tests inject a mock table
+---instead).
+---
+---Responsibilities:
+--- draw primitives (rect / rounded / image / text / line);
+--- global state: blend mode (deduped by RenderState),
+--- blur/mask shader params (deduped by effect-table identity),
+--- rounded-rect shader params (deduped by shadow compare);
+--- RT-groups (beginGroup/endGroup with the pooled allocator);
+--- measurement hooks: dxGetTextSize wired into Text.setMeasurer,
+--- dxGetMaterialSize exposed as materialSize (image section culling).
+---
+---interface (mirrored by the test mock):
+---    setBlendMode(mode)
+---    drawRect(x,y,w,h,color)
+---    drawRoundedRect(x,y,w,h, rtl,rtr,rbr,rbl, fill, border, borderWidth)
+---    drawImage(x,y,w,h,texture,color,effect,section)
+---    drawText(text,x,y,w,h,color,font,align,valign,scaleX,scaleY)
+---    drawLine(x1,y1,x2,y2,color,width)
+---    beginGroup(x,y,w,h)  -> bool
+---    endGroup(x,y,w,h,effect,alpha)
+---    materialSize(tex)    -> w,h
 
 DXUI = DXUI or {}
 

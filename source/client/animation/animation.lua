@@ -1,18 +1,14 @@
---[[
-    animation.lua — DXUI V3
-
-    Animation engine: ONE centralized manager per UI instance, ONE tick per
-    frame (the instance frame loop calls anim:update()). No per-animation
-    timers, MTA handlers or coroutines.
-
-    Animations write REAL node properties through the normal mutation layer
-    (_set with owner "system") — no duplicated state; invalidation is
-    automatic. Explicit animation > automatic theme transition.
-
-        local anim = button:animate({ x = 100 }, 300, "out")
-        anim:after({ opacity = 0.5 }, 200):onDone(function() ... end)
-        anim:pause() / anim:resume() / anim:cancel()
-]]
+---Animation engine: ONE centralized manager per UI instance, ONE tick per
+---frame (the instance frame loop calls anim:update()). No per-animation
+---timers, MTA handlers or coroutines.
+---
+---Animations write REAL node properties through the normal mutation layer
+---(_set with owner "system") — no duplicated state; invalidation is
+---automatic. Explicit animation > automatic theme transition.
+---
+---    local anim = button:animate({ x = 100 }, 300, "out")
+---    anim:after({ opacity = 0.5 }, 200):onDone(function() ... end)
+---    anim:pause() / anim:resume() / anim:cancel()
 
 DXUI = DXUI or {}
 

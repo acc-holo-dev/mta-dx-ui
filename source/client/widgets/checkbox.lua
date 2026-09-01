@@ -1,12 +1,9 @@
---[[
-    checkbox.lua — DXUI V3 (composite widget)
+---Checkbox — box + optional label; toggles on click; emits "change"
+---(checked) and keeps `checked` as a real property.
+---
+---    local cb = ui:checkbox({ text="Enable X", x=0, y=0 })
+---    cb:on("change", function(n, checked) ... end)
 
-    Checkbox — box + optional label; toggles on click; emits "change"
-    (checked) and keeps `checked` as a real property.
-
-        local cb = ui:checkbox({ text="Enable X", x=0, y=0 })
-        cb:on("change", function(n, checked) ... end)
-]]
 
 DXUI = DXUI or {}
 

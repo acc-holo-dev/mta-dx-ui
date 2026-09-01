@@ -1,19 +1,15 @@
---[[
-    tokens.lua — DXUI V3
-
-    Design-token registry: named values (colors, radii, etc.)
-    referenced from theme components as "@category.name" (dotted paths).
-    Tokens are plain nested tables; a theme defines its own token set and
-    may reference tokens from a parent theme (fallback chain).
-
-        tokens.define("flat", { color = { primary = 0xFF... }, radius = { md = 8 } })
-        tokens.get("color.primary")   --> value or nil (deterministic)
-
-    Resolution is iterative ("@a.b" and nested "@") with a depth cap and
-    cycle guard — always terminates. A missing token resolves to nil, and
-    the theme compile step DROPS the property (deterministic fallback to
-    the widget class default).
-]]
+---Design-token registry: named values (colors, radii, etc.)
+---referenced from theme components as "@category.name" (dotted paths).
+---Tokens are plain nested tables; a theme defines its own token set and
+---may reference tokens from a parent theme (fallback chain).
+---
+---    tokens.define("flat", { color = { primary = 0xFF... }, radius = { md = 8 } })
+---    tokens.get("color.primary")   --> value or nil (deterministic)
+---
+---Resolution is iterative ("@a.b" and nested "@") with a depth cap and
+---cycle guard — always terminates. A missing token resolves to nil, and
+---the theme compile step DROPS the property (deterministic fallback to
+---the widget class default).
 
 DXUI = DXUI or {}
 

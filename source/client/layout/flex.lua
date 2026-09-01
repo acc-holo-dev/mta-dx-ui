@@ -1,17 +1,13 @@
---[[
-    flex.lua — DXUI V3
-
-    Flex container layout: row | column, gap, align (cross axis:
-    start|center|end|stretch), justify (main axis: start|center|end|
-    spaceBetween|spaceAround|spaceEvenly), grow/shrink (weights), wrap.
-
-    Run INSIDE the layout walk: the container's size is resolved first
-    (Layout), then Flex.flex(container, children, contentW, contentH)
-    computes child sizes (auto/fill/pct with parent size) and places
-    children in flow order. Child x/y are ignored inside a flex flow
-    (margins are added to the gap). Positions are written to children
-    via _set(..., "system") so worldX/worldY follow on the same pass.
-]]
+---Flex container layout: row | column, gap, align (cross axis:
+---start|center|end|stretch), justify (main axis: start|center|end|
+---spaceBetween|spaceAround|spaceEvenly), grow/shrink (weights), wrap.
+---
+---Run INSIDE the layout walk: the container's size is resolved first
+---(Layout), then Flex.flex(container, children, contentW, contentH)
+---computes child sizes (auto/fill/pct with parent size) and places
+---children in flow order. Child x/y are ignored inside a flex flow
+---(margins are added to the gap). Positions are written to children
+---via _set(..., "system") so worldX/worldY follow on the same pass.
 
 DXUI = DXUI or {}
 

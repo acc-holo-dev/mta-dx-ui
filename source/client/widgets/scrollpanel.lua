@@ -1,16 +1,13 @@
---[[
-    scrollpanel.lua — DXUI V3 (composite widget)
+---ScrollPanel — clipped container whose content scrolls on wheel + via
+---drag-scrollbars. Content goes into the `content` part; scroll offsets
+---move it inside the viewport.
+---
+---    local sp = ui:scrollpanel({ x=0, y=0, width=200, height=300 })
+---    sp:container():addChild(someRow)
+---
+---wheel: scrollY (and scrollX with shift); scrollbars: track + thumb by
+---scroll fraction; thumb drag re-scrolls. Emits "scroll" (x, y).
 
-    ScrollPanel — clipped container whose content scrolls on wheel + via
-    drag-scrollbars. Content goes into the `content` part; scroll offsets
-    move it inside the viewport.
-
-        local sp = ui:scrollpanel({ x=0, y=0, width=200, height=300 })
-        sp:container():addChild(someRow)
-
-    wheel: scrollY (and scrollX with shift); scrollbars: track + thumb by
-    scroll fraction; thumb drag re-scrolls. Emits "scroll" (x, y).
-]]
 
 DXUI = DXUI or {}
 

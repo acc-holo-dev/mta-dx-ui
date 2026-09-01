@@ -1,16 +1,12 @@
---[[
-    text.lua — DXUI V3
-
-    Text subsystem: measurement, layout, caching — rendering stays in
-    the renderer/backend (align/valign native dxDrawText params).
-
-    Measurement backend is INJECTED by the backend driver (backend_mta sets
-    DXUI.Text.setMeasurer with dxGetTextSize; tests inject a deterministic
-    monospace measurer). Outside any driver a monospace estimate is used.
-
-    Caches (bounded): per-line measurement, full layout results. Byte-level
-    UTF-8 limitation (Lua 5.1 has no native UTF-8) — documented.
-]]
+---Text subsystem: measurement, layout, caching — rendering stays in
+---the renderer/backend (align/valign native dxDrawText params).
+---
+---Measurement backend is INJECTED by the backend driver (backend_mta sets
+---DXUI.Text.setMeasurer with dxGetTextSize; tests inject a deterministic
+---monospace measurer). Outside any driver a monospace estimate is used.
+---
+---Caches (bounded): per-line measurement, full layout results. Byte-level
+---UTF-8 limitation (Lua 5.1 has no native UTF-8) — documented.
 
 DXUI = DXUI or {}
 

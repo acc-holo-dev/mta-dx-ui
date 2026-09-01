@@ -1,16 +1,12 @@
---[[
-    dimension.lua — DXUI V3
-
-    Human-readable dimensions: ui.percent(50), ui.auto(), ui.fill()
-    (plus plain numbers and "50%" strings at the cold path). All forms are
-    COMPILED into a small tagged form at the cold path:
-        { k = "px", v = n } | { k = "pct", v = n } | { k = "auto" } | { k = "fill" }
-    `resolve` turns a compiled form into pixels given the parent size;
-    `compile` accepts user input once (cold path).
-
-    layoutW/layoutH node properties hold the COMPILED forms; plain numbers
-    are treated as px. Rendering never sees these — the layout pass resolves.
-]]
+---Human-readable dimensions: ui.percent(50), ui:auto(), ui:fill()
+---(plus plain numbers and "50%" strings at the cold path). All forms are
+---COMPILED into a small tagged form at the cold path:
+---    { k = "px", v = n } | { k = "pct", v = n } | { k = "auto" } | { k = "fill" }
+---`resolve` turns a compiled form into pixels given the parent size;
+---`compile` accepts user input once (cold path).
+---
+---layoutW/layoutH node properties hold the COMPILED forms; plain numbers
+---are treated as px. Rendering never sees these — the layout pass resolves.
 
 DXUI = DXUI or {}
 

@@ -1,25 +1,21 @@
---[[
-    init.lua — DXUI V3
-
-    MTA bootstrap (loads LAST in meta.xml, when every module is ready):
-      1. wires the DX backend (backend_mta) + text measurement hook;
-      2. registers the MTA event glue (render loop, resize, input) that
-         drives every UI instance in DXUI._uis;
-      3. cleans up instances on resource stop.
-
-    All MTA-specific event handling lives HERE — core/ and api/ stay pure.
-    Handlers are registered ONCE at load time; the frame loop ticks every
-    instance in DXUI._uis, both the dxui resource's own and consumer-owned
-    instances created via exports.dxui:getUI().
-
-    Input events (verified against the MTA wiki):
-      - onClientCursorMove  — raw cursor movement (no GUI element needed);
-                              params 3-4 are absolute screen pixels.
-      - onClientClick       — button, state ("down"/"up"), absX, absY.
-      - onClientKey         — keys AND the mouse wheel ("mouse_wheel_up" /
-                              "mouse_wheel_down", which never send a release).
-      - onClientCharacter   — printable characters (respects layout/shift).
-]]
+---MTA bootstrap (loads LAST in meta.xml, when every module is ready):
+--- 1. wires the DX backend (backend_mta) + text measurement hook;
+--- 2. registers the MTA event glue (render loop, resize, input) that
+---    drives every UI instance in DXUI._uis;
+--- 3. cleans up instances on resource stop.
+---
+---All MTA-specific event handling lives HERE — core/ and api/ stay pure.
+---Handlers are registered ONCE at load time; the frame loop ticks every
+---instance in DXUI._uis, both the dxui resource's own and consumer-owned
+---instances created via exports.dxui:getUI().
+---
+---Input events (verified against the MTA wiki):
+--- onClientCursorMove  — raw cursor movement (no GUI element needed);
+---                       params 3-4 are absolute screen pixels.
+--- onClientClick       — button, state ("down"/"up"), absX, absY.
+--- onClientKey         — keys AND the mouse wheel ("mouse_wheel_up" /
+---                       "mouse_wheel_down", which never send a release).
+--- onClientCharacter   — printable characters (respects layout/shift).
 
 DXUI = DXUI or {}
 

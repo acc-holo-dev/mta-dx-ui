@@ -1,21 +1,17 @@
---[[
-    values.lua — DXUI V3
-
-    Value objects + color numerics. Pure Lua 5.1, no MTA dependency.
-
-    Color : packed 0xAARRGGBB int, exposed as a cached proxy per (node, key)
-            so `button.color.r = 255` works while render stays on the packed
-            int (renderer normalizes with Color.toInt, cheap cached field).
-    Point : maps to node properties x / y  (node.position)
-    Size  : maps to node properties width / height (node.size)
-
-    All proxies are cached per node (never allocated per access). Writes go
-    through the same mutation layer as property-style writes (node:_set), so
-    invalidation/owner bookkeeping are identical.
-
-    Color parse/repack is a COLD-path operation (used on property writes via
-    the spec transform and by theme compilation). Render never parses.
-]]
+---Value objects + color numerics. Pure Lua 5.1, no MTA dependency.
+---
+---Color : packed 0xAARRGGBB int, exposed as a cached proxy per (node, key)
+---        so `button.color.r = 255` works while render stays on the packed
+---        int (renderer normalizes with Color.toInt, cheap cached field).
+---Point : maps to node properties x / y  (node.position)
+---Size  : maps to node properties width / height (node.size)
+---
+---All proxies are cached per node (never allocated per access). Writes go
+---through the same mutation layer as property-style writes (node:_set), so
+---invalidation/owner bookkeeping are identical.
+---
+---Color parse/repack is a COLD-path operation (used on property writes via
+---the spec transform and by theme compilation). Render never parses.
 
 DXUI = DXUI or {}
 

@@ -1,25 +1,21 @@
---[[
-    widget.lua — DXUI V3
-
-    BaseWidget — extends BaseNode with the widget contract:
-      - visual traits: color, font, effects (capabilities);
-      - the render(renderer) contract — called by the render pass, never
-        by the widget itself; primitives only (no DX access);
-      - style/theme application with the user/system/theme owner guard
-        (sparse overrides);
-      - content measurement for autoSize;
-      - translation binding.
-
-    A new widget is written WITHOUT touching core/kernel:
-
-        local Button = DXUI.Widget:extend("Button", {
-            text = { default = "", invalidates = { DXUI.DIRTY.RENDER } },
-        })
-        function Button:render(renderer)
-            renderer:rect(self.worldX, self.worldY, self.width, self.height, self.color)
-            ...
-        end
-]]
+---Widget — extends Node with the widget contract:
+--- visual traits: color, font, effects (capabilities);
+--- the `render(renderer)` contract — called by the render pass, never by
+--- the widget itself; primitives only (no DX access);
+--- style/theme application with the user/system/theme owner guard
+--- (sparse overrides);
+--- content measurement for autoSize;
+--- translation binding.
+---
+---A new widget is written WITHOUT touching core/kernel:
+---
+---    local Button = DXUI.Widget:extend("Button", {
+---        text = { default = "", invalidates = { DXUI.DIRTY.RENDER } },
+---    })
+---    function Button:render(renderer)
+---        renderer:rect(self.worldX, self.worldY, self.width, self.height, self.color)
+---        ...
+---    end
 
 DXUI = DXUI or {}
 

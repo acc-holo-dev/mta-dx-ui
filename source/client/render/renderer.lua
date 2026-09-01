@@ -1,28 +1,24 @@
---[[
-    renderer.lua — DXUI V4
-
-    Public renderer API: the primitives a widget calls from its own
-    render(renderer). Primitives add pooled items to the current list.
-
-        function Button:render(renderer)
-            renderer:borderedRect(self.worldX, self.worldY, self.width,
-                                  self.height, self.radius, self.color,
-                                  self.borderColor, self.borderWidth)
-            renderer:text(self.text, ..., self.textColor, self.font,
-                          "center", "center")
-        end
-
-    Design-space in, screen-space out: the pass loads the design→screen
-    mapping (scale/offset) and each node's clip region + effective opacity
-    once; primitives apply them at emission. Colors are normalized via
-    ColorToInt (works for packed ints and Color proxies alike).
-
-    Rounded rects are SINGLE items: per-corner radii (tl,tr,br,bl), the
-    border ring and the fill ride one SDF draw (see backend_mta). Square
-    corners decompose into plain rect items (no shader round-trip).
-
-    Renderer knows NOTHING about the backend (backend_mta) — items only.
-]]
+---Renderer — public primitive API: what a widget calls from its own
+---`render(renderer)`. Primitives add pooled items to the current list.
+---
+---    function Button:render(renderer)
+---        renderer:borderedRect(self.worldX, self.worldY, self.width,
+---                              self.height, self.radius, self.color,
+---                              self.borderColor, self.borderWidth)
+---        renderer:text(self.text, ..., self.textColor, self.font,
+---                      "center", "center")
+---    end
+---
+---Design-space in, screen-space out: the pass loads the design→screen
+---mapping (scale/offset) and each node's clip region + effective opacity
+---once; primitives apply them at emission. Colors are normalized via
+---ColorToInt (works for packed ints and Color proxies alike).
+---
+---Rounded rects are SINGLE items: per-corner radii (tl,tr,br,bl), the
+---border ring and the fill ride one SDF draw (see backend_mta). Square
+---corners decompose into plain rect items (no shader round-trip).
+---
+---The renderer knows NOTHING about the backend (backend_mta) — items only.
 
 DXUI = DXUI or {}
 

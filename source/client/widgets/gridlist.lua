@@ -1,14 +1,11 @@
---[[
-    gridlist.lua — DXUI V3 (composite widget)
+---GridList — a flat, selectable item list with wheel scrolling. Items:
+---strings or {text=...}; hover highlight; click selects (single).
+---For richer needs wrap in a ScrollPanel (yours: content rows).
+---
+---    local gl = ui:gridlist({ x=0, y=0, width=200, height=300 })
+---    gl:addItem("Player 1"); gl:addItem("Player 2")
+---    gl:on("select", function(n, index, item) ... end)
 
-    GridList — a flat, selectable item list with wheel scrolling. Items:
-    strings or {text=...}; hover highlight; click selects (single).
-    For richer needs wrap in a ScrollPanel (yours: content rows).
-
-        local gl = ui:gridlist({ x=0, y=0, width=200, height=300 })
-        gl:addItem("Player 1"); gl:addItem("Player 2")
-        gl:on("select", function(n, index, item) ... end)
-]]
 
 DXUI = DXUI or {}
 

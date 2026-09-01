@@ -1,28 +1,24 @@
---[[
-    runtime.lua — DXUI V3
-
-    UI Runtime: owns one instance's frame loop, derived caches and
-    lifecycle. THE zero-work idle guarantee lives here:
-
-        tick(dtMs):
-            anim:update()                        -- runs only with active
-            if layoutDirty then Layout.update    -- animations (early out)
-            if renderDirty/orderDirty then RenderPass.build
-            if interactiveDirty then HitTest.rebuild
-            draw the CACHED render list          -- ~zero work idle
-
-    Invalidation: Node mutations OR their category into four instance-level
-    flags (layoutDirty/renderDirty/orderDirty/interactiveDirty) directly.
-    Consequent mutations in the same frame coalesce; the flags are drained
-    once per frame.
-
-    Purposely no per-node dirty drilling: collect() walks the tree anyway
-    (it must, for opacity/clip), so flag granularity is a diagnostics/
-    roadmap concern (orderDirty is reserved for incremental work).
-
-    Pure Lua: rendering delegates to an injected backend (DXUI.BackendMTA
-    in MTA; mock in tests); the clock is injectable too.
-]]
+---Runtime: owns one instance's frame loop, derived caches and lifecycle.
+---THE zero-work idle guarantee lives here:
+---
+---    tick(dtMs):
+---        anim:update()                        -- runs only with active
+---        if layoutDirty then Layout.update    -- animations (early out)
+---        if renderDirty/orderDirty then RenderPass.build
+---        if interactiveDirty then HitTest.rebuild
+---        draw the CACHED render list          -- ~zero work idle
+---
+---Invalidation: Node mutations OR their category into four instance-level
+---flags (layoutDirty/renderDirty/orderDirty/interactiveDirty) directly.
+---Consequent mutations in the same frame coalesce; the flags are drained
+---once per frame.
+---
+---Purposely no per-node dirty drilling: collect() walks the tree anyway
+---(it must, for opacity/clip), so flag granularity is a diagnostics/
+---roadmap concern (orderDirty is reserved for incremental work).
+---
+---Pure Lua: rendering delegates to an injected backend (DXUI.BackendMTA
+---in MTA; mock in tests); the clock is injectable too.
 
 DXUI = DXUI or {}
 

@@ -1,17 +1,14 @@
---[[
-    contextmenu.lua — DXUI V3 (composite widget)
+---ContextMenu — vertical item list; items {text, onSelect, disabled};
+---"--" separates; opens at a position, outside-click closes, item click
+---executes + closes.
+---
+---    local m = ui:contextmenu({ items = {
+---        { text = "Rename", onSelect = function() rename() end },
+---        "--",
+---        { text = "Delete", onSelect = function() del() end },
+---    }})
+---    m:open(100, 100)
 
-    ContextMenu — vertical item list; items {text, onSelect, disabled};
-    "--" separates; opens at a position, outside-click closes, item click
-    executes + closes.
-
-        local m = ui:contextmenu({ items = {
-            { text = "Rename", onSelect = function() rename() end },
-            "--",
-            { text = "Delete", onSelect = function() del() end },
-        }})
-        m:open(100, 100)
-]]
 
 DXUI = DXUI or {}
 

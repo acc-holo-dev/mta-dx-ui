@@ -1,21 +1,17 @@
---[[
-    defaults.lua — DXUI V4
-
-    Built-in base theme: "light" (Fluent-Lite). Token sets + component
-    styles for the whole widget library. Auto-activates as the current
-    theme at load (idempotent; consumers may activate any other built-in
-    or define their own — see themes.lua for dark/green/density presets).
-
-    Token reference (all component values go through @tokens so themes stay
-    data, not code):
-        color:   primary / primaryHover / primaryPressed / onPrimary /
-                 surface / surfaceAlt / text / textSecondary / border /
-                 danger / success / warning / overlay / tooltipBg
-        radius:  sm / md / lg / full
-        size:    rowHeight / headerHeight / thumb / sliderThumb
-                 (density axis — compact/full presets override these)
-        padding: control (edit text inset; density axis)
-]]
+---Built-in base theme: "light" (Fluent-Lite). Token sets + component
+---styles for the whole widget library. Auto-activates as the current
+---theme at load (idempotent; consumers may activate any other built-in
+---or define their own — see themes.lua for dark/green/density presets).
+---
+---Token reference (all component values go through @tokens so themes stay
+---data, not code):
+---    color:   primary / primaryHover / primaryPressed / onPrimary /
+---             surface / surfaceAlt / text / textSecondary / border /
+---             danger / success / warning / overlay / tooltipBg
+---    radius:  sm / md / lg / full
+---    size:    rowHeight / headerHeight / thumb / sliderThumb
+---             (density axis — compact/full presets override these)
+---    padding: control (edit text inset; density axis)
 
 DXUI = DXUI or {}
 

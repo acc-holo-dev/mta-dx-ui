@@ -1,18 +1,15 @@
---[[
-    builders.lua — DXUI V3
+---Widget registry + shared construction helpers (loads after the widget
+---classes; ui.lua factories read DXUI.Widgets).
+---
+---    Builders.register("Button", ButtonClass)   -- canonical form
+---    Builders.wireStates(node)                  -- hover/press -> style
+---    Builders.ensureParts(node, props, partDefs)-- auto-create default parts
+---
+---wireStates: the dispatcher emits hover-start/hover-end/press/release;
+---the helper translates them into node:setState("hover"/"pressed") so the
+---widget's style follows its interaction state (theme states). Disabled
+---nodes auto-map to the "disabled" state inside _applyStyleState.
 
-    Widget registry + shared construction helpers (loads after the widget
-    classes; ui.lua factories read DXUI.Widgets).
-
-        Builders.register("Button", ButtonClass)   -- canonical form
-        Builders.wireStates(node)                  -- hover/press -> style
-        Builders.ensureParts(node, props, partDefs)-- auto-create default parts
-
-    wireStates: the dispatcher emits hover-start/hover-end/press/release;
-    the helper translates them into node:setState("hover"/"pressed") so the
-    widget's style follows its interaction state (theme states). Disabled
-    nodes auto-map to the "disabled" state inside _applyStyleState.
-]]
 
 DXUI = DXUI or {}
 

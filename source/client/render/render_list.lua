@@ -1,21 +1,18 @@
---[[
-    render_list.lua — DXUI V3
-
-    Persistent flat list of render items — a derived cache of the tree.
-    Rendering never walks the tree per frame: the pass rebuilds the list
-    only on invalidation; an idle frame just draws it (zero rebuild).
-
-    Items are pooled tables (RenderList.obtain/recycle) so rebuilds do not
-    churn allocations.
-
-    Item kinds: rect | rrect | image | text | line | rtgroup
-        { kind="rect", x,y,w,h,color }
-        { kind="rrect", x,y,w,h, rtl,rtr,rbr,rbl, color, borderColor, borderWidth }
-        { kind="image", x,y,w,h,texture,color,effect,section }
-        { kind="text", text,x,y,w,h,color,font,align,valign,scaleX,scaleY }
-        { kind="line", x1,y1,x2,y2,color,width }
-        { kind="rtgroup", x,y,w,h,scaleX,scaleY,effect,alpha,items,count,pool }
-]]
+---RenderList — persistent flat list of render items: a derived cache of
+---the tree. Rendering never walks the tree per frame: the pass rebuilds
+---the list only on invalidation; an idle frame just draws it (zero
+---rebuild).
+---
+---Items are pooled tables (RenderList.obtain/recycle) so rebuilds do not
+---churn allocations.
+---
+---Item kinds: rect | rrect | image | text | line | rtgroup
+---    { kind="rect", x,y,w,h,color }
+---    { kind="rrect", x,y,w,h, rtl,rtr,rbr,rbl, color, borderColor, borderWidth }
+---    { kind="image", x,y,w,h,texture,color,effect,section }
+---    { kind="text", text,x,y,w,h,color,font,align,valign,scaleX,scaleY }
+---    { kind="line", x1,y1,x2,y2,color,width }
+---    { kind="rtgroup", x,y,w,h,scaleX,scaleY,effect,alpha,items,count,pool }
 
 DXUI = DXUI or {}
 

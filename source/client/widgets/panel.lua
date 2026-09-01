@@ -1,11 +1,8 @@
---[[
-    panel.lua — DXUI V3 (basic widget)
+---Panel — a plain styled surface. Default visual surface; theme props:
+---color (surface), radius, borderColor.
+---
+---    local p = ui:panel({ x=0, y=0, width=200, height=50, style="card" })
 
-    Panel — a plain styled surface. Default visual surface; theme props:
-    color (surface), radius, borderColor.
-
-        local p = ui:panel({ x=0, y=0, width=200, height=50, style="card" })
-]]
 
 DXUI = DXUI or {}
 

@@ -1,10 +1,6 @@
---[[
-    easing.lua — DXUI V3
-
-    Easing functions for animation. Named strings are readable:
-    "linear", "in", "out", "inout", "back", "elastic", "bounce". Spring is
-    a time-based function of (t, omega, damping) — see Anim.spring below.
-]]
+---Easing functions for animation. Named strings are readable:
+---"linear", "in", "out", "inout", "back", "elastic", "bounce". Spring is
+---a time-based function of (t, omega, damping) — see Anim.spring below.
 
 DXUI = DXUI or {}
 

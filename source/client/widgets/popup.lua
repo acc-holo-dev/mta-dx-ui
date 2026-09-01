@@ -1,14 +1,11 @@
---[[
-    popup.lua — DXUI V3 (composite widget)
+---Popup — floating surface registered with the dispatcher popup manager:
+---opened with a position, closed by outside clicks or explicit close().
+---
+---    local p = ui:popup({ width=200, height=120, children = { ... } })
+---    p:open(120, 80)
+---
+---Theme: color, borderColor, radius.
 
-    Popup — floating surface registered with the dispatcher popup manager:
-    opened with a position, closed by outside clicks or explicit close().
-
-        local p = ui:popup({ width=200, height=120, children = { ... } })
-        p:open(120, 80)
-
-    Theme: color, borderColor, radius.
-]]
 
 DXUI = DXUI or {}
 

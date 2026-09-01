@@ -1,25 +1,20 @@
---[[
-    ui.lua — DXUI V3
-
-    Public UI handle: the ONLY object consumers see (never the context).
-    `exports.dxui:getUI(...)` returns this; every method is consumer-facing.
-
-    Factories (widget classes are late-bound from the widgets/ tree via
-    DXUI.Widgets[name] — ui.lua loads before widgets):
-        ui:panel(props) / label / button / image / window / checkbox / ...
-        ui:widget(name, props)            -- generic
-        ui:color(r,g,b[,a])               -- packed 0xAARRGGBB int / proxy
-        ui:percent(n) / ui:auto() / ui:fill()
-        ui:texture(path) / font(name,size) / shader(code)
-        ui:setTextKey(key, target, textProp)
-        ui:addLocale(lang, dict) / setLocale(lang)
-
-    Lifecycle/frame:
-        ui:setViewport(w, h)              -- once per resource, on resize
-        ui:tick()                         -- once per onClientRender
-        ui:mouseMove/Down/Up(...), scroll, key
-        ui:destroy()
-]]
+---UI — public handle: the ONLY object consumers see (never the context).
+---`exports.dxui:getUI(...)` returns this; every method is consumer-facing.
+---
+---Widget factories (synthesized from the registry as widgets load):
+---    ui:panel(props) / label / button / image / window / checkbox / ...
+---    ui:widget(name, props)            -- generic
+---    ui:color(r,g,b[,a])               -- packed 0xAARRGGBB int / proxy
+---    ui:percent(n) / ui:auto() / ui:fill()
+---    ui:texture(path) / font(name,size) / shader(code)
+---    ui:setTextKey(key, target, textProp)
+---    ui:addLocale(lang, dict) / setLocale(lang)
+---
+---Lifecycle/frame:
+---    ui:setViewport(w, h)              -- once per resource, on resize
+---    ui:tick()                         -- once per onClientRender
+---    ui:mouseMove/Down/Up(...), scroll, key
+---    ui:destroy()
 
 DXUI = DXUI or {}
 

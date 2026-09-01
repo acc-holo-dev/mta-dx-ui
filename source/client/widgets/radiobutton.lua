@@ -1,13 +1,10 @@
---[[
-    radiobutton.lua — DXUI V3 (composite widget)
+---RadioButton — circle + dot; independent by default; group radios by
+---giving them the same `group` name and manage exclusivity yourself, or
+---use a RadioGroup container (below).
+---
+---    local r1 = ui:radiobutton({ text="A", x=0, y=0 })
+---    r1:on("change", function(n, checked) ... end)
 
-    RadioButton — circle + dot; independent by default; group radios by
-    giving them the same `group` name and manage exclusivity yourself, or
-    use a RadioGroup container (below).
-
-        local r1 = ui:radiobutton({ text="A", x=0, y=0 })
-        r1:on("change", function(n, checked) ... end)
-]]
 
 DXUI = DXUI or {}
 

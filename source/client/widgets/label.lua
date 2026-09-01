@@ -1,11 +1,8 @@
---[[
-    label.lua — DXUI V3 (basic widget)
+---Label — single/multi-line text with wrap/ellipsis flags, alignment and
+---valignment. autoSize measures via the text engine (design units).
+---
+---    local t = ui:label({ text="Hello", x=10, y=10, color="#FFFFFF" })
 
-    Label — single/multi-line text with wrap/ellipsis flags, alignment and
-    valignment. autoSize measures via the text engine (design units).
-
-        local t = ui:label({ text="Hello", x=10, y=10, color="#FFFFFF" })
-]]
 
 DXUI = DXUI or {}
 

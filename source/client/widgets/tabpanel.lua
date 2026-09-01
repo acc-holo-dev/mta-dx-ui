@@ -1,15 +1,12 @@
---[[
-    tabpanel.lua — DXUI V3 (composite widget)
+---TabPanel — pages are children (add via :addPage); `labels` (one per
+---page) build an interactive tab strip. Only the active page is visible.
+---
+---    local tp = ui:tabpanel({ x=0, y=0, width=300, height=200,
+---                             labels = { "General", "Advanced" } })
+---    tp:addPage(pageGeneral)   -- page 1
+---    tp:addPage(pageAdvanced)  -- page 2
+---    tp.activeIndex = 1
 
-    TabPanel — pages are children (add via :addPage); `labels` (one per
-    page) build an interactive tab strip. Only the active page is visible.
-
-        local tp = ui:tabpanel({ x=0, y=0, width=300, height=200,
-                                 labels = { "General", "Advanced" } })
-        tp:addPage(pageGeneral)   -- page 1
-        tp:addPage(pageAdvanced)  -- page 2
-        tp.activeIndex = 1
-]]
 
 DXUI = DXUI or {}
 

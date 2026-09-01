@@ -1,14 +1,11 @@
---[[
-    button.lua — DXUI V3 (basic widget)
+---Button — themed surface + centered text; interaction states wired to
+---the style system (hover/pressed/disabled). Variants via node.style:
+---
+---    local b = ui:button({ text="Save", x=10, y=100, style="secondary" })
+---    b:on("click", function(n) save() end)
+---
+---Theme props: color, textColor, radius, borderColor.
 
-    Button — themed surface + centered text; interaction states wired to
-    the style system (hover/pressed/disabled). Variants via node.style:
-
-        local b = ui:button({ text="Save", x=10, y=100, style="secondary" })
-        b:on("click", function(n) save() end)
-
-    Theme props: color, textColor, radius, borderColor.
-]]
 
 DXUI = DXUI or {}
 
