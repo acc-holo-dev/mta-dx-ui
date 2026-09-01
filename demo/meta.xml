@@ -1,0 +1,5 @@
+<meta>
+    <info author="DXUI" name="dxui-demo" description="DXUI V4 feature showcase (requires the dxui resource)" version="4.0" type="script" />
+    <include resource="dxui" />
+    <script src="client.lua" type="client" cache="false" />
+</meta>

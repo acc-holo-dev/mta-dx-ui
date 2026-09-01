@@ -644,6 +644,11 @@ function Node:_setContextRecursive(ctx)
             and self._class and self._class._applyStyleState then
             self:_applyStyleState()
         end
+        -- a translation bound while DETACHED resolved against the engine
+        -- locale; on mount the instance locale wins (re-apply)
+        if entering and self.textKey ~= nil and self.applyTranslation then
+            self:applyTranslation()
+        end
     end
     local children = self._children
     for i = 1, #children do
