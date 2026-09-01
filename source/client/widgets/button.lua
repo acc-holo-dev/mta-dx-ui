@@ -17,6 +17,7 @@ local Button = DXUI.Widget:extend("Button", {
     textColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 0, invalidates = { DXUI.DIRTY.RENDER } },
     borderColor = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     -- buttons are interactive + focusable by default
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
@@ -28,7 +29,7 @@ function Button:render(renderer)
     if w <= 0 or h <= 0 then return end
     local r = self.radius or 0
     local bc = self.borderColor
-    renderer:borderedRect(wx, wy, w, h, r, self.color, bc, 1)
+    renderer:borderedRect(wx, wy, w, h, r, self.color, bc, self.borderWidth)
     if self.text and self.text ~= "" then
         renderer:text(self.text, wx, wy, w, h, self.textColor, self.font, "center", "center", 1)
     end

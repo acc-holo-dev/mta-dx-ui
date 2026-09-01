@@ -1,5 +1,5 @@
 --[[
-    backend_mta.lua — DXUI V3
+    backend_mta.lua — DXUI V4
 
     The ONLY entry point to the external dx* API in the whole engine
     (every direct dx* call lives here; tests inject a mock table instead).
@@ -7,7 +7,8 @@
     Responsibilities:
       - draw primitives (rect / rounded / image / text / line);
       - global state: blend mode (deduped by RenderState),
-        shader params (deduped by effect-table identity);
+        blur/mask shader params (deduped by effect-table identity),
+        rounded-rect shader params (deduped by shadow compare);
       - RT-groups (beginGroup/endGroup with the pooled allocator);
       - measurement hooks: dxGetTextSize wired into Text.setMeasurer,
         dxGetMaterialSize exposed as materialSize (image section culling).
@@ -15,7 +16,7 @@
     interface (mirrored by the test mock):
         setBlendMode(mode)
         drawRect(x,y,w,h,color)
-        drawRoundedRect(x,y,w,h,radius,color,effect)
+        drawRoundedRect(x,y,w,h, rtl,rtr,rbr,rbl, fill, border, borderWidth)
         drawImage(x,y,w,h,texture,color,effect,section)
         drawText(text,x,y,w,h,color,font,align,valign,scaleX,scaleY)
         drawLine(x1,y1,x2,y2,color,width)
@@ -28,11 +29,11 @@ DXUI = DXUI or {}
 
 -- Last applied effect (table identity) + its base texture: the SAME shared
 -- effect table with the same base is never re-applied (identity dedup —
--- effects.lua caches by inputs, so identity is stable).
+-- blur/mask effects are cached by inputs, so identity is stable).
 local lastFx, lastFxBase = nil, nil
 
---- Applies an effect's shader params, skipping re-application when the
--- effect and base texture are unchanged (identity dedup).
+---Applies a blur/mask effect's shader params, skipping re-application
+---when the effect and base texture are unchanged (identity dedup).
 local function applyEffect(effect, baseTexture)
     if not effect or not effect.shader then
         lastFx, lastFxBase = nil, nil
@@ -53,6 +54,81 @@ local function applyEffect(effect, baseTexture)
         dxSetShaderValue(effect.shader, "gTexture0", base)
     end
     return effect.shader
+end
+
+-- ---------------------------------------------------------------------
+-- Rounded-rect path (V4): ONE shared SDF shader, per-corner radii,
+-- border + fill in a single draw. Parameter uploads are deduped by a
+-- shadow compare (only CHANGED params reach dxSetShaderValue) — there
+-- are no per-size effect tables.
+-- ---------------------------------------------------------------------
+
+-- Shadow state for the rounded shader (allocated once, mutated in place).
+local rrShadow = nil
+
+---Splits a packed 0xAARRGGBB color into 0..1 floats (r, g, b, a).
+local function colorFloats(packed)
+    local a = (math.floor(packed / 0x1000000) % 256) / 255
+    local r = (math.floor(packed / 0x10000) % 256) / 255
+    local g = (math.floor(packed / 0x100) % 256) / 255
+    local b = (packed % 256) / 255
+    return r, g, b, a
+end
+
+---Draws a rounded rect through the shared SDF shader. Falls back to
+---square-corner native rects when shaders are unavailable (headless).
+local function drawRounded(x, y, w, h, rtl, rtr, rbr, rbl, fill, border, borderWidth)
+    local shader = DXUI.Effects and DXUI.Effects.roundedShader()
+    if not shader then
+        -- fallback: square corners, border rect + inset fill rect
+        local bw = (border and borderWidth and borderWidth > 0) and borderWidth or 0
+        if bw > 0 then
+            dxDrawRectangle(x, y, w, h, border)
+        end
+        local iw, ih = w - 2 * bw, h - 2 * bw
+        if iw > 0 and ih > 0 then
+            dxDrawRectangle(x + bw, y + bw, iw, ih, fill)
+        elseif bw <= 0 then
+            dxDrawRectangle(x, y, w, h, fill)
+        end
+        return
+    end
+    -- clamp radii so a radius never exceeds half the smaller side
+    local halfMin = (w < h and w or h) * 0.5
+    if rtl > halfMin then rtl = halfMin end
+    if rtr > halfMin then rtr = halfMin end
+    if rbr > halfMin then rbr = halfMin end
+    if rbl > halfMin then rbl = halfMin end
+    -- shadow-compare params; upload only what changed
+    local s = rrShadow
+    if s == nil or s.shader ~= shader then
+        s = { shader = shader }
+        rrShadow = s
+    end
+    if s.w ~= w or s.h ~= h then
+        dxSetShaderValue(shader, "gSize", w, h)
+        s.w, s.h = w, h
+    end
+    if s.rtl ~= rtl or s.rtr ~= rtr or s.rbr ~= rbr or s.rbl ~= rbl then
+        dxSetShaderValue(shader, "gRadii", rtl, rtr, rbr, rbl)
+        s.rtl, s.rtr, s.rbr, s.rbl = rtl, rtr, rbr, rbl
+    end
+    local bw = borderWidth or 0
+    if s.bw ~= bw then
+        dxSetShaderValue(shader, "gBorder", bw)
+        s.bw = bw
+    end
+    if s.fill ~= fill then
+        dxSetShaderValue(shader, "gFillColor", colorFloats(fill))
+        s.fill = fill
+    end
+    local bcol = border or fill
+    if s.border ~= bcol then
+        dxSetShaderValue(shader, "gBorderColor", colorFloats(bcol))
+        s.border = bcol
+    end
+    -- white multiplier: colors come from the shader params
+    dxDrawImage(x, y, w, h, shader, 0, 0, 0, 0xFFFFFFFF)
 end
 
 -- Active RT-group stack: { { rt, offX, offY, prevTarget }, ... }.
@@ -80,16 +156,12 @@ DXUI.BackendMTA = {
         dxDrawRectangle(x, y, w, h, color)
     end,
 
-    --- Draws a rounded rectangle (SDF shader, or flat rect fallback).
-    drawRoundedRect = function(x, y, w, h, radius, color, effect)
+    --- Draws a rounded rectangle: single SDF draw with per-corner radii
+    --- (TL, TR, BR, BL) and optional border ring; flat-rect fallback when
+    --- shaders are unavailable.
+    drawRoundedRect = function(x, y, w, h, rtl, rtr, rbr, rbl, fill, border, borderWidth)
         x, y = adjust(x, y)
-        local shader = applyEffect(effect)
-        if shader then
-            dxDrawImage(x, y, w, h, shader, 0, 0, 0, color)
-        else
-            -- fallback: flat rect
-            dxDrawRectangle(x, y, w, h, color)
-        end
+        drawRounded(x, y, w, h, rtl, rtr, rbr, rbl, fill, border, borderWidth)
     end,
 
     --- Draws an image (full or section), optionally through an effect shader.

@@ -1,17 +1,19 @@
---[[
-    effects.lua — DXUI V3
-
-    Shader effects: rounded rects (SDF), blur, mask + a pooled render-target
-    allocator for expensive paths (RT groups, effects).
-
-    Identity rule (state cache contract): effects are SHARED tables keyed by
-    inputs — identical items use the same table, so the backend's
-    shader-parameter dedup works by pointer identity. Texel sizes are baked
-    at creation, so identical items share one table.
-
-    Outside MTA (tests): dx functions absent → effects return nil, widgets
-    degrade to flat draws. Tests stub fake dx functions BEFORE first use.
-]]
+---Shader effects (DXUI.Effects): the rounded-rect SDF shader, blur, mask
+---and a pooled render-target allocator for expensive paths.
+---
+---Rounded rectangles (V4): ONE shared shader instance for every rounded
+---draw in the process. The shader does border + fill with PER-CORNER radii
+---in a single pass; the backend dedupes parameter sets before uploading
+---(shadow compare — there are no per-size effect tables, no param churn).
+---The shader ignores its input texture (pure uv-space SDF), so no base
+---texture is bound for rrect draws.
+---
+---Blur/mask stay input-cached (identity-stable shared tables keyed by
+---their inputs) — they are per-container/per-image effects.
+---
+---Outside MTA (tests): dx functions are absent; roundedShader() returns
+---nil and widgets degrade to flat draws. Suites that need the shader path
+---stub fake dx functions BEFORE first use.
 
 DXUI = DXUI or {}
 
@@ -21,17 +23,36 @@ local Effects = {}
 -- Shader code (HLSL, ps_2_0)
 -- ---------------------------------------------------------------------
 
+---Rounded rect: one-draw border + fill with per-corner radii.
+---gRadii = (TL, TR, BR, BL); ring pixels take gBorderColor, inner
+---pixels gFillColor; the outer edge is 1px antialiased.
 local ROUNDED_CODE = [[
-texture gTexture0;
 float2 gSize;
-float gRadius;
-sampler2D Samp0 = sampler_state { Texture = <gTexture0>; };
+float4 gRadii;
+float gBorder;
+float4 gFillColor;
+float4 gBorderColor;
 float4 PS(float2 uv : TEXCOORD0) : COLOR0
 {
-    float2 q = abs(uv * gSize - gSize * 0.5) - (gSize * 0.5 - gRadius);
-    float dist = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - gRadius;
-    float alpha = 1.0 - smoothstep(-1.0, 0.0, dist);
-    return float4(1.0, 1.0, 1.0, alpha);
+    float2 hc = gSize * 0.5;
+    float2 p = uv * gSize;
+    float r;
+    if (p.x < hc.x)
+    {
+        if (p.y < hc.y) { r = gRadii.x; } else { r = gRadii.w; }
+    }
+    else
+    {
+        if (p.y < hc.y) { r = gRadii.y; } else { r = gRadii.z; }
+    }
+    float2 q = abs(p - hc) - (hc - r);
+    float dist = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+    // ring = dist + border: negative inside the fill zone
+    float ring = dist + gBorder;
+    float4 col;
+    if (ring < 0.0) { col = gFillColor; } else { col = gBorderColor; }
+    col.a = col.a * (1.0 - smoothstep(-1.0, 0.0, dist));
+    return col;
 }
 technique rounded
 {
@@ -87,70 +108,40 @@ technique mask
 -- overflow — a couple of redundant param sets, then convergence)
 -- ---------------------------------------------------------------------
 
-local roundCache, roundCount = {}, 0
 local blurCache, blurCount = {}, 0
 local maskCache, maskCount = {}, 0
 local EFFECT_CAP = 512
 
---- Inserts a value into a cache, resetting that cache when it overflows.
-local function cacheInsert(cache, capName, key, value)
-    if capName >= EFFECT_CAP then
-        if cache == roundCache then roundCache, roundCount = {}, 0
-        elseif cache == blurCache then blurCache, blurCount = {}, 0
+---Inserts a value into a cache, resetting that cache when it overflows.
+local function cacheInsert(cache, count, key, value)
+    if count >= EFFECT_CAP then
+        if cache == blurCache then blurCache, blurCount = {}, 0
         else maskCache, maskCount = {}, 0 end
+        count = 0
     end
     cache[key] = value
-    if cache == roundCache then roundCount = roundCount + 1
-    elseif cache == blurCache then blurCount = blurCount + 1
-    else maskCount = maskCount + 1 end
+    if cache == blurCache then blurCount = count + 1
+    else maskCount = count + 1 end
     return value
 end
 
--- White pixel (1x1 RT filled white) — basis for the rounded quad.
-local whiteTexture = nil
+-- The single shared rounded-rect shader instance (nil until first use,
+-- false after a failed attempt — no retry thrash).
+local roundedShader = nil
 
---- Returns the shared 1x1 white texture, creating it lazily on first use.
-function Effects.whiteTexture()
-    if whiteTexture ~= nil then return whiteTexture ~= false and whiteTexture or nil end
-    -- false marks "dx unavailable" (no retry); nil means "not yet attempted"
-    whiteTexture = false
-    if dxCreateRenderTarget and dxGetRenderTarget and dxSetRenderTarget then
-        local ok, rt = pcall(dxCreateRenderTarget, 2, 2, true)
-        if ok and rt then
-            local prev = dxGetRenderTarget()
-            dxSetRenderTarget(rt)
-            dxDrawRectangle(0, 0, 2, 2, 0xFFFFFFFF)
-            dxSetRenderTarget(prev)
-            whiteTexture = rt
-        else
-            -- transient failure: allow a retry on the next call
-            whiteTexture = nil
-        end
-    end
-    return whiteTexture ~= false and whiteTexture or nil
-end
-
---- Shared rounded-rect effect (identity per w×h×radius).
-function Effects.round(w, h, radius)
-    local key = "r" .. w .. "x" .. h .. "r" .. radius
-    local cached = roundCache[key]
-    if cached then return cached end
-    local fx
+---Returns the process-wide rounded-rect SDF shader element, or nil when
+---shaders are unavailable (headless/tests; callers degrade gracefully).
+function Effects.roundedShader()
+    if roundedShader ~= nil then return roundedShader ~= false and roundedShader or nil end
+    roundedShader = false
     if dxCreateShader then
         local sh = DXUI.shader and DXUI.shader(ROUNDED_CODE)
-        if sh then
-            fx = {
-                shader = sh,
-                texture = Effects.whiteTexture(),
-                params = { gSize = { w, h }, gRadius = radius },
-            }
-        end
+        if sh then roundedShader = sh end
     end
-    if not fx then return nil end
-    return cacheInsert(roundCache, roundCount, key, fx)
+    return roundedShader ~= false and roundedShader or nil
 end
 
---- Shared blur effect (identity per w×h×strength; texel baked).
+---Shared blur effect (identity per w×h×strength; texel baked).
 function Effects.blur(w, h, strength)
     local key = "b" .. w .. "x" .. h .. "s" .. strength
     local cached = blurCache[key]
@@ -173,7 +164,7 @@ function Effects.blur(w, h, strength)
     return cacheInsert(blurCache, blurCount, key, fx)
 end
 
---- Shared mask effect (identity per mask texture).
+---Shared mask effect (identity per mask texture).
 function Effects.mask(maskTexture)
     local cached = maskCache[maskTexture]
     if cached then return cached end
@@ -187,11 +178,11 @@ function Effects.mask(maskTexture)
 end
 
 -- ---------------------------------------------------------------------
--- Node effect resolution (the renderer's resolveEffect hook)
+-- Node effect resolution (the pass reads these for RT groups / images)
 -- ---------------------------------------------------------------------
 
---- The image-path effect for a node carrying blur/mask (mask wins for
--- images; combining both happens via an RT group in the pass).
+---The image-path effect for a node carrying blur/mask (mask wins for
+---images; combining both happens via an RT group in the pass).
 function Effects.effectForImage(node)
     if node.mask then return Effects.mask(node.mask) end
     if node.blur and node.blur > 0 then
@@ -200,9 +191,9 @@ function Effects.effectForImage(node)
     return nil
 end
 
---- Whether the node needs an RT group (non-image effects: blur/mask on
--- containers, or clipMode="rt").
-function Effects.needsGroup(node, engine)
+---Whether the node needs an RT group (non-image effects: blur/mask on
+---containers, or clipMode="rt").
+function Effects.needsGroup(node)
     if node.clipMode == "rt" then return true end
     local hasFx = (node.blur and node.blur > 0) or (node.mask ~= nil)
     -- images draw effects with a direct shader (cheaper, see image.lua)
@@ -210,7 +201,7 @@ function Effects.needsGroup(node, engine)
     return hasFx and not isImage
 end
 
---- Whether the RT path is available.
+---Whether the RT path is available.
 function Effects.canGroup()
     return dxCreateShader ~= nil and dxCreateRenderTarget ~= nil
 end
@@ -222,7 +213,7 @@ end
 local rtPool = {}
 local RT_POOL_CAP = 64
 
---- Acquires an RT of at least w×h (exact match first). Creation on miss.
+---Acquires an RT of at least w×h (exact match first). Creation on miss.
 function Effects.acquireRT(w, h)
     local key = w .. "x" .. h
     local reuseAt, reuseEntry = nil, nil
@@ -246,8 +237,8 @@ function Effects.acquireRT(w, h)
     return nil
 end
 
---- Returns an RT to the pool with its size key (bounded; overflow destroys
--- the RT instead of pooling). Re-acquire is an exact-size match.
+---Returns an RT to the pool with its size key (bounded; overflow destroys
+---the RT instead of pooling). Re-acquire is an exact-size match.
 function Effects.releaseRT(rt, key)
     if #rtPool >= RT_POOL_CAP then
         if isElement and isElement(rt) then destroyElement(rt) end
@@ -256,37 +247,34 @@ function Effects.releaseRT(rt, key)
     rtPool[#rtPool + 1] = { rt = rt, key = key }
 end
 
---- Destroys every pooled RT and the white texture (full teardown).
+---Destroys every pooled RT (full teardown).
 function Effects.releasePool()
     if isElement and destroyElement then
         for i = 1, #rtPool do
             local e = rtPool[i]
             if e and e.rt and isElement(e.rt) then destroyElement(e.rt) end
         end
-        if whiteTexture and isElement(whiteTexture) then
-            destroyElement(whiteTexture)
-        end
     end
     rtPool = {}
-    whiteTexture = nil
 end
 
---- Destroys every cached shader/RT (called by releaseResources on stop).
+---Destroys every cached shader (called by releaseResources on stop; the
+---rounded shader is re-created lazily on next use).
 function Effects.clearCaches()
     if isElement and destroyElement then
-        for key, fx in pairs(roundCache) do
+        for _, fx in pairs(blurCache) do
             if fx.shader and isElement(fx.shader) then destroyElement(fx.shader) end
         end
-        for key, fx in pairs(blurCache) do
+        for _, fx in pairs(maskCache) do
             if fx.shader and isElement(fx.shader) then destroyElement(fx.shader) end
         end
-        for key, fx in pairs(maskCache) do
-            if fx.shader and isElement(fx.shader) then destroyElement(fx.shader) end
+        if type(roundedShader) == "userdata" and isElement(roundedShader) then
+            destroyElement(roundedShader)
         end
     end
-    roundCache, roundCount = {}, 0
     blurCache, blurCount = {}, 0
     maskCache, maskCount = {}, 0
+    roundedShader = nil
 end
 
 DXUI.Effects = Effects

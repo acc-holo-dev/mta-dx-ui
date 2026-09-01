@@ -214,6 +214,7 @@ local theme = {
                 hoverColor = "@color.surfaceAlt",
                 textColor = "@color.text",
                 disabledColor = "@color.textSecondary",
+                borderColor = "@color.border",
                 radius = "@radius.sm",
                 rowHeight = "@size.rowHeight",
             },

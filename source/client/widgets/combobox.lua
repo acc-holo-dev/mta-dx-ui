@@ -43,6 +43,7 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
     textColor = { default = 0xFF111827, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     headColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
     rowHeight = { default = 20, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
         -- parts may not exist yet (constructor opts phase runs pre-build)
@@ -197,7 +198,7 @@ function ComboBox:render(renderer)
     local wx, wy, w = self.worldX, self.worldY, self.width
     local headH = self.rowHeight or 22
     local r = self.radius or 4
-    renderer:borderedRect(wx, wy, w, headH, r, self.headColor, self.borderColor, 1)
+    renderer:borderedRect(wx, wy, w, headH, r, self.headColor, self.borderColor, self.borderWidth)
     -- caret arrow (two strokes forming a down-triangle)
     local ax = wx + w - 13
     local ay = wy + headH / 2

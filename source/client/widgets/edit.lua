@@ -25,6 +25,7 @@ local Edit = DXUI.Widget:extend("Edit", {
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     focusBorderColor = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     padding = { default = { left = 8, right = 8, top = 0, bottom = 0 }, invalidates = { DXUI.DIRTY.LAYOUT } },
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
@@ -57,7 +58,7 @@ function Edit:render(renderer)
     local r = self.radius or 4
     local fmt = self:getState()
     local border = (fmt == "focused") and (self.focusBorderColor or self.borderColor) or self.borderColor
-    renderer:borderedRect(wx, wy, w, h, r, self.bgColor, border, 1)
+    renderer:borderedRect(wx, wy, w, h, r, self.bgColor, border, self.borderWidth)
 
     local text = self.text
     local shown = (text == EMPTY or text == nil) and self.placeholder or text

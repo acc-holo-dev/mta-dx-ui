@@ -14,6 +14,7 @@ DXUI = DXUI or {}
 
 local Popup = DXUI.Widget:extend("Popup", {
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     radius = { default = 8, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
@@ -61,7 +62,7 @@ end
 --- Draws the popup surface.
 function Popup:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
-    renderer:borderedRect(wx, wy, w, h, self.radius or 8, self.color, self.borderColor, 1)
+    renderer:borderedRect(wx, wy, w, h, self.radius or 8, self.color, self.borderColor, self.borderWidth)
 end
 
 DXUI.Builders.register("Popup", Popup)

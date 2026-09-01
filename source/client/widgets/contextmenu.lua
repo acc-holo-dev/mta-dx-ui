@@ -26,6 +26,8 @@ local ContextMenu = DXUI.Widget:extend("ContextMenu", {
     hoverColor = { default = 0xFFF3F4F6, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     textColor = { default = 0xFF111827, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     disabledColor = { default = 0xFF6B7280, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
+    borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
@@ -137,7 +139,7 @@ end
 function ContextMenu:render(renderer)
     if not self.visible then return end
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
-    renderer:borderedRect(wx, wy, w, h, self.radius or 4, self.color, 0xFFD1D5DB, 1)
+    renderer:borderedRect(wx, wy, w, h, self.radius or 4, self.color, self.borderColor, self.borderWidth)
     -- separators
     local items = self.items or {}
     local rh = self.rowHeight or 22

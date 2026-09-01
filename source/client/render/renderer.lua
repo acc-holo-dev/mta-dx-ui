@@ -1,12 +1,13 @@
 --[[
-    renderer.lua — DXUI V3
+    renderer.lua — DXUI V4
 
     Public renderer API: the primitives a widget calls from its own
     render(renderer). Primitives add pooled items to the current list.
 
         function Button:render(renderer)
-            renderer:rect(self.worldX, self.worldY, self.width, self.height,
-                          self.color)
+            renderer:borderedRect(self.worldX, self.worldY, self.width,
+                                  self.height, self.radius, self.color,
+                                  self.borderColor, self.borderWidth)
             renderer:text(self.text, ..., self.textColor, self.font,
                           "center", "center")
         end
@@ -15,6 +16,10 @@
     mapping (scale/offset) and each node's clip region + effective opacity
     once; primitives apply them at emission. Colors are normalized via
     ColorToInt (works for packed ints and Color proxies alike).
+
+    Rounded rects are SINGLE items: per-corner radii (tl,tr,br,bl), the
+    border ring and the fill ride one SDF draw (see backend_mta). Square
+    corners decompose into plain rect items (no shader round-trip).
 
     Renderer knows NOTHING about the backend (backend_mta) — items only.
 ]]
@@ -107,51 +112,69 @@ function Renderer:rect(x, y, w, h, color)
     self.list:add(it)
 end
 
---- Emits a rounded-rectangle item (SDF effect when radius > 0).
-function Renderer:roundedRect(x, y, w, h, radius, color)
+--- Emits a filled rounded-rectangle item.
+-- `radii`: number (all four corners) or {tl,tr,br,bl} (nil corners = 0).
+function Renderer:roundedRect(x, y, w, h, radii, color)
+    return self:_rrect(x, y, w, h, radii, color, nil, 0)
+end
+
+--- Emits a rounded rectangle with a border ring: ONE draw on the shader
+-- path (the SDF fills and borders in the same pass). `radii` follows
+-- roundedRect. Square corners with a border decompose into two plain
+-- rect items (no shader needed for a square ring).
+function Renderer:borderedRect(x, y, w, h, radii, fillColor, borderColor, borderWidth)
+    return self:_rrect(x, y, w, h, radii, fillColor, borderColor, borderWidth or 1)
+end
+
+--- Shared rrect emitter (pool item; radii resolved to four corners).
+function Renderer:_rrect(x, y, w, h, radii, fillColor, borderColor, borderWidth)
     if self.effOpacity <= 0 then return end
     local nx, ny, nw, nh = clipRect(self, x, y, w, h)
     if nx == nil then return end
-    color = DXUI.ColorToInt(color)
-    color = modulate(color, self.effOpacity)
+    local r1, r2, r3, r4 = 0, 0, 0, 0
+    if type(radii) == "number" then
+        r1, r2, r3, r4 = radii, radii, radii, radii
+    elseif type(radii) == "table" then
+        -- {tl,tr,br,bl} (array or named)
+        r1 = radii[1] or radii.tl or 0
+        r2 = radii[2] or radii.tr or 0
+        r3 = radii[3] or radii.br or 0
+        r4 = radii[4] or radii.bl or 0
+    end
+    local fill = modulate(DXUI.ColorToInt(fillColor), self.effOpacity)
+    local border = nil
+    if borderColor ~= nil and borderWidth > 0 then
+        border = modulate(DXUI.ColorToInt(borderColor), self.effOpacity)
+    end
+    if r1 <= 0 and r2 <= 0 and r3 <= 0 and r4 <= 0 then
+        -- square corners: plain rect(s), no shader round-trip
+        if border == nil then
+            return self:rect(nx, ny, nw, nh, fill)
+        end
+        local bw = borderWidth
+        local iw, ih = nw - 2 * bw, nh - 2 * bw
+        self:rect(nx, ny, nw, nh, border)
+        if iw > 0 and ih > 0 then
+            self:rect(nx + bw, ny + bw, iw, ih, fill)
+        end
+        return
+    end
     local sx, ox, sy, oy = self.scaleX, self.offsetX, self.scaleY, self.offsetY
+    local scale = (sx + sy) * 0.5
     local it = DXUI.RenderList.obtain()
     it.kind = "rrect"
     it.x = nx * sx + ox
     it.y = ny * sy + oy
     it.w = nw * sx
     it.h = nh * sy
-    it.radius = radius * (sx + sy) / 2
-    it.color = color
-    -- rounded corners need the SDF shader; nil degrades to a flat rect
-    if it.radius > 0 and DXUI.Effects then
-        it.effect = DXUI.Effects.round(it.w, it.h, it.radius)
-    else
-        it.effect = nil
-    end
+    it.rtl = r1 * scale
+    it.rtr = r2 * scale
+    it.rbr = r3 * scale
+    it.rbl = r4 * scale
+    it.color = fill
+    it.borderColor = border
+    it.borderWidth = border ~= nil and borderWidth or 0
     self.list:add(it)
-end
-
---- Filled rectangle with a border ring. The border is drawn first and the
--- fill is inset by `borderWidth`, so the border never covers the fill
--- (rounded corners keep a 1px ring). radius == 0 uses the same inset path.
-function Renderer:borderedRect(x, y, w, h, radius, fillColor, borderColor, borderWidth)
-    local bw = borderWidth or 1
-    if borderColor then
-        if radius and radius > 0 then
-            self:roundedRect(x, y, w, h, radius, borderColor)
-        else
-            self:rect(x, y, w, h, borderColor)
-        end
-    end
-    local ix, iy, iw, ih = x + bw, y + bw, w - 2 * bw, h - 2 * bw
-    if iw <= 0 or ih <= 0 then return end
-    local ir = (radius and radius > bw) and (radius - bw) or 0
-    if ir > 0 then
-        self:roundedRect(ix, iy, iw, ih, ir, fillColor)
-    else
-        self:rect(ix, iy, iw, ih, fillColor)
-    end
 end
 
 --- Emits four rects forming a border ring.
@@ -206,7 +229,8 @@ function Renderer:image(texture, x, y, w, h, color, section)
     it.h = nh * sy
     it.texture = texture
     it.color = color
-    it.effect = self:resolveEffect(self.fx, "image")
+    -- image-path effect (blur/mask) set by the pass for Image nodes
+    it.effect = self.fx
     it.section = section
     self.list:add(it)
 end
@@ -234,14 +258,6 @@ function Renderer:line(x1, y1, x2, y2, color, width)
     it.color = color
     it.width = width and width * (sx + sy) / 2 or width
     self.list:add(it)
-end
-
---- Resolves the effect table for an image item (blur/mask fx set by the
--- pass). Returns nil when absent.
-function Renderer:resolveEffect(fx, kind)
-    if fx == nil then return nil end
-    if kind == "image" then return fx end
-    return nil
 end
 
 DXUI.Renderer = Renderer

@@ -42,7 +42,9 @@ function StateCache:draw(item)
     if kind == "rect" then
         b.drawRect(item.x, item.y, item.w, item.h, item.color)
     elseif kind == "rrect" then
-        b.drawRoundedRect(item.x, item.y, item.w, item.h, item.radius, item.color, item.effect)
+        b.drawRoundedRect(item.x, item.y, item.w, item.h,
+            item.rtl, item.rtr, item.rbr, item.rbl,
+            item.color, item.borderColor, item.borderWidth)
     elseif kind == "image" then
         b.drawImage(item.x, item.y, item.w, item.h, item.texture, item.color, item.effect, item.section)
     elseif kind == "text" then

@@ -22,6 +22,7 @@ local Checkbox = DXUI.Widget:extend("Checkbox", {
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     checkedColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     -- box size and text offset
     indent = { default = 18, invalidates = { DXUI.DIRTY.RENDER } },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
@@ -40,7 +41,7 @@ function Checkbox:render(renderer)
     local box = self.indent or 18
     -- box: border ring drawn under the inset fill
     local r = self.radius or 4
-    renderer:borderedRect(wx, wy, box, box, r, self.boxColor, self.borderColor, 1)
+    renderer:borderedRect(wx, wy, box, box, r, self.boxColor, self.borderColor, self.borderWidth)
     -- check mark (two thick strokes)
     if self.checked then
         local c = self.checkedColor or 0xFFFFFFFF

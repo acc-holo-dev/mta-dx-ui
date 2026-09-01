@@ -22,6 +22,7 @@ local RadioButton = DXUI.Widget:extend("RadioButton", {
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     color = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     dotColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     indent = { default = 18, invalidates = { DXUI.DIRTY.RENDER } },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
@@ -38,7 +39,7 @@ function RadioButton:render(renderer)
     local d = self.indent or 18
     local r = d / 2
     -- ring: border color under the inset fill (ring stays visible)
-    renderer:borderedRect(wx, wy, d, d, r, self.color, self.borderColor, 1)
+    renderer:borderedRect(wx, wy, d, d, r, self.color, self.borderColor, self.borderWidth)
     if self.checked then
         local dot = d * 0.42
         renderer:roundedRect(wx + (d - dot) / 2, wy + (d - dot) / 2, dot, dot, dot / 2, self.dotColor)

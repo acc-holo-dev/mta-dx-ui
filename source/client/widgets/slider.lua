@@ -21,6 +21,7 @@ local Slider = DXUI.Widget:extend("Slider", {
     bgColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     thumbColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     thumbBorderColor = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
+    borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
@@ -57,7 +58,7 @@ function Slider:render(renderer)
     end
     -- thumb
     renderer:borderedRect(tcx - ts / 2, wy + (h - ts) / 2, ts, ts, ts / 2,
-        self.thumbColor, self.thumbBorderColor, 1)
+        self.thumbColor, self.thumbBorderColor, self.borderWidth)
 end
 
 --- Wires drag and click to update the value.
