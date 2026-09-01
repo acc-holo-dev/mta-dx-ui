@@ -115,16 +115,51 @@ function UI:setTextKey(key, target, textProp)
     return self
 end
 
---- Registers a locale dictionary.
+--- Registers a locale dictionary (engine-wide).
 function UI:addLocale(lang, dict)
-    if DXUI.addLocale then DXUI.addLocale(lang, dict) end
+    if DXUI.Translate then
+        DXUI.Translate.addLocale(lang, dict)
+    elseif DXUI.addLocale then
+        DXUI.addLocale(lang, dict)
+    end
     return self
 end
 
---- Activates a locale.
+--- Sets THIS instance's locale (nil = follow the engine locale) and
+--- re-translates this instance's bindings. Emits "localeChange" on the
+--- UI root. The engine-wide switch is DXUI.setLocale.
 function UI:setLocale(lang)
-    if DXUI.setLocale then DXUI.setLocale(lang) end
+    self._locale = lang
+    if DXUI.Translate then DXUI.Translate.applyFor(self) end
+    if self.root and self.root.emit then
+        self.root:emit("localeChange", self:getLocale())
+    end
     return self
+end
+
+--- Returns this instance's locale (the engine locale when unset).
+function UI:getLocale()
+    return self._locale
+        or (DXUI.Translate and DXUI.Translate.locale)
+        or "en"
+end
+
+--- Translates a key in THIS instance's locale, substituting %1..%N.
+function UI:tr(key, ...)
+    if DXUI.Translate then
+        return DXUI.Translate.trFor(self:getLocale(), key, ...)
+    end
+    return key
+end
+
+--- Subscribes to a UI-level event on the root (e.g. "localeChange").
+function UI:on(eventName, fn)
+    return self.root:on(eventName, fn)
+end
+
+--- Emits a UI-level event on the root.
+function UI:emit(eventName, ...)
+    return self.root:emit(eventName, ...)
 end
 
 -- ---------------------------------------------------------------------

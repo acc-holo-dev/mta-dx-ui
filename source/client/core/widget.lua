@@ -25,6 +25,18 @@ DXUI = DXUI or {}
 
 local DIRTY = DXUI.DIRTY
 
+--- onSet hook for the textKey property: registers the binding in the weak
+-- registry (translate.lua owns it) and applies the translation at once.
+local function onTextKeySet(node, value)
+    if value == nil then return end
+    local Translate = DXUI.Translate
+    if Translate and Translate._bindings then
+        Translate._bindings[node] = true
+    end
+    node._textTarget = node._textTarget or "text"
+    if node.applyTranslation then node:applyTranslation() end
+end
+
 local Widget = DXUI.Node:extend("Widget", {
     -- surface color (packed). Value object access: button.color.r = 255.
     color = { default = 0xFFFFFFFF, invalidates = { DIRTY.RENDER }, transform = DXUI.resolveColor },
@@ -35,6 +47,9 @@ local Widget = DXUI.Node:extend("Widget", {
     blur  = { default = 0,         invalidates = { DIRTY.RENDER } },
     mask  = { default = nil,       invalidates = { DIRTY.RENDER } },
     effect = { default = nil,      invalidates = { DIRTY.RENDER } },
+    -- translation key: writing it binds the widget's text (see setTextKey
+    -- for the target-property form) and re-renders on every locale change
+    textKey = { default = nil, onSet = onTextKeySet },
 })
 
 -- State names recognized as state overrides inside a style block.
@@ -176,24 +191,26 @@ end
 -- ---------------------------------------------------------------------
 
 --- Binds the node's text property ("text" by default, e.g. "title" for
--- Window) to a translation key; re-applied on locale change.
+-- Window) to a translation key; sugar over the textKey property. Re-applied
+-- on every locale change.
 function Widget:setTextKey(key, target)
-    self._textKey = key
-    self._textTarget = target or "text"
-    if DXUI._textBindings then
-        DXUI._textBindings[self] = true
-    end
-    self:applyTranslation()
+    if target then self._textTarget = target end
+    self:_set("textKey", key)
     return self
 end
 
---- Applies the bound translation key to the text property.
+--- Applies the bound translation key to the text property. The instance
+-- locale (ui:setLocale) wins over the engine locale (DXUI.setLocale).
 function Widget:applyTranslation()
-    if not self._textKey then return end
-    local tr = DXUI.tr
-    if not tr then return end
+    local key = self.textKey
+    if key == nil then return end
+    local Translate = DXUI.Translate
+    if not Translate then return end
+    local context = self._context
+    local locale = (context and context._locale) or Translate.locale
+    local text = Translate.trFor(locale, key)
     local prop = self._textTarget or "text"
-    self[prop] = tr(self._textKey)
+    if self._spec[prop] then self[prop] = text end
     return self
 end
 

@@ -419,8 +419,10 @@ function Node:_set(key, value, owner)
 end
 
 --- Marks the node dirty for the given categories and propagates the
--- category -> instance frame flags (see CATEGORY_FLAGS above).
+-- category -> instance frame flags (see CATEGORY_FLAGS above). A spec
+-- without `invalidates` (pure behavior properties) passes nil.
 function Node:_invalidate(categories)
+    if not categories then return end
     local c = self._context
     if c then
         for i = 1, #categories do

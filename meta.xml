@@ -25,7 +25,7 @@
     <script src="source/client/core/part.lua" />
 
     <!-- text & translation -->
-    <script src="source/client/translation.lua" />
+    <script src="source/client/translate.lua" />
     <script src="source/client/text/text.lua" />
 
     <!-- style (theme) -->
