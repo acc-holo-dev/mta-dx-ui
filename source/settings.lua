@@ -12,6 +12,7 @@
 ---   defaults.animationDuration   node:animate() default duration (ms)
 ---   defaults.animationEasing     node:animate() default easing name
 ---   defaults.scrollWheelStep      ScrollPanel wheel travel (px)
+---   defaults.caretBlinkInterval   Edit caret blink half-period (ms)
 ---   resourcePolicy.autoRelease   release consumer UIs/assets on their stop
 ---   performance.screenCulling    skip off-screen render items
 ---   performance.maxInteractiveScan hit-test scan cap (topmost first)
@@ -47,6 +48,9 @@ local Settings = {
         animationEasing = "inout",
         -- ScrollPanel wheel travel, px
         scrollWheelStep = 48,
+        -- Edit caret blink half-period, ms (caretBlinkInterval property
+        -- overrides this per widget; 0 = solid)
+        caretBlinkInterval = 500,
     },
 
     -- Resource policy: auto-release the UI instances and cached MTA assets

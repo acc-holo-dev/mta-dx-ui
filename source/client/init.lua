@@ -107,8 +107,11 @@ addEventHandler("onClientKey", resourceRoot, function(keyName, pressed)
             uis[i]:scroll(wheel, ax, ay)
         end
     else
+        -- shift state rides the event so widgets can extend selections
+        local shift = getKeyState ~= nil
+            and (getKeyState("lshift") or getKeyState("rshift")) or false
         for i = 1, #uis do
-            uis[i]:key(keyName, pressed)
+            uis[i]:key(keyName, pressed, shift)
         end
     end
 end)

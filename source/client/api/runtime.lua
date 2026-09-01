@@ -90,6 +90,9 @@ function Runtime.create(opts)
     -- subsystems
     self.anim = DXUI.Anim and DXUI.Anim.new(self) or nil
     self.dispatcher = DXUI.Dispatcher and DXUI.Dispatcher.new(self) or nil
+    -- overlay nodes (frame-clock repaints: the Edit caret blink); drawn
+    -- every frame after the cached list, never invalidating it
+    self._overlays = {}
 
     -- dirty model
     self.layoutDirty = true
@@ -226,11 +229,13 @@ function Runtime:tick()
     end
 end
 
---- Draws the cached render list via the injected backend (state-deduped).
+--- Draws the cached render list via the injected backend (state-deduped),
+--- then the overlay pass: live per-frame repaints (caret blink) drawn
+--- directly through the backend WITHOUT invalidating the cached list —
+--- the zero-work idle contract holds.
 function Runtime:draw()
     local backend = self.backend
     if not backend then return end
-    if self.renderList.count == 0 then return end
     -- lazy state cache per backend instance
     if not self._state then
         self._state = DXUI.RenderState.new(backend)
@@ -239,6 +244,18 @@ function Runtime:draw()
     self.stats.draws = self.stats.draws + list.count
     for i = 1, list.count do
         self._state:draw(list.items[i])
+    end
+    local overlays = self._overlays
+    if overlays and #overlays > 0 then
+        local r = self.renderer
+        r.direct = self._state
+        for i = 1, #overlays do
+            local n = overlays[i]
+            if n and not n._destroyed and n._visible and n.overlay then
+                n:overlay(r)
+            end
+        end
+        r.direct = nil
     end
 end
 

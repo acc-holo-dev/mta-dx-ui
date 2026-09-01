@@ -48,6 +48,7 @@ Theme.define("dark", {
     components = {
         window = { props = { titleColor = "@color.text" } },
         tooltip = { props = { textColor = "@color.text" } },
+        edit = { props = { selectionColor = 0x333B82F6 } },
     },
 })
 
@@ -76,6 +77,9 @@ Theme.define("green", {
             md = 10,
             lg = 14,
         },
+    },
+    components = {
+        edit = { props = { selectionColor = 0x3316A34A } },
     },
 })
 

@@ -142,6 +142,7 @@ local theme = {
                 focusBorderColor = "@color.primary",
                 textColor = "@color.text",
                 placeholderColor = "@color.textSecondary",
+                selectionColor = 0x332563EB,
                 radius = "@radius.sm",
                 padding = "@padding.control",
             },

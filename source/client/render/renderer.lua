@@ -66,7 +66,19 @@ function Renderer.new(renderList)
     self.offsetX, self.offsetY = 0, 0
     -- current effect (blur/mask) set by the pass
     self.fx = nil
+    -- direct mode: a RenderState; emitted items draw IMMEDIATELY through
+    -- the backend instead of joining the cached list (overlay pass — see
+    -- Runtime:draw). Blinking overlays repaint per frame without
+    -- invalidating the cached list (zero-work idle contract holds).
+    self.direct = nil
     return self
+end
+
+--- Routes an item: direct mode draws it through the backend immediately
+--- (overlay pass); otherwise it joins the cached list.
+function Renderer:_emit(it)
+    local d = self.direct
+    if d then d:draw(it) else self.list:add(it) end
 end
 
 --- Resets for a new pass (scale/offset are pass-global, preserved).
@@ -109,7 +121,7 @@ function Renderer:rect(x, y, w, h, color)
     it.w = nw * sx
     it.h = nh * sy
     it.color = color
-    self.list:add(it)
+    self:_emit(it)
 end
 
 --- Emits a filled rounded-rectangle item.
@@ -174,7 +186,7 @@ function Renderer:_rrect(x, y, w, h, radii, fillColor, borderColor, borderWidth)
     it.color = fill
     it.borderColor = border
     it.borderWidth = border ~= nil and borderWidth or 0
-    self.list:add(it)
+    self:_emit(it)
 end
 
 --- Emits four rects forming a border ring.
@@ -210,7 +222,7 @@ function Renderer:text(text, x, y, w, h, color, font, align, valign, scale)
     it.valign = valign or "top"
     it.scaleX = scale and scale * sx or sx
     it.scaleY = scale and scale * sy or sy
-    self.list:add(it)
+    self:_emit(it)
 end
 
 --- Emits an image item (full or section).
@@ -232,7 +244,7 @@ function Renderer:image(texture, x, y, w, h, color, section)
     -- image-path effect (blur/mask) set by the pass for Image nodes
     it.effect = self.fx
     it.section = section
-    self.list:add(it)
+    self:_emit(it)
 end
 
 --- Emits a line item.
@@ -257,7 +269,7 @@ function Renderer:line(x1, y1, x2, y2, color, width)
     it.y2 = y2 * sy + oy
     it.color = color
     it.width = width and width * (sx + sy) / 2 or width
-    self.list:add(it)
+    self:_emit(it)
 end
 
 DXUI.Renderer = Renderer
