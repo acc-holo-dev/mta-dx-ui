@@ -42,19 +42,13 @@ end
 
 -- 3. MTA event glue (registered once at load) ----------------------------
 
--- render loop: tick every instance
-addEventHandler("onClientRender", resourceRoot, function()
-    local uis = DXUI._uis
-    if not uis then return end
-    for i = 1, #uis do
-        uis[i]:tick()
-    end
-end)
-
--- viewport: MTA has no resize event, so read the size each frame and
--- recompute the design->screen mapping only on an actual change.
+-- render loop: ONE handler — viewport tracking (MTA has no resize event;
+-- the size is read each frame and the mapping recomputed only on change)
+-- + the per-instance tick. Registered under the configured
+-- settings.performance.renderPriority (live-reappliable — see
+-- DXUI.setRenderPriority, called by DXUI.applySettings).
 local lastW, lastH = -1, -1
-addEventHandler("onClientRender", resourceRoot, function()
+function DXUI._renderHandler()
     local w, h = guiGetScreenSize()
     if w ~= lastW or h ~= lastH then
         lastW, lastH = w, h
@@ -65,7 +59,27 @@ addEventHandler("onClientRender", resourceRoot, function()
             end
         end
     end
-end)
+    local uis = DXUI._uis
+    if not uis then return end
+    for i = 1, #uis do
+        uis[i]:tick()
+    end
+end
+
+---Applies a new onClientRender priority ("low"|"normal"|"high" or number)
+---to the frame loop (re-registers the single render handler).
+function DXUI.setRenderPriority(priority)
+    if removeEventHandler then
+        removeEventHandler("onClientRender", resourceRoot, DXUI._renderHandler)
+    end
+    addEventHandler("onClientRender", resourceRoot, DXUI._renderHandler, false, priority)
+end
+
+do
+    local prio = (DXUI.Settings and DXUI.Settings.performance
+        and DXUI.Settings.performance.renderPriority) or "normal"
+    addEventHandler("onClientRender", resourceRoot, DXUI._renderHandler, false, prio)
+end
 
 -- mouse movement (absolute screen pixels)
 addEventHandler("onClientCursorMove", resourceRoot, function(_, _, absX, absY)
@@ -96,9 +110,13 @@ addEventHandler("onClientKey", resourceRoot, function(keyName, pressed)
     if not uis then return end
     if keyName == "mouse_wheel_up" or keyName == "mouse_wheel_down" then
         local wheel = (keyName == "mouse_wheel_up") and 1 or -1
+        -- getCursorPosition returns false with the cursor disabled
+        -- (keyboard-only play): fall back to the screen center so the
+        -- wheel still reaches whatever sits mid-screen
         local cx, cy = getCursorPosition()
+        if not cx then cx, cy = 0.5, 0.5 end
         local sw, sh = guiGetScreenSize()
-        local ax, ay = (cx or 0) * sw, (cy or 0) * sh
+        local ax, ay = cx * sw, cy * sh
         for i = 1, #uis do
             uis[i]:scroll(wheel, ax, ay)
         end

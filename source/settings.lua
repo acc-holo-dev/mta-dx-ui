@@ -74,6 +74,7 @@ local Settings = {
 function DXUI.applySettings(overrides)
     if not overrides then return end
     local themeChanged = false
+    local oldPrio = Settings.performance and Settings.performance.renderPriority
     for k, v in pairs(overrides) do
         if type(v) == "table" and type(Settings[k]) == "table" then
             for k2, v2 in pairs(v) do Settings[k][k2] = v2 end
@@ -88,6 +89,12 @@ function DXUI.applySettings(overrides)
     -- activating the theme is deferred: settings.lua loads before style/
     if themeChanged and DXUI.Theme and DXUI.Theme.activate then
         DXUI.Theme.activate(Settings.defaultTheme)
+    end
+    -- re-registering the frame handler is deferred: settings.lua loads
+    -- before init.lua wires DXUI.setRenderPriority
+    local newPrio = Settings.performance and Settings.performance.renderPriority
+    if oldPrio ~= nil and newPrio ~= oldPrio and DXUI.setRenderPriority then
+        DXUI.setRenderPriority(newPrio)
     end
 end
 
