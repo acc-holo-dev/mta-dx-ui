@@ -97,6 +97,12 @@ function UI:font(name, size) return DXUI.font and DXUI.font(name, size) end
 --- Compiles (or returns the cached) shader for source code.
 function UI:shader(code) return DXUI.shader and DXUI.shader(code) end
 
+--- Applies a partial engine-settings table (see source/settings.lua).
+function UI:applySettings(t)
+    if DXUI.applySettings then DXUI.applySettings(t) end
+    return self
+end
+
 -- ---------------------------------------------------------------------
 -- Translation shortcuts
 -- ---------------------------------------------------------------------

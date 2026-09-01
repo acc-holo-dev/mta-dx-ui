@@ -30,6 +30,12 @@ DXUI.Runtime.backend = DXUI.BackendMTA
 
 -- 2. instance bootstrap --------------------------------------------------
 
+-- activate the configured default theme (style/ is loaded by now; an
+-- unknown name warns and keeps the current theme — see Theme.activate)
+if DXUI.Theme and DXUI.Settings then
+    DXUI.Theme.activate(DXUI.Settings.defaultTheme)
+end
+
 --- Creates (or returns) the resource's UI and schedules it into the frame
 -- loop. opts: { name, design, settings }. The instance is ticked
 -- automatically while it exists (the frame loop walks DXUI._uis).
@@ -122,13 +128,18 @@ addEventHandler("onClientResourceStop", resourceRoot, function()
     if DXUI.releaseResources then DXUI.releaseResources() end
 end)
 
--- a CONSUMER resource stopping: release the instances it owns
+-- a CONSUMER resource stopping: release the instances it owns, unless the
+-- owner opted out of auto-release (DXUI.Settings.resourcePolicy)
 local rootEl = root or (getRootElement and getRootElement() or nil)
 if rootEl then
     addEventHandler("onClientResourceStop", rootEl, function()
         local stopped = source
         if stopped and stopped ~= resourceRoot then
-            DXUI.releaseResource(stopped)
+            local auto = not (DXUI.Settings and DXUI.Settings.resourcePolicy
+                and DXUI.Settings.resourcePolicy.autoRelease == false)
+            if auto then
+                DXUI.releaseResource(stopped)
+            end
         end
     end)
 end

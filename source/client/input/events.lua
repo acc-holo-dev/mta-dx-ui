@@ -111,9 +111,12 @@ function Events.bc(node, eventName, ...)
                     if h and h.fn then
                         local ok, r = pcall(h.fn, current, ...)
                         if not ok then
-                            if DXUI.config and DXUI.config.dev then
+                            -- one bad listener must never abort the frame;
+                            -- the policy decides how loud the failure is
+                            local policy = (DXUI.Settings and DXUI.Settings.errorPolicy) or "warn"
+                            if policy == "error" then
                                 error(r, 0)
-                            else
+                            elseif policy == "warn" then
                                 DXUI._warn("event handler error (" .. tostring(eventName) .. "): " .. tostring(r))
                             end
                         elseif r == DXUI.STOP then

@@ -19,7 +19,9 @@ local ScrollPanel = DXUI.Widget:extend("ScrollPanel", {
     scrollY = { default = 0, min = 0, max = 1, invalidates = { DXUI.DIRTY.RENDER } },
     -- theme colors: color (groove), thumbColor, thumbHoverColor
     thumbSize = { default = 8, invalidates = { DXUI.DIRTY.RENDER } },
-    scrollStep = { default = 48, invalidates = { DXUI.DIRTY.RENDER } },
+    -- wheel travel per notch, px; nil = engine default
+    -- (DXUI.Settings.defaults.scrollWheelStep)
+    scrollStep = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
@@ -49,7 +51,12 @@ ScrollPanel._build = function(node)
     local content = DXUI.Widget:new({})
     node:setPart("content", content)
     node:on("scroll", function(n, wheel)
-        n:scrollBy(0, -wheel * (n.scrollStep or 48))
+        local step = n.scrollStep
+        if step == nil then
+            step = (DXUI.Settings and DXUI.Settings.defaults
+                and DXUI.Settings.defaults.scrollWheelStep) or 48
+        end
+        n:scrollBy(0, -wheel * step)
         return true
     end, "dxui-scroll")
 end

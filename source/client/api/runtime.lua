@@ -51,8 +51,16 @@ function Runtime.create(opts)
     self.backend = opts.backend or Runtime.backend
     self.clock = opts.clock or Runtime.clockDefault
 
-    -- design resolution (else screen space behavior: design == screen)
-    local design = opts.design or {}
+    -- design resolution: explicit opts win, else the engine-wide default
+    -- from DXUI.Settings.designResolution, else screen space (design == screen)
+    local design = opts.design
+    if not design and DXUI.Settings then
+        local dr = DXUI.Settings.designResolution
+        if dr and dr.width and dr.height and dr.width > 0 and dr.height > 0 then
+            design = dr
+        end
+    end
+    design = design or {}
     self.layoutW = design.width or 0
     self.layoutH = design.height or 0
     self.screenW = 0
@@ -91,7 +99,8 @@ function Runtime.create(opts)
     self.dirty = false
 
     -- design resolution mode: stretch | fit | none (letterbox reserved)
-    self.designMode = (design.width and design.height) and "stretch" or "none"
+    self.designMode = (design.width and design.height)
+        and (design.mode or "stretch") or "none"
 
     -- settings snapshot (engine behavior lives in DXUI.config.dev)
     if opts.settings then

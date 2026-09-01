@@ -66,10 +66,18 @@ function HitTest.rebuild(instance)
 end
 
 --- Topmost interactive node at design coords (nil when none).
+--- The scan is bounded by settings.performance.maxInteractiveScan: at most
+--- `cap` nodes are examined, starting from the topmost one (pointer
+--- lookups stay O(cap), not O(nodes)).
 function HitTest.topAt(instance, x, y)
     local list = instance._interactive
     local n = instance._interactiveCount or 0
-    for i = n, 1, -1 do
+    local cap = (DXUI.Settings and DXUI.Settings.performance
+        and DXUI.Settings.performance.maxInteractiveScan) or n
+    if cap < 1 then cap = 1 end
+    local lo = n - cap + 1
+    if lo < 1 then lo = 1 end
+    for i = n, lo, -1 do
         local node = list[i]
         local inside = node._visible and node.enabled
         if inside then

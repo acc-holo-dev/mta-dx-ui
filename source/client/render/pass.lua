@@ -116,12 +116,20 @@ local function collect(instance, node, nodes, count, parentVisible, parentOpacit
     end
 
     -- screen-space culling (layout space); culled nodes are never emitted.
+    -- A DEGENERATE rect (width or height == 0) is never culled here: a
+    -- collapsed container (auto-sized content parts) may still paint
+    -- children inside the screen, and its subtree must keep _visible for
+    -- hit-testing and extent math (scroll).
     if screenCullingEnabled(instance) then
         local lw = instance.layoutW or instance.screenW or 0
         local lh = instance.layoutH or instance.screenH or 0
-        local x2 = node.worldX + node.width
-        local y2 = node.worldY + node.height
-        if x2 <= 0 or y2 <= 0 or node.worldX >= lw or node.worldY >= lh then
+        local nw, nh = node.width, node.height
+        local x2 = node.worldX + nw
+        local y2 = node.worldY + nh
+        local out = false
+        if nw > 0 then out = x2 <= 0 or node.worldX >= lw end
+        if not out and nh > 0 then out = y2 <= 0 or node.worldY >= lh end
+        if out then
             rawset(node, "_visible", false)
             clearSubtreeFlags(node)
             return count
