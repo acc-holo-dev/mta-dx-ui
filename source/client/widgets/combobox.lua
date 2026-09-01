@@ -11,6 +11,25 @@
 
 DXUI = DXUI or {}
 
+local rebuildRows
+
+--- Updates the built head/dropdown geometry to the current rowHeight.
+--- The theme may set rowHeight AFTER the parts exist (theme defaults land
+--- post-build; live theme switches restyle mounted nodes), so every write
+--- path funnels here.
+local function syncRowHeight(node)
+    local headH = node.rowHeight or 20
+    local head = node:getPart("head")
+    if head then
+        head.layoutHeight = { k = "px", v = headH }
+    end
+    local dd = node:getPart("dropdown")
+    if dd then
+        dd.y = headH
+    end
+    rebuildRows(node)
+end
+
 local ComboBox = DXUI.Widget:extend("ComboBox", {
     items = { default = {}, invalidates = { DXUI.DIRTY.RENDER } },
     selectedIndex = { default = 0, invalidates = { DXUI.DIRTY.RENDER }, onSet = function(node, i)
@@ -25,7 +44,10 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
     headColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
-    rowHeight = { default = 20, invalidates = { DXUI.DIRTY.LAYOUT } },
+    rowHeight = { default = 20, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
+        -- parts may not exist yet (constructor opts phase runs pre-build)
+        if node:getPart("head") then syncRowHeight(node) end
+    end },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
@@ -39,7 +61,7 @@ local function rowText(item)
 end
 
 --- Rebuilds the dropdown rows from the current items.
-local function rebuildRows(node)
+rebuildRows = function(node)
     local dd = node:getPart("dropdown")
     if not dd then return end
     -- destroy old rows

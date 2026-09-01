@@ -96,12 +96,15 @@ end
 -- ---------------------------------------------------------------------
 
 --- Applies the full effective style (base + state override) to the node.
--- Reverts style-managed properties to their class defaults, then applies
--- the compiled component style and the current state override. Properties
--- explicitly set by the user are never overwritten (owner guard).
--- Early-out: with no style block, no state override and nothing applied
--- before, this writes NOTHING (hover toggling stays zero-cost).
-function Widget:_applyStyleState()
+--- `animate` is true only for VISUAL-STATE changes on a live node: when the
+--- component declares `transition = { duration, easing }`, differing
+--- animatable props (numbers, colors — per channel) tween through the
+--- instance Anim layer with the "theme" owner. Construction, theme
+--- switches and style changes apply instantly. Properties explicitly set
+--- by the user are never overwritten (owner guard). Early-out: with no
+--- style block, no state override and nothing applied before, this writes
+--- NOTHING (hover toggling stays zero-cost).
+function Widget:_applyStyleState(animate)
     if self._destroyed then return end
     local classStyle = DXUI.Theme and DXUI.Theme.getComponentStyle(
         self._class._name, self.style) or nil
@@ -114,40 +117,64 @@ function Widget:_applyStyleState()
         return
     end
 
+    -- effective target map: component base merged with the state override
+    -- (one pass, no write when the value is already correct)
+    local target = nil
+    if classStyle then
+        target = {}
+        local props = classStyle.props
+        for k, v in pairs(props) do
+            if STYLE_STATE_NAMES[k] == nil then target[k] = v end
+        end
+    end
+    if override then
+        if not target then target = {} end
+        for k, v in pairs(override) do target[k] = v end
+    end
+
+    -- transitions: state changes on a live, animatable node only
+    local transition = nil
+    if animate and target and classStyle and classStyle.transition then
+        local duration = tonumber(classStyle.transition.duration) or 0
+        if duration > 0 and self._context and self._context.anim then
+            transition = classStyle.transition
+        end
+    end
+
     self._applyingTheme = true
-    -- revert theme-managed properties to class defaults
+    -- revert theme-managed properties that are no longer themed
     if applied then
         for k in pairs(applied) do
-            local owner = self._owner and self._owner[k]
-            if owner ~= "user" and owner ~= "system" then
-                local spec = self._spec[k]
-                if spec then self[k] = spec.default end
+            if not (target and target[k] ~= nil) then
+                local owner = self._owner and self._owner[k]
+                if owner ~= "user" and owner ~= "system" then
+                    local spec = self._spec[k]
+                    if spec then self[k] = spec.default end
+                end
             end
         end
     end
     self._themeApplied = {}
 
-    -- base component style (compiled: tokens resolved, transitions merged)
-    if classStyle then
-        local props = classStyle.props
-        for k, v in pairs(props) do
-            if STYLE_STATE_NAMES[k] == nil and self._spec[k] ~= nil then
-                local owner = self._owner and self._owner[k]
-                if owner ~= "user" and owner ~= "system" then
-                    self[k] = v
-                    self._themeApplied[k] = true
-                end
-            end
-        end
-    end
-    -- state override
-    if override then
-        for k, v in pairs(override) do
+    if target then
+        for k, v in pairs(target) do
             if self._spec[k] ~= nil then
                 local owner = self._owner and self._owner[k]
                 if owner ~= "user" and owner ~= "system" then
-                    self[k] = v
-                    self._themeApplied[k] = true
+                    local current = self._data[k]
+                    if transition and type(v) == "number" and type(current) == "number"
+                        and current ~= v then
+                        -- tween via the Anim layer; the "theme" owner keeps
+                        -- the prop tracked for the next theme switch
+                        local easings = DXUI.EASING or {}
+                        local ease = easings[transition.easing] or easings.out
+                        self._themeApplied[k] = true
+                        self._context.anim:_startStep(self, { [k] = v },
+                            transition.duration, ease, nil, "theme")
+                    else
+                        self[k] = v
+                        self._themeApplied[k] = true
+                    end
                 end
             end
         end

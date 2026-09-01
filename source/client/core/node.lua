@@ -522,12 +522,13 @@ end
 
 --- Visual state (normal/hover/pressed/focused/selected/disabled).
 -- Driven by the dispatcher; triggers the style re-apply when the widget
--- class provides it.
+-- class provides it. State changes may tween themed props when the
+-- component declares a transition (see Widget:_applyStyleState).
 function Node:setState(state)
     if self._state == state then return self end
     self._state = state
     if self._class and self._class._applyStyleState then
-        self:_applyStyleState()
+        self:_applyStyleState(true)
     end
     return self
 end
@@ -637,6 +638,13 @@ function Node:_setContextRecursive(ctx)
     if ctx then
         if ctx.dispatcher then
             ctx.dispatcher:_updateNodeState(self)
+        end
+        -- a node mounted after a theme switch (or created detached) adopts
+        -- the ACTIVE theme on mount; construction sets _building, and the
+        -- build-time theme defaults already cover that path
+        if entering and not self._building
+            and self._class and self._class._applyStyleState then
+            self:_applyStyleState()
         end
     end
     local children = self._children

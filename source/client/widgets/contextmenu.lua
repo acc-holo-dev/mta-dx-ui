@@ -15,9 +15,14 @@
 
 DXUI = DXUI or {}
 
+local rebuildItems
+
 local ContextMenu = DXUI.Widget:extend("ContextMenu", {
     items = { default = {}, invalidates = { DXUI.DIRTY.RENDER } },
-    rowHeight = { default = 22, invalidates = { DXUI.DIRTY.LAYOUT } },
+    rowHeight = { default = 22, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
+        -- themed density may land after build; rebuild the rows to match
+        if node:getPart("list") then rebuildItems(node) end
+    end },
     hoverColor = { default = 0xFFF3F4F6, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     textColor = { default = 0xFF111827, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     disabledColor = { default = 0xFF6B7280, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
@@ -38,7 +43,7 @@ local function tx_is_separator(item)
 end
 
 --- Rebuilds the menu rows from the current items and sizes the menu.
-local function rebuildItems(node)
+rebuildItems = function(node)
     local list = node:getPart("list")
     if not list then return end
     local children = list._children

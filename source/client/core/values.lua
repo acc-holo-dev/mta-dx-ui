@@ -99,6 +99,27 @@ function DXUI.ColorToInt(c)
     return c
 end
 
+--- Interpolates two packed colors per channel (animation path).
+---@param from number packed 0xAARRGGBB
+---@param to number packed 0xAARRGGBB
+---@param t number progress, 0..1
+---@return number packed
+function DXUI.lerpColor(from, to, t)
+    local fa = math.floor(from / 0x1000000) % 256
+    local fr = math.floor(from / 0x10000) % 256
+    local fg = math.floor(from / 0x100) % 256
+    local fb = from % 256
+    local ta = math.floor(to / 0x1000000) % 256
+    local tr = math.floor(to / 0x10000) % 256
+    local tg = math.floor(to / 0x100) % 256
+    local tb = to % 256
+    return DXUI.color(
+        math.floor(fr + (tr - fr) * t),
+        math.floor(fg + (tg - fg) * t),
+        math.floor(fb + (tb - fb) * t),
+        math.floor(fa + (ta - fa) * t))
+end
+
 -- ---------------------------------------------------------------------
 -- Color proxy
 -- ---------------------------------------------------------------------

@@ -104,6 +104,31 @@ function UI:applySettings(t)
 end
 
 -- ---------------------------------------------------------------------
+-- Themes (engine-wide registry; see source/client/style/)
+-- ---------------------------------------------------------------------
+
+--- Defines a custom theme in the calling resource (merged over its
+--- `extends` parent when given). Theme tables never touch engine state
+--- until activated.
+function UI:defineTheme(name, tbl)
+    if DXUI.Theme then DXUI.Theme.define(name, tbl) end
+    return self
+end
+
+--- Activates a theme: a registered name ("dark", "green-full", a custom
+--- one) or an INLINE table (registered under an auto name, then
+--- activated). Re-styles every mounted widget live.
+function UI:setTheme(nameOrTable)
+    if DXUI.Theme then DXUI.Theme.setTheme(nameOrTable) end
+    return self
+end
+
+--- Returns the active theme's name.
+function UI:getTheme()
+    return DXUI.Theme and DXUI.Theme.getCurrent() or nil
+end
+
+-- ---------------------------------------------------------------------
 -- Translation shortcuts
 -- ---------------------------------------------------------------------
 

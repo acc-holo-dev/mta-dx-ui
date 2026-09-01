@@ -32,6 +32,7 @@
     <script src="source/client/style/tokens.lua" />
     <script src="source/client/style/theme.lua" />
     <script src="source/client/style/defaults.lua" />
+    <script src="source/client/style/themes.lua" />
 
     <!-- animation -->
     <script src="source/client/animation/easing.lua" />

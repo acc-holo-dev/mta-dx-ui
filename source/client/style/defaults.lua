@@ -1,9 +1,10 @@
 --[[
-    defaults.lua — DXUI V3
+    defaults.lua — DXUI V4
 
-    Shipped default theme: "Fluent-Lite". Token sets + component styles for
-    the whole widget library. Auto-activates as the current theme at load
-    (idempotent; consumers may Theme.activate("dark") or define their own).
+    Built-in base theme: "light" (Fluent-Lite). Token sets + component
+    styles for the whole widget library. Auto-activates as the current
+    theme at load (idempotent; consumers may activate any other built-in
+    or define their own — see themes.lua for dark/green/density presets).
 
     Token reference (all component values go through @tokens so themes stay
     data, not code):
@@ -11,6 +12,9 @@
                  surface / surfaceAlt / text / textSecondary / border /
                  danger / success / warning / overlay / tooltipBg
         radius:  sm / md / lg / full
+        size:    rowHeight / headerHeight / thumb / sliderThumb
+                 (density axis — compact/full presets override these)
+        padding: control (edit text inset; density axis)
 ]]
 
 DXUI = DXUI or {}
@@ -38,6 +42,15 @@ local theme = {
             md = 8,
             lg = 12,
             full = 999,
+        },
+        size = {
+            rowHeight = 22,       -- gridlist / contextmenu / combobox rows
+            headerHeight = 28,    -- window header strip
+            thumb = 8,            -- scrollpanel scrollbar thumb
+            sliderThumb = 14,     -- slider handle
+        },
+        padding = {
+            control = { left = 8, right = 8, top = 0, bottom = 0 },
         },
     },
 
@@ -118,6 +131,7 @@ local theme = {
                 bgColor = "@color.border",
                 thumbColor = "@color.surface",
                 thumbBorderColor = "@color.primary",
+                thumbSize = "@size.sliderThumb",
             },
         },
 
@@ -129,6 +143,7 @@ local theme = {
                 textColor = "@color.text",
                 placeholderColor = "@color.textSecondary",
                 radius = "@radius.sm",
+                padding = "@padding.control",
             },
             states = { focused = { borderColor = "@color.primary" }, disabled = { bgColor = "@color.surfaceAlt" } },
         },
@@ -139,6 +154,7 @@ local theme = {
                 radius = "@radius.lg",
                 titleColor = "@color.text",
                 borderColor = "@color.border",
+                headerHeight = "@size.headerHeight",
             },
         },
 
@@ -147,6 +163,7 @@ local theme = {
                 color = "@color.surfaceAlt",
                 thumbColor = "@color.border",
                 thumbHoverColor = "@color.textSecondary",
+                thumbSize = "@size.thumb",
             },
         },
 
@@ -156,6 +173,7 @@ local theme = {
                 borderColor = "@color.border",
                 textColor = "@color.text",
                 radius = "@radius.sm",
+                rowHeight = "@size.rowHeight",
             },
             states = { hover = { borderColor = "@color.primary" } },
         },
@@ -178,6 +196,7 @@ local theme = {
                 selectedTextColor = "@color.onPrimary",
                 textColor = "@color.text",
                 borderColor = "@color.border",
+                rowHeight = "@size.rowHeight",
             },
         },
 
@@ -196,6 +215,7 @@ local theme = {
                 textColor = "@color.text",
                 disabledColor = "@color.textSecondary",
                 radius = "@radius.sm",
+                rowHeight = "@size.rowHeight",
             },
         },
 
@@ -222,8 +242,8 @@ local theme = {
 }
 
 if DXUI.Theme then
-    DXUI.Theme.define("default", theme)
+    DXUI.Theme.define("light", theme)
     if not DXUI.Theme._currentName then
-        DXUI.Theme.activate("default")
+        DXUI.Theme.activate("light")
     end
 end

@@ -30,8 +30,10 @@ local Settings = {
     --   "ignore" — swallow silently
     errorPolicy = "warn",
 
-    -- Theme name activated at bootstrap and whenever this key is applied.
-    defaultTheme = "default",
+    -- Theme name activated at bootstrap and whenever this key is applied
+    -- (built-ins: light, dark, green + -compact/-full variants; any
+    -- ui:defineTheme'd name works too).
+    defaultTheme = "light",
 
     -- Default design space for NEW UI instances created without an
     -- explicit `design`. nil width/height = lay out in screen pixels.

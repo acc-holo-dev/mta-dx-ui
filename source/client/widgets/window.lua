@@ -31,7 +31,14 @@ local Window = Panel:extend("Window", {
             if h then h.textColor = v end
         end,
     },
-    headerHeight = { default = 28, invalidates = { DXUI.DIRTY.LAYOUT } },
+    headerHeight = { default = 28, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
+        -- themed header height may land after build (theme defaults are
+        -- applied post-build; live theme switches restyle live windows)
+        local header = node:getPart("header")
+        if header then header.layoutHeight = { k = "px", v = node.headerHeight } end
+        local content = node:getPart("content")
+        if content then content.padding = { top = node.headerHeight + 4, left = 10, right = 10, bottom = 10 } end
+    end },
 })
 
 DXUI.Part.declare(Window, { "header", "content" })

@@ -82,9 +82,13 @@ function AnimationManager:_removeHandle(handle)
 end
 
 --- One animation step: a set of props + token (step completion -> onDone).
+--- `owner` is the _set owner tag used when writing values ("system" for
+--- user animations, "theme" for automatic theme state transitions so the
+--- owner guard keeps tracking the prop as theme-managed).
 function AnimationManager:_startStep(node, props, duration, ease, onDone, owner)
     duration = duration or (DXUI.Settings and DXUI.Settings.defaults.animationDuration) or 250
     if duration <= 0 then duration = 1 end
+    owner = owner or "system"
     local token = { remaining = 0, onDone = onDone, cancelled = false, owner = owner }
     for prop, target in pairs(props) do
         local spec = node._spec[prop]
@@ -96,8 +100,11 @@ function AnimationManager:_startStep(node, props, duration, ease, onDone, owner)
             self.active[self.activeCount] = {
                 node = node, prop = prop,
                 from = current, to = target,
+                -- color-typed props interpolate per channel (no channel
+                -- bleed from lerping the packed integer directly)
+                isColor = spec.transform == DXUI.resolveColor,
                 start = self.context.clock(),
-                dur = duration, ease = ease, token = token,
+                dur = duration, ease = ease, token = token, owner = owner,
             }
         else
             DXUI._warn("animate: property not animatable: " .. tostring(prop))
@@ -150,7 +157,7 @@ local function finishEntry(entry)
 end
 
 --- Single tick (instance frame loop, BEFORE layout/render). Writes via
--- node:_set(prop, value, "system") — normal mutation layer, automatic
+-- node:_set(prop, value, a.owner) — normal mutation layer, automatic
 -- invalidation. Paused chains freeze (timestamps shift on resume).
 function AnimationManager:update()
     -- zero-work idle
@@ -171,13 +178,20 @@ function AnimationManager:update()
             else
                 local t = (now - a.start) / a.dur
                 if t >= 1 then
-                    node:_set(a.prop, a.to, "system")
+                    node:_set(a.prop, a.to, a.owner)
                     -- remove FIRST (callbacks may chain)
                     removeAt(self, i)
                     finishEntry(a)
                 else
                     if t < 0 then t = 0 end
-                    node:_set(a.prop, a.from + (a.to - a.from) * a.ease(t), "system")
+                    local e = a.ease(t)
+                    local v
+                    if a.isColor then
+                        v = DXUI.lerpColor(a.from, a.to, e)
+                    else
+                        v = a.from + (a.to - a.from) * e
+                    end
+                    node:_set(a.prop, v, a.owner)
                     i = i + 1
                 end
             end

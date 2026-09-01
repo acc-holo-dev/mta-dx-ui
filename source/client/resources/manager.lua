@@ -113,18 +113,6 @@ function DXUI.releaseObsolete(keep)
     return freed
 end
 
--- The keep-set must be declared before the functions below (Lua scoping).
-local _themeKeep = {}
-
---- Marks a texture path as used by the active theme (during compile).
-function DXUI.markTextureUsed(path)    _themeKeep["t:" .. path] = true end
-
---- Marks a font (name, size) as used by the active theme (during compile).
-function DXUI.markFontUsed(name, size) _themeKeep["f:" .. tostring(name) .. ":" .. tostring(size)] = true end
-
---- Resets the theme keep-set (start of a compile sweep).
-function DXUI._themeKeepStart() _themeKeep = {} end
-
 --- Fully release everything (runtime resource stop).
 function DXUI.releaseResources()
     if isElement and destroyElement then
@@ -133,7 +121,6 @@ function DXUI.releaseResources()
         for _, sh in pairs(shaderCache) do destroyIfElement(nil, sh) end
     end
     textureCache, fontCache, shaderCache = {}, {}, {}
-    _themeKeep = {}
     if DXUI.Text and DXUI.Text.clearCache then DXUI.Text.clearCache() end
     if DXUI.Effects and DXUI.Effects.releasePool then DXUI.Effects.releasePool() end
     if DXUI.Effects and DXUI.Effects.clearCaches then DXUI.Effects.clearCaches() end
