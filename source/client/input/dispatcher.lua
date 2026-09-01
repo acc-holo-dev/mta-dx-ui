@@ -72,11 +72,21 @@ function Dispatcher:openModal(node)
     return #modals
 end
 
---- Closes the topmost modal and clears focus.
-function Dispatcher:closeModal(id)
+--- Closes a modal. With `node`, removes THAT modal wherever it sits in the
+--- stack (closing a mid-stack modal keeps the others intact); without one,
+--- pops the topmost. Focus is released so the next topmost layer wins.
+function Dispatcher:closeModal(node)
     local modals = self.modals or {}
     if #modals > 0 then
-        table.remove(modals)
+        if node ~= nil then
+            for i = #modals, 1, -1 do
+                if modals[i] == node then
+                    table.remove(modals, i)
+                end
+            end
+        else
+            table.remove(modals)
+        end
     end
     self:setFocus(nil)
 end

@@ -86,7 +86,9 @@ Node.properties = {
     y        = { default = 0,    type = "number", invalidates = { DIRTY.LAYOUT } },
     width    = { default = 0,    type = "number", min = 0, invalidates = { DIRTY.LAYOUT } },
     height   = { default = 0,    type = "number", min = 0, invalidates = { DIRTY.LAYOUT } },
-    visible  = { default = true, invalidates = { DIRTY.VISIBILITY } },
+    -- visibility affects BOTH the draw set and the input set (hidden
+    -- interactive nodes must leave the hit-test list)
+    visible  = { default = true, invalidates = { DIRTY.VISIBILITY, DIRTY.INPUT } },
     enabled  = { default = true, invalidates = { DIRTY.INPUT, DIRTY.RENDER }, onSet = function(node)
         if node._class and node._class._applyStyleState then
             -- disabled state visually re-applies

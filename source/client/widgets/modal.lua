@@ -52,14 +52,15 @@ function Modal:open()
     return self
 end
 
---- Hides the modal, pops the modal stack, and emits "close".
+--- Hides the modal, removes it from the dispatcher modal stack, and emits
+--- "close". Only THIS modal leaves the stack — other open modals survive.
 function Modal:close()
     self.visible = false
     if self._context then
         self._context.layoutDirty = true
         self._context.renderDirty = true
         if self._context.dispatcher then
-            self._context.dispatcher:closeModal()
+            self._context.dispatcher:closeModal(self)
         end
     end
     if self.emit then self:emit("close") end

@@ -51,7 +51,6 @@ end
 function Tooltip:attach(target, anchor)
     self._target = target
     self._anchor = anchor or "top"
-    target:setZIndex(0)
     self:setParent(target)
     target:on("hover-start", function()
         self:refresh()
