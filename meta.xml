@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <meta>
-    <info name="mta-dx-ui" version="3.0.0" type="script"
-        description="DXUI V3 — production MTA:SA UI engine (DX9, Lua 5.1)" />
+    <info name="mta-dx-ui" version="4.0.0" type="script"
+        description="DXUI V4 — production MTA:SA UI engine (DX9, Lua 5.1)" />
 
     <!-- Cross-resource entry point: exports.dxui:getUI() -->
     <export function="getUI" type="client" />
 
     <!-- ============================================================
-         DXUI V3 manifest. Script order is the dependency order:
-         core → text → style → animation → resources → layout →
-         render → input → api → widgets → glue (init).
-         Every script shares the client global environment; `init.lua`
-         MUST be last (composes DXUI + wires MTA input).
+         DXUI V4 manifest. Script order is the dependency order:
+         settings → core → text/translate → style → animation →
+         resources → layout → render → input → api → widgets →
+         glue (init). Every script shares the client global
+         environment; `init.lua` MUST be last (composes DXUI +
+         wires MTA input).
          ============================================================ -->
 
-    <!-- settings -->
-    <script src="source/client/settings.lua" />
+    <!-- settings (engine-wide, applied before anything else) -->
+    <script src="source/settings.lua" />
 
     <!-- core -->
     <script src="source/client/core/values.lua" />
@@ -88,14 +89,4 @@
 
     <!-- MTA glue (LAST) -->
     <script src="source/client/init.lua" />
-
-    <!-- docs shipped with the resource -->
-    <file src="readme/ai/001-v2-audit.md" />
-    <file src="readme/ai/002-v3-contracts.md" />
-    <file src="readme/ai/003-v3-verification.md" />
-    <file src="readme/ai/004-v3-perf.md" />
-    <file src="readme/documents/ARCHITECTURE.md" />
-    <file src="readme/documents/ADR.md" />
-    <file src="readme/examples/demo.lua" />
-    <file src="readme/tests/README.md" />
 </meta>
