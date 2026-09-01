@@ -150,7 +150,10 @@ def run_suite(name, prelude=None):
         L.execute("loadfile(%r)()" % str(path))
         ok, failed, total = L.globals()._suiteResult()
     except lupa.LuaError as e:
-        print("  %-10s ERROR: %s" % (name, e))
+        detail = str(e).splitlines()
+        print("  %-10s ERROR: %s" % (name, detail[0] if detail else e))
+        for ln in detail[1:4]:
+            print("        " + ln)
         return 0, 1, 1
     if failed == 0:
         print("  %-10s ok=%d" % (name, total))
@@ -160,7 +163,7 @@ def run_suite(name, prelude=None):
 
 
 def main():
-    names = sys.argv[1:] or ["core", "style", "basic", "composite", "boot"]
+    names = sys.argv[1:] or ["core", "style", "basic", "composite", "api", "perf", "boot"]
     total_ok = total_fail = 0
     print("DXUI V3 test runner (%s)" % ROOT)
     for name in names:

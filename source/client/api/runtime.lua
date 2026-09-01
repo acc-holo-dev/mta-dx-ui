@@ -183,8 +183,6 @@ function Runtime:tick()
             assert(stats.rebuilds == self._prevRebuilds,
                 "zero-work violated: render list rebuilt without dirty")
         end
-        self._prevLayoutRuns = stats.layoutRuns
-        self._prevRebuilds = stats.rebuilds
     end
 
     -- 2. layout
@@ -215,6 +213,13 @@ function Runtime:tick()
 
     -- 4. draw the cached list (zero work when the list is empty)
     self:draw()
+
+    -- baseline for the NEXT frame's zero-work check — must be taken AFTER
+    -- the passes (same tick may legitimately consume dirty flags)
+    if self.perf and self.perf.zeroWork then
+        self._prevLayoutRuns = stats.layoutRuns
+        self._prevRebuilds = stats.rebuilds
+    end
 end
 
 --- Draws the cached render list via the injected backend (state-deduped).

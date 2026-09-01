@@ -79,3 +79,31 @@ resource, docs, and the self-review gates (§82/§85/§86).**
 
 Remaining (next milestones): MTA in-game sweep (real dx* backend), and the
 example resource (`meta.xml` demo pattern hardened against live MTA).
+
+## Round 8 — API-surface regression + measured perf contract
+
+- NEW `readme/tests/smoke_api.lua` (100 asserts): all 18 widget factories +
+  class names, value factories (color/percent/auto/fill + Dimension),
+  node lifecycle (position/size/visibility/enabled/z/opacity/margin/
+  padding/anchor/layer/mode/destroy), property watchers, tree ops, events
+  (+owner ids), parts, translation, diagnostics, theme/tokens statics.
+- NEW `readme/tests/smoke_perf.lua` (19 asserts, ~160-node rig, zero-work
+  ON for the whole run): 60 idle frames = zero work of any kind; one
+  mutation = exactly its category's cost; render-only write → 1 rebuild /
+  0 layout; text write → 1+1; pointer input → 0 rebuilds (hit-test scans
+  the cached interactive list); theme switch → 1 rebuild / 0 layout.
+  Numbers: items=159, draws/frame~=166, idleRatio≈0.88 (0.93+ on idle
+  block) → see readme/ai/004-v3-perf.md.
+- ENGINE fixes found by these suites:
+  1. runtime.lua: zero-work BASELINE was synced before the passes in the
+     same tick → false violation on the first dirty frame after enable;
+     moved to the END of tick (post-pass).
+  2. node.lua: `Node:on(eventName, fn, id)` now forwards id to
+     `Events.add` (wireStates' "dxui-states" ids land in the registry);
+     `offProperty(key)` without fn clears all listeners for the prop.
+  - Test-side corrections: `color()` packs 0xAARRGGBB with alpha first —
+    expectations were mis-computed; anchor enum is tl/tc/tr/ml/mc/mr/bl/
+    bc/br ("center" invalid); `Part.declare(class, names)` signature;
+    onProperty fn(value, old, node) — value is FIRST arg.
+- Total suite now **245 assertions, 0 failed** (core 42 / style 16 /
+  basic 21 / composite 33 / api 100 / perf 19 / boot 14).

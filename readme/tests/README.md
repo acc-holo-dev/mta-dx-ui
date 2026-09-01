@@ -18,6 +18,8 @@ python readme/tests/run.py boot basic # named suites
 | style           | smoke_style.lua      | tokens (alias/cycle guard), custom theme, variants, states, switch-back, fallback chain |
 | basic           | smoke_basic.lua      | panel/label (wrap, padding measure)/button (states, disabled)/image/window parts |
 | composite       | smoke_composite.lua  | checkbox, radio group, slider, edit, gridlist, scrollpanel, tabpanel, combobox, contextmenu, modal, tooltip |
+| api             | smoke_api.lua        | public API surface: all 18 factories, value factories, node lifecycle, events+ids, parts, translation, diagnostics, theme/tokens statics |
+| perf            | smoke_perf.lua       | performance contract on ~160 nodes: idle frames do ZERO work, category-exact mutation cost, pointer input never rebuilds, theme switch = 1 rebuild |
 | boot            | smoke_boot.lua       | `DXUI.bootstrap` under fake MTA: frame loop, input glue (screen→design), diagnostics zero-work, resource-stop cleanup |
 
 Engine modules load in `meta.xml` dependency order; `init.lua` loads only
@@ -35,4 +37,4 @@ runtime and observable backend (draw counters).
   through real (`ui:mouse*`, `ui:key`) calls.
 - Theme switch re-application and the owner guard (user props survive).
 
-Exit code 0 = all suites green (current: **126 assertions, 0 failed**).
+Exit code 0 = all suites green (current: **245 assertions, 0 failed**).

@@ -523,8 +523,12 @@ end
 function Node:offProperty(key, fn)
     local list = self._propListeners and self._propListeners[key]
     if list then
-        for i = #list, 1, -1 do
-            if list[i] == fn then table.remove(list, i) end
+        if fn == nil then
+            self._propListeners[key] = nil -- key-only: clear all for the prop
+        else
+            for i = #list, 1, -1 do
+                if list[i] == fn then table.remove(list, i) end
+            end
         end
     end
     return self
@@ -683,10 +687,11 @@ end
 --- Subscribes to an event. fn(node, ...). Returns self (chaining).
 -- The single event registry lives in DXUI.Events (input/hit-test reads
 -- it); propagation bubbles up through ancestors. Late-bound so core can
--- load before events.lua.
-function Node:on(eventName, fn)
+-- load before events.lua. Optional id tags registrations for
+-- Events.removeForOwner (widget wiring uses ids like "dxui-states").
+function Node:on(eventName, fn, id)
     if DXUI.Events then
-        DXUI.Events.add(self, eventName, fn)
+        DXUI.Events.add(self, eventName, fn, id)
         if self._context and DXUI.HitTest then DXUI.HitTest.invalidate(self) end
     end
     return self

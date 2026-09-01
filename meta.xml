@@ -90,6 +90,7 @@
     <file src="readme/ai/001-v2-audit.md" />
     <file src="readme/ai/002-v3-contracts.md" />
     <file src="readme/ai/003-v3-verification.md" />
+    <file src="readme/ai/004-v3-perf.md" />
     <file src="readme/documents/ARCHITECTURE.md" />
     <file src="readme/documents/ADR.md" />
     <file src="readme/examples/demo.lua" />
