@@ -18,6 +18,7 @@ DXUI = DXUI or {}
 
 local Panel = DXUI.Widgets.Panel or DXUI.Widget:extend("Panel", {})
 local LabelClass = DXUI.Widgets and DXUI.Widgets.Label
+local ButtonClass = DXUI.Widgets and DXUI.Widgets.Button
 
 local Window = Panel:extend("Window", {
     title = {
@@ -40,9 +41,21 @@ local Window = Panel:extend("Window", {
         if header then header.layoutHeight = { k = "px", v = node.headerHeight } end
         local content = node:getPart("content")
         if content then content.padding = { top = node.headerHeight + 4, left = 10, right = 10, bottom = 10 } end
+        local closeButton = node:getPart("closeButton")
+        if closeButton then
+            closeButton.layoutWidth = { k = "px", v = node.headerHeight }
+            closeButton.layoutHeight = { k = "px", v = node.headerHeight }
+        end
     end },
     -- header dragging (the window follows the pointer; clamped on-screen)
     draggable = { default = true, invalidates = {} },
+    -- close glyph (drawn by the closeButton part, a themed Button)
+    closeButtonText = {
+        default = "\xD7", invalidates = { DXUI.DIRTY.RENDER }, onSet = function(node, v)
+            local b = node:getPart("closeButton")
+            if b then b.text = v end
+        end,
+    },
     -- close button part visibility (click emits "close")
     closeButtonVisible = { default = true, invalidates = { DXUI.DIRTY.VISIBILITY }, onSet = function(node, v)
         local b = node:getPart("closeButton")
@@ -75,13 +88,16 @@ local function buildWindow(node, props)
     content.layoutWidth = DXUI.percent(100)
     content.layoutHeight = DXUI.percent(100)
     content.padding = { top = headerH + 4, left = 10, right = 10, bottom = 10 }
-    content.zIndex = 1
+    -- zIndex stays 0: the header (2) and closeButton (3) sort above it,
+    -- while user children (also 0, later insertion) sort above IT — a
+    -- part must never float above its own children in the hit order
+    content.zIndex = 0
 
-    -- close button: square pinned to the window's top-right corner
-    -- (relative x=1 = 100% of the content width, anchor "tr" pulls the
-    -- box back by its own width)
-    local btnSize = math.max(12, headerH - 10)
-    local closeButton = DXUI.Widget:new({})
+    -- close button: a real themed Button part pinned to the window's
+    -- top-right corner (relative x=1 = 100% of the content width, anchor
+    -- "tr" pulls the box back by its own width). Hover/pressed styling
+    -- comes from the button theme component's state blocks.
+    local closeButton = ButtonClass:new({})
     closeButton.layoutMode = "relative"
     closeButton.x = 1
     closeButton.y = 0
@@ -89,9 +105,8 @@ local function buildWindow(node, props)
     closeButton.layoutWidth = { k = "px", v = headerH }
     closeButton.layoutHeight = { k = "px", v = headerH }
     closeButton.zIndex = 3
-    closeButton.interactive = true
     closeButton.focusable = false
-    closeButton._closeSize = btnSize
+    closeButton.text = props.closeButtonText or "\xD7"
     closeButton.visible = props.closeButtonVisible ~= false
 
     node:setPart("header", header)
@@ -125,9 +140,7 @@ local function buildWindow(node, props)
         node._dragPX, node._dragPY = nil, nil
     end, "dxui-window")
 
-    -- close button: hover styling + click -> "close"
-    closeButton:on("hover-start", function(b) b:setState("hover") end, "dxui-window")
-    closeButton:on("hover-end", function(b) b:setState("normal") end, "dxui-window")
+    -- close button: click -> "close" (hiding is the consumer's decision)
     closeButton:on("click", function()
         if node.emit and not node._destroyed then node:emit("close") end
     end, "dxui-window")
@@ -138,29 +151,6 @@ Window._build = buildWindow
 --- Direct access to the content part (children go here usually).
 function Window:container()
     return self:getPart("content")
-end
-
---- Draws the close button: hover-tinted square + a cross.
-function Window:renderCloseButton(renderer)
-    local b = self:getPart("closeButton")
-    if not b or not b.visible then return end
-    local size = b._closeSize or 18
-    local x = b.worldX + (b.width - size) / 2
-    local y = b.worldY + (b.height - size) / 2
-    if b:getState() == "hover" then
-        renderer:rect(x, y, size, size, self.borderColor or 0x22FF0000)
-    end
-    local c = self.titleColor or 0xFF111827
-    local inset = size * 0.28
-    renderer:line(x + inset, y + inset, x + size - inset, y + size - inset, c, 1)
-    renderer:line(x + size - inset, y + inset, x + inset, y + size - inset, c, 1)
-end
-
---- Draws the window surface, then the close button decoration.
-function Window:render(renderer)
-    -- Panel draws the surface
-    Panel.render(self, renderer)
-    self:renderCloseButton(renderer)
 end
 
 DXUI.Builders.register("Window", Window)

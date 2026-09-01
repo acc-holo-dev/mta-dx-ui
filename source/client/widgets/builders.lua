@@ -31,21 +31,31 @@ end
 local WIRE_ID = "dxui-states"
 
 --- Attaches state-transition handlers once (per node).
+--- "focused" is sticky: a node being edited keeps its focus styling —
+--- hover/pressed transitions skip it until its own blur handler (or an
+--- explicit setState) leaves the state.
 function Builders.wireStates(node)
     if node._stateWired then return node end
     node._stateWired = true
     if not node.on then return node end
     node:on("hover-start", function(n)
-        if n.enabled then n:setState("hover") end
+        local s = n._state
+        if n.enabled and s ~= "focused" and s ~= "pressed" then
+            n:setState("hover")
+        end
     end, WIRE_ID)
     node:on("hover-end", function(n)
         if n:getState() == "hover" then n:setState("normal") end
     end, WIRE_ID)
     node:on("press", function(n)
-        if n.enabled then n:setState("pressed") end
+        if n.enabled and n._state ~= "focused" then n:setState("pressed") end
     end, WIRE_ID)
     node:on("release", function(n)
-        if n.enabled then n:setState(n._hover and "hover" or "normal") end
+        if not n.enabled or n._state == "focused" then return end
+        -- stay "hover" while the pointer rests on the node (the
+        -- dispatcher owns the live hover target)
+        local d = n._context and n._context.dispatcher
+        n:setState(d and d.hover == n and "hover" or "normal")
     end, WIRE_ID)
     return node
 end

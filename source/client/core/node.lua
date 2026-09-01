@@ -288,6 +288,12 @@ function Node:_instantiate(cls, props)
         DXUI.Widget.applyThemeDefaults(self)
     end
 
+    -- hover/pressed follow the pointer for every widget: theme state
+    -- blocks (states.hover etc.) activate through this wiring
+    if cls._applyStyleState and DXUI.Builders and DXUI.Builders.wireStates then
+        DXUI.Builders.wireStates(self)
+    end
+
     rawset(self, "_building", nil)
     return self
 end

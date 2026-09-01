@@ -22,8 +22,8 @@ function HitTest.isInteractive(node)
     if not interactive and node._events then
         local names = {
             "click", "press", "release", "mousedown", "mouseup",
-            "hover-start", "hover-end", "scroll", "drag-start",
-            "drag-move", "drag-end", "key", "focus", "blur",
+            "hover-start", "hover-end", "pointer-move", "scroll",
+            "drag-start", "drag-move", "drag-end", "key", "focus", "blur",
         }
         for i = 1, #names do
             if DXUI.Events.has(node, names[i]) then

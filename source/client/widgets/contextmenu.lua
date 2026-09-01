@@ -37,7 +37,7 @@ local function rowTextOf(item)
 end
 
 --- True when the item is the "--" separator marker.
-local function tx_is_separator(item)
+local function isSeparator(item)
     return type(item) == "string" and item == "--"
 end
 
@@ -73,7 +73,7 @@ rebuildItems = function(node)
         entry.layoutWidth = DXUI.percent(100)
         entry.layoutHeight = { k = "px", v = node.rowHeight or 22 }
         entry.height = node.rowHeight or 22
-        if tx_is_separator(item) then
+        if isSeparator(item) then
             entry.text = ""
         elseif item.disabled then
             entry.textColor = node.disabledColor
@@ -81,9 +81,8 @@ rebuildItems = function(node)
         else
             entry._menuItem = item
             entry.textColor = node.textColor
-            entry:on("hover-start", function(r)
-                r.hoverFill = true
-            end, "dxui-menu")
+            -- hover state arrives via the central interaction wiring; the
+            -- render paints the fill from it
             entry:on("click", function(r)
                 local it = r._menuItem
                 if it and it.onSelect then it.onSelect(it) end
@@ -132,16 +131,30 @@ function ContextMenu:close()
     return self
 end
 
---- Draws the menu surface and separator lines.
+--- Direct access to the list part (the rows live here).
+function ContextMenu:container()
+    return self:getPart("list")
+end
+
+--- Draws the menu surface, hovered-entry fills and separator lines.
 function ContextMenu:render(renderer)
     if not self.visible then return end
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     renderer:borderedRect(wx, wy, w, h, self.radius or 4, self.color, self.borderColor, self.borderWidth)
+    -- hovered-entry fills (hover state comes from the central wiring)
+    local list = self:getPart("list")
+    local entries = list and list._children or {}
+    for i = 1, #entries do
+        local e = entries[i]
+        if e._menuItem and e:getState() == "hover" then
+            renderer:rect(e.worldX, e.worldY, e.width, e.height, self.hoverColor)
+        end
+    end
     -- separators
     local items = self.items or {}
     local rh = self.rowHeight or 22
     for i = 1, #items do
-        if tx_is_separator(items[i]) then
+        if isSeparator(items[i]) then
             local y = wy + (i - 1) * rh + rh / 2
             renderer:rect(wx + 8, y, w - 16, 1, 0xFFD1D5DB)
         end

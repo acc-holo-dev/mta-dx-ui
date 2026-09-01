@@ -57,6 +57,31 @@ function DXUI.font(name, size)
     return font ~= false and font or nil
 end
 
+--- System-wide fallback font (settings.defaults.font): the font behind
+--- every text draw whose node has no font (node font > themed font >
+--- this > the engine "default"). Spec: "path" or "path:size". Resolved
+--- once per spec change; outside MTA the spec string rides as the
+--- handle (texture passthrough semantics) so consumption is testable.
+local sysFontHandle, sysFontSpec
+function DXUI.systemFont()
+    local spec = DXUI.Settings and DXUI.Settings.defaults
+        and DXUI.Settings.defaults.font
+    if spec ~= sysFontSpec then
+        sysFontSpec = spec
+        sysFontHandle = nil
+        if spec ~= nil and spec ~= "" then
+            local path, size = spec:match("^(.*):(%d+)$")
+            path = path or spec
+            if dxCreateFont then
+                sysFontHandle = DXUI.font(path, tonumber(size))
+            else
+                sysFontHandle = spec
+            end
+        end
+    end
+    return sysFontHandle
+end
+
 --- Compiles a shader, cached by code.
 function DXUI.shader(code)
     local cached = shaderCache[code]

@@ -172,6 +172,12 @@ function Dispatcher:mouseMove(x, y)
             target:emit("hover-start")
         end
     end
+    -- opt-in continuous position: widgets whose sub-structure is not a
+    -- child node (GridList rows) set _hasPointerMove and receive every
+    -- move while hovered; nobody else pays a thing
+    if target and target._hasPointerMove then
+        target:emit("pointer-move", x, y)
+    end
     -- drag progress
     local pressed = self.pressed
     if pressed and pressed.emit and not pressed._destroyed then

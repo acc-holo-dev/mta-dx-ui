@@ -232,7 +232,10 @@ DXUI.BackendMTA = {
 function DXUI.backendInitMTA()
     if DXUI.Text and dxGetTextSize then
         DXUI.Text.setMeasurer(function(text, scale, font)
-            return dxGetTextSize(text, scale or 1, font or "default")
+            -- fontless measures fall back to the system font, matching
+            -- the renderer's text draw path
+            local f = font or (DXUI.systemFont and DXUI.systemFont()) or "default"
+            return dxGetTextSize(text, scale or 1, f)
         end)
     end
 end

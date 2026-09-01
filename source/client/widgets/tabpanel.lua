@@ -104,6 +104,11 @@ function TabPanel:addPage(child)
     return child
 end
 
+--- Direct access to the content part (pages parent here).
+function TabPanel:container()
+    return self:getPart("content")
+end
+
 --- Draws the active tab's underline indicator.
 function TabPanel:render(renderer)
     local wx, wy = self.worldX, self.worldY

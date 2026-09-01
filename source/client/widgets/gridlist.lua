@@ -43,9 +43,25 @@ function GridList:_rowAt(designX, designY)
     return idx
 end
 
---- Wires click selection and wheel scrolling.
+--- Wires click selection, row hover and wheel scrolling.
 GridList._build = function(node)
     node.clip = true
+    -- rows are NOT child widgets, so the list opts into continuous pointer
+    -- position (the dispatcher emits pointer-move to hovered opt-ins only)
+    node._hasPointerMove = true
+    node:on("pointer-move", function(n, x, y)
+        local i = n:_rowAt(x, y)
+        if i ~= n._hoverRow then
+            n._hoverRow = i
+            n:_invalidate({ DXUI.DIRTY.RENDER })
+        end
+    end, "dxui-grid")
+    node:on("hover-end", function(n)
+        if n._hoverRow ~= nil then
+            n._hoverRow = nil
+            n:_invalidate({ DXUI.DIRTY.RENDER })
+        end
+    end, "dxui-grid")
     node:on("click", function(n, _, x, y)
         local i = n:_rowAt(x, y)
         if i then n.selectedIndex = i end

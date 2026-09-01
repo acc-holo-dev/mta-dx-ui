@@ -17,6 +17,7 @@
 ---   performance.screenCulling    skip off-screen render items
 ---   performance.maxInteractiveScan hit-test scan cap (topmost first)
 ---   performance.renderPriority   MTA onClientRender priority (init.lua)
+---   defaults.font                system font for fontless text draws
 
 DXUI = DXUI or {}
 
@@ -51,6 +52,10 @@ local Settings = {
         -- Edit caret blink half-period, ms (caretBlinkInterval property
         -- overrides this per widget; 0 = solid)
         caretBlinkInterval = 500,
+        -- System font: used by every text draw whose node has no font set
+        -- (node font > themed font > this). Spec "path" or "path:size",
+        -- resolved once and cached; nil = the MTA built-in font.
+        font = nil,
     },
 
     -- Resource policy: auto-release the UI instances and cached MTA assets

@@ -213,7 +213,8 @@ function Renderer:text(text, x, y, w, h, color, font, align, valign, scale)
     it.w = nw * sx
     it.h = nh * sy
     it.color = color
-    it.font = font
+    -- fontless draws fall back to the system font (settings.defaults.font)
+    it.font = font or (DXUI.systemFont and DXUI.systemFont()) or nil
     it.align = align or "left"
     it.valign = valign or "top"
     it.scaleX = scale and scale * sx or sx

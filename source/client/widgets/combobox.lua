@@ -36,12 +36,28 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
             head.text = (type(node.items[i]) == "table") and (node.items[i].text or "") or node.items[i]
         end
     end },
-    open = { default = false, invalidates = { DXUI.DIRTY.RENDER } },
+    -- the open PROP is the single source of truth: writing it drives the
+    -- dropdown part (visibility + popup registration)
+    open = { default = false, invalidates = { DXUI.DIRTY.RENDER }, onSet = function(node, v)
+        local dd = node:getPart("dropdown")
+        if not dd or dd.visible == v then return end
+        dd.visible = v
+        local d = node._context and node._context.dispatcher
+        if not d then return end
+        if v then
+            d:openPopup(dd)
+        else
+            d:closePopup(dd)
+        end
+    end },
     textColor = { default = 0xFF111827, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     headColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
+    -- hovered-row fill in the dropdown (the dropdown surface + fills are
+    -- drawn by the dropdown part, under the row text)
+    hoverColor = { default = 0xFFF3F4F6, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     rowHeight = { default = 20, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
         -- parts may not exist yet (constructor opts phase runs pre-build)
         if node:getPart("head") then syncRowHeight(node) end
@@ -80,14 +96,11 @@ rebuildRows = function(node)
         row.y = (i - 1) * (node.rowHeight or 20)
         row.layoutWidth = DXUI.percent(100)
         row.layoutHeight = { k = "px", v = node.rowHeight or 20 }
-        row:on("hover-start", function(r)
-            r.hoverFill = true
-            row:setState("hover")
-        end, "dxui-combo")
-        row:on("hover-end", function(r)
-            r.hoverFill = false
-            row:setState("normal")
-        end, "dxui-combo")
+        -- the dropdown part floats at zIndex 5 (above neighbors); the rows
+        -- must paint (and hit) above ITS surface
+        row.zIndex = 6
+        -- hover state comes from the central interaction wiring; the
+        -- dropdown surface reads it to paint the row fill
         row:on("click", function(r)
             node.selectedIndex = r._index
             node:hideDropdown()
@@ -122,6 +135,26 @@ ComboBox._build = function(node, props)
     dd.y = headH
     dd.zIndex = 5
     dd.visible = false
+    -- the dropdown draws its own surface (over whatever is behind) and
+    -- the hovered-row fill, both UNDER the row text (children render
+    -- after the parent)
+    function dd:render(renderer)
+        local combo = self._parent
+        if not combo or not self.visible then return end
+        local wx, wy = self.worldX, self.worldY
+        local w, h = self.width, self.height
+        if w <= 0 or h <= 0 then return end
+        renderer:borderedRect(wx, wy, w, h, combo.radius or 4,
+            combo.color, combo.borderColor, combo.borderWidth)
+        local rows = self._children
+        for i = 1, #rows do
+            local r = rows[i]
+            if r:getState() == "hover" then
+                renderer:rect(r.worldX, r.worldY, r.width, r.height,
+                    combo.hoverColor)
+            end
+        end
+    end
     node:setPart("dropdown", dd)
 
     node:on("click", function(n, _, _, _, origin)
@@ -141,38 +174,21 @@ ComboBox._build = function(node, props)
     node:on("blur", function(n) n._cbFocus = false end, "dxui-combo")
     node:on("popup-close", function(n)
         n.open = false
-        local dd2 = n:getPart("dropdown")
-        if dd2 then dd2.visible = false end
     end, "dxui-combo")
     rebuildRows(node)
 end
 
---- Opens the dropdown (prop `open` stays the source of truth — the prop
--- is named `open`, so the METHODS are showDropdown/hideDropdown).
--- The popup is REGISTERED ON THE DROPDOWN part so outside-click tests the
--- correct region (head + rows), not just the head box.
+--- Opens the dropdown. The popup is registered ON THE DROPDOWN part so
+--- outside-click tests the correct region (head + rows), not just the
+--- head box. The `open` prop drives the part (single source of truth).
 function ComboBox:showDropdown()
     self.open = true
-    local dd = self:getPart("dropdown")
-    if dd then
-        dd.visible = true
-        if self._context and self._context.dispatcher then
-            self._context.dispatcher:openPopup(dd)
-        end
-    end
     return self
 end
 
 --- Closes the dropdown and unregisters it from the popup manager.
 function ComboBox:hideDropdown()
     self.open = false
-    local dd = self:getPart("dropdown")
-    if dd then
-        dd.visible = false
-        if self._context and self._context.dispatcher then
-            self._context.dispatcher:closePopup(dd)
-        end
-    end
     return self
 end
 
@@ -188,6 +204,11 @@ local origItemsSet = ComboBox._spec.items.onSet
 ComboBox._spec.items.onSet = function(node, v)
     if origItemsSet then origItemsSet(node, v) end
     rebuildRows(node)
+end
+
+--- Direct access to the dropdown part (the rows live here).
+function ComboBox:container()
+    return self:getPart("dropdown")
 end
 
 --- Draws the head box and the caret arrow.
