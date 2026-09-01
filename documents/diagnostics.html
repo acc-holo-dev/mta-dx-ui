@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Diagnostics — DXUI wiki</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="styles.css"></head><body><div id="nav"></div><main><h1>Diagnostics <span class="v">counters + the zero-work idle contract</span></h1>
+<p class="lead">The engine measures itself; the test suite assert-locks the
+idle behavior.</p>
+<pre><code>DXUI.Diagnostics.enableZeroWork(ui, true)   -- HARD-assert idle frames do zero work
+local snap = DXUI.Diagnostics.snapshot(ui)  -- frames/layoutRuns/rebuilds/hitRebuilds/items/draws
+print(DXUI.Diagnostics.describe(ui))        -- one-line summary
+DXUI.Diagnostics.idleRatio(ui)              -- idle frames fraction; >0.9 is healthy
+DXUI.Diagnostics.report(ui)                 -- verbose per-counter report</code></pre>
+
+<h2>The zero-work idle contract</h2>
+<ul>
+<li>An idle frame (no writes, no pointer transitions) performs NO layout, NO
+rebuild, NO hit-test rebuild — it draws the cached list and nothing else.</li>
+<li>Hover transitions repaint — they are REAL visual changes (themed state
+colors) — and coalesce: many transitions inside one frame still cost ONE
+rebuild.</li>
+<li>The caret blink NEVER rebuilds (overlay path): 100 idle frames of
+blinking = zero rebuilds, verified by tests.</li>
+<li>One property write = exactly one rebuild; one text write = one layout +
+one rebuild.</li>
+</ul>
+
+<h2>Reading the numbers</h2>
+<table>
+<tr><th>counter</th><th>meaning</th></tr>
+<tr><td><code>frames</code></td><td>ticks executed</td></tr>
+<tr><td><code>layoutRuns</code></td><td>layout passes (dirty-driven)</td></tr>
+<tr><td><code>rebuilds</code></td><td>render-list rebuilds</td></tr>
+<tr><td><code>hitRebuilds</code></td><td>interactive-list rebuilds</td></tr>
+<tr><td><code>items</code></td><td>items in the cached list</td></tr>
+<tr><td><code>draws</code></td><td>backend draw calls total</td></tr>
+</table>
+</main><script src="nav.js"></script><script src="search.js"></script></body></html>

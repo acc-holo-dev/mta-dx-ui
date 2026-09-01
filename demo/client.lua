@@ -9,7 +9,8 @@
 ---slider -> progressbar, gridlist, combobox, scrollpanel, tabpanel,
 ---edit (placeholder, submit, caret modes, masked), context menu, modal
 ---stack, tooltips, animations, built-in themes + density presets + a
----custom theme defined RIGHT HERE, live locale switching, settings.
+---custom theme defined RIGHT HERE, live locale switching, a live
+---settings panel (caret blink, field flags) and engine settings.
 
 local ui = exports.dxui:getUI("demo", {
     design = { width = 800, height = 600, mode = "stretch" },
@@ -29,6 +30,11 @@ ui:addLocale("en", {
     open     = "Open window",
     density  = "Presets",
     modal    = "Dialog",
+    settings = "Settings",
+    caret    = "Caret blink",
+    ro       = "Read-only field",
+    mk       = "Mask field",
+    phfocus  = "Placeholder under caret",
 })
 ui:addLocale("ru", {
     title    = "Демонстрация DXUI V4",
@@ -41,6 +47,11 @@ ui:addLocale("ru", {
     open     = "Открыть окно",
     density  = "Пресеты",
     modal    = "Диалог",
+    settings = "Настройки",
+    caret    = "Мигание каретки",
+    ro       = "Только чтение",
+    mk       = "Маскировать поле",
+    phfocus  = "Плейсхолдер при каретке",
 })
 ui:setLocale("ru")
 
@@ -180,6 +191,40 @@ mYes:on("click", function() win.visible = false; modal:close() end)
 mNo:on("click", function() modal:close() end)
 
 -- --------------------------------------------------------------------------
+-- settings panel (a second window: live property + settings reconfiguration)
+-- --------------------------------------------------------------------------
+local cfg = ui:window({ x = 500, y = 120, width = 240, height = 200 })
+ui:add(cfg)
+cfg.visible = false
+cfg:on("close", function(n) n.visible = false end)
+cfg:setTextKey("settings", "title")
+
+-- caret blink interval: slider (0..1) -> 0..1000ms, applied engine-wide
+local blinkVal = ui:label({ x = 10, y = 30, width = 220, height = 16, text = "400 ms" })
+local blink = ui:slider({ x = 10, y = 10, width = 220, height = 18, value = 0.4 })
+cfg:container():addChild(blink)
+cfg:container():addChild(blinkVal)
+local blinkCap = ui:label({ x = 10, y = 52, width = 220, height = 16 })
+cfg:container():addChild(blinkCap)
+blinkCap:setTextKey("caret")
+blink:on("change", function(_, v)
+    ui:applySettings({ defaults = { caretBlinkInterval = math.floor(v * 1000 + 0.5) } })
+    blinkVal.text = math.floor(v * 1000 + 0.5) .. " ms"
+end)
+
+-- live property flips on the review field
+local function cfgCheck(y, key, apply)
+    local cb = ui:checkbox({ x = 10, y = y, width = 220, height = 18 })
+    cb:setTextKey(key)
+    cb:on("change", function(_, on) apply(on) end)
+    cfg:container():addChild(cb)
+    return cb
+end
+cfgCheck(78, "ro", function(on) ed.readOnly = on end)
+cfgCheck(100, "mk", function(on) ed.masked = on end)
+cfgCheck(122, "phfocus", function(on) ed.placeholderVisibleWhenFocused = on end)
+
+-- --------------------------------------------------------------------------
 -- control strip (below the window): language, themes, density, modal
 -- --------------------------------------------------------------------------
 local function stripBtn(x, w, key, onClick)
@@ -216,6 +261,10 @@ end)
 
 stripBtn(364, 90, "modal", function()
     modal:open() -- dimmed overlay + centered dialog; blocks outside input
+end)
+
+stripBtn(460, 90, "settings", function()
+    cfg.visible = not cfg.visible -- the settings panel window
 end)
 
 -- tooltip on the language button

@@ -1,0 +1,73 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Concepts — DXUI wiki</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="styles.css"></head><body><div id="nav"></div><main><h1>Concepts <span class="v">nodes, properties, events, states, parts</span></h1>
+<p class="lead">Five ideas carry the whole engine.</p>
+
+<h2>Node tree</h2>
+<p>Everything visible is a <code>Node</code> in a tree owned by the UI instance
+(<code>ui.root</code>). <code>ui:add(node)</code> mounts a top-level node;
+<code>node:addChild(c)</code> nests. Children inherit clipping, opacity and
+the translation/theme context. Destroy cascades.</p>
+
+<h2>One mutation layer</h2>
+<p>Every property write — <code>node.x = 10</code>, a setter, an animation tick,
+the layout pass, a theme switch — funnels through <code>Node:_set</code>:</p>
+<ul>
+<li><strong>validate</strong> (spec type/min/max/validate), then
+<strong>transform</strong> (colors, dimensions);</li>
+<li><code>old == value</code> → early out (write-backs and engine writes are
+free and recursion-safe);</li>
+<li><strong>ownership</strong>: <code>user</code> &gt; <code>system</code> &gt;
+<code>theme</code> — a themed value never overwrites something you set;</li>
+<li><strong>category invalidation</strong> (LAYOUT / RENDER / ORDER /
+VISIBILITY / INPUT), coalesced into instance flags drained once per frame.</li>
+</ul>
+
+<h2>Events</h2>
+<table>
+<tr><th>event</th><th>handler args</th><th>when</th></tr>
+<tr><td><code>click</code></td><td>(node, button, x, y)</td><td>press+release on the same node, no drag; button is <code>"left"</code>/<code>"middle"</code>/<code>"right"</code></td></tr>
+<tr><td><code>mousedown / mouseup</code>, <code>press / release</code></td><td>(node, button, x, y)</td><td>raw press/release (bubbling)</td></tr>
+<tr><td><code>hover-start / hover-end</code></td><td>(node)</td><td>pointer enters/leaves the node</td></tr>
+<tr><td><code>pointer-move</code></td><td>(node, x, y)</td><td>opt-in continuous position: set <code>node._hasPointerMove = true</code>; fires while hovered (GridList uses it for row hover)</td></tr>
+<tr><td><code>drag-start / drag-move / drag-end</code></td><td>(node, x, y)</td><td>press moved beyond 6px; drag routes to the pressed node</td></tr>
+<tr><td><code>scroll</code></td><td>(node, wheel)</td><td>wheel over the node (bubbles to scrollables)</td></tr>
+<tr><td><code>key</code></td><td>(node, keyName, isDown, ...)</td><td>focused node receives keys (shift modifier appended)</td></tr>
+<tr><td><code>character</code></td><td>(node, ch)</td><td>printable input for the focused node</td></tr>
+<tr><td><code>focus / blur</code></td><td>(node)</td><td>focusable nodes gain/lose dispatcher focus</td></tr>
+<tr><td><code>change / submit / select / close / popup-close / localeChange</code></td><td>widget-specific</td><td>see <a href="widgets.html">Widgets</a></td></tr>
+</table>
+<p>Handlers bubble to ancestors; returning <code>DXUI.STOP</code> halts
+propagation. <code>node:on(ev, fn, id)</code> tags a group;
+<code>node:off(ev, fn)</code> detaches.</p>
+
+<h2>Visual states</h2>
+<p>Every widget is wired at construction: hover/press pointer transitions map
+to <code>node:setState("hover"/"pressed")</code>, activating the theme's state
+blocks. <strong>Focused is sticky</strong> — while a node is focused (an Edit
+being edited) hover/pressed transitions skip it until its blur handler runs.
+Release keeps <code>hover</code> while the pointer rests on the node.
+Disabled nodes map to the themed <code>disabled</code> state automatically.</p>
+
+<h2>Parts and container()</h2>
+<p>Composites own named slots: <code>window.header/content/closeButton</code>,
+<code>combobox.head/dropdown</code>, <code>contextmenu.list</code>, …
+<code>node:getPart(name)</code> reads one; <code>node:container()</code> is the
+unified accessor for the content slot — children go there. Window title and
+close glyph are properties (<code>title</code>, <code>closeButtonText</code>)
+routed to their parts.</p>
+
+<h2>Base property vocabulary</h2>
+<table>
+<tr><th>property</th><th>meaning</th></tr>
+<tr><td><code>x, y, width, height</code></td><td>design-space box (see <a href="layout.html">Layout</a>)</td></tr>
+<tr><td><code>visible, opacity</code></td><td>visibility (hiding also leaves the hit-test list), 0..1 alpha</td></tr>
+<tr><td><code>color, textColor</code></td><td>packed 0xAARRGGBB or <code>"#hex"</code> or <code>ui:color(r,g,b,a)</code>; <code>node.color.r = 255</code> works</td></tr>
+<tr><td><code>font</code></td><td>handle from <code>ui:font(path, size)</code>; nil falls back to the system font then the engine default</td></tr>
+<tr><td><code>layer, zIndex</code></td><td>paint order (layer &gt; zIndex &gt; insertion)</td></tr>
+<tr><td><code>clip, clipMode</code></td><td>child clipping ("rt" forces the render-target path)</td></tr>
+<tr><td><code>margin, padding</code></td><td>outer spacing / inner content inset</td></tr>
+<tr><td><code>interactive, focusable, enabled</code></td><td>input surface switches</td></tr>
+<tr><td><code>textKey</code></td><td>translation binding (see <a href="translate.html">Translate</a>)</td></tr>
+<tr><td><code>style</code></td><td>named theme variant of the widget ("secondary", "ghost", ...)</td></tr>
+<tr><td><code>userData</code></td><td>untouched consumer payload</td></tr>
+</table>
+</main><script src="nav.js"></script><script src="search.js"></script></body></html>
