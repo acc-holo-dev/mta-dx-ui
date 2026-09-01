@@ -1,67 +1,112 @@
-# DXUI — V3
+# DXUI — V4
 
-Retained-mode UI framework for **MTA:SA** (Lua 5.1 / DirectX 9): widgets,
-a real theme engine, pooled rendering and headless tests.
+Retained-mode UI framework for **MTA:SA** (Lua 5.1 / DirectX 9): a full
+widget library, a real theme engine, live translations, pooled
+retained-mode rendering and a headless assert-locked test suite.
 
-## Quick start (MTA resource)
+## Quick start
 
-1. Add this resource to your server, then declare it as a client dependency
-   of your resource (`<include resource="dxui" />`). The engine exports
-   `getUI` (see `meta.xml`).
-2. In your client script:
+1. Add the `dxui` resource to your server, start it, and declare it in
+   your resource:
+
+   ```xml
+   <include resource="dxui" />
+   ```
+
+2. In your client script — that is the ENTIRE setup:
 
 ```lua
 local ui = exports.dxui:getUI("app", { design = { width = 800, height = 600 } })
 
-local win = ui:window({ title = "Hello", x = 0.3, y = 0.3, width = 200, height = 120 })
+local win = ui:window({ title = "Hello", x = 40, y = 40, width = 360, height = 300 })
 ui:add(win)
-win:container():addChild(ui:button({ x = 10, y = 10, width = 90, height = 28, text = "OK" }))
+win:on("close", function(n) n.visible = false end)
+win:container():addChild(ui:button({ x = 10, y = 10, width = 100, height = 28, text = "OK" }))
 ```
 
-That's the whole setup: the engine owns the frame loop, input glue, viewport
-mapping (`guiGetScreenSize`), and per-resource cleanup. Each consumer
-resource gets its own UI instance (keyed by its resource root), released
-automatically when that resource stops.
+The engine owns the frame loop, the input glue, the design→screen mapping
+and per-resource cleanup. A runnable showcase lives in
+[`demo/`](demo/) — copy `dxui/` + `demo/` to a server, start both.
 
 ## Feature highlights
 
-- **Widgets** — panel, label (wrap/ellipsis), button, image, window,
-  checkbox, radiobutton (+group), progressbar, slider, scrollpanel, edit,
-  combobox, tabpanel, gridlist, popup, contextmenu, modal, tooltip.
-- **Theme system** — design tokens (`@color.accent`), named themes,
-  component styles, variants (`node.style`) and states (hover/pressed/
-  focused/selected/disabled); compiled once per (theme, component,
-  styleKey); swappable at runtime (`DXUI.Theme.activate`).
-- **Layout** — two-pass resolve, `px`/`pct`/`auto`/`fill` dimensions,
-  relative (fractional) and absolute modes, flex rows/columns,
-  auto-sized content widgets.
-- **Performance** — one mutation layer with owner guards; category dirty
-  flags; a persistent pooled paint list (idle frames = zero rebuild, not
-  zero draws); screen culling; RT groups only for clip/mask/blur.
-- **Input** — bubbling events, hover/focus/pressed/drag/modal/popup
-  dispatcher, screen→design mapping.
-- **Diagnostics** — `DXUI.Diagnostics.{snapshot, describe, report,
-  idleRatio, enableZeroWork}` — the idle contract is assert-tested.
-- **Testability** — the whole engine runs under lupa with a table backend;
-  `python readme/tests/run.py` → **260 assertions, 0 failed**.
-
-## Bootstrap vs. roll-your-own
-
-`DXUI.bootstrap(opts)` is the all-in-one MTA entry (init.lua). If you drive
-the frame loop yourself, call `ui:tick()` every `onClientRender` and feed
-the dispatcher via `ui:mouseMove/mouseDown/mouseUp/scroll/key`.
+- **Widgets** — panel, label, button, image, window (draggable header,
+  close button), checkbox, radiobutton + group, progressbar, slider,
+  scrollpanel, edit, combobox, tabpanel, gridlist, popup, contextmenu,
+  modal, tooltip.
+- **Edit V4** — caret modes (blink/solid/off), shift-selection,
+  maxLength/readOnly/masked, alignment, placeholder that hides on focus;
+  the caret is a per-frame overlay — blinking never invalidates the
+  render cache.
+- **Themes** — design tokens, 9 built-in themes (light/dark/green ×
+  normal/compact/full), custom themes with `extends` from ANY resource,
+  per-state styles with opt-in transitions, live switching.
+- **Translate** — per-resource locale tables, `setTextKey` bindings,
+  live locale switching (`ui:setLocale`), `%1..%N` substitution.
+- **Settings** — every key consumed by the engine; default theme,
+  caret blink interval, frame priority, culling, hit-test caps.
+- **Performance** — one mutation layer with ownership guards; category
+  dirty flags; persistent pooled paint list (idle frames = zero
+  rebuild/layout/hit-rebuild work — assert-locked); screen culling; one
+  shared SDF rounded-rect shader (border + fill in a single draw,
+  per-corner radii).
+- **Input** — bubbling events, hover/focus/press/drag/modal/popup
+  dispatcher, click-to-position caret editing, clamped window drag.
+- **Testability** — the whole engine runs headless under a table
+  backend; the demo resource is executed end-to-end by the suite.
 
 ## Documentation
 
 | doc | what |
 |-----|------|
-| [`readme/documents/ARCHITECTURE.md`](readme/documents/ARCHITECTURE.md) | full V3 architecture map + decisions |
-| [`readme/documents/ADR.md`](readme/documents/ADR.md) | architecture decision records (ADR-001…009) |
-| [`readme/documents/CODE_STYLE.md`](readme/documents/CODE_STYLE.md) | unified code comment style |
-| [`readme/examples/demo.lua`](readme/examples/demo.lua) | runnable usage example |
-| [`readme/tests/`](readme/tests/) | headless test runner + suites |
-| [`readme/ai/001-v2-audit.md`](readme/ai/001-v2-audit.md) | V2 audit that motivated the rewrite |
-| [`readme/ai/002-v3-contracts.md`](readme/ai/002-v3-contracts.md) | locked V3 contracts |
-| [`readme/ai/003-v3-verification.md`](readme/ai/003-v3-verification.md) | implementation log + change log |
+| [`documents/`](documents/) | **local wiki site** — open `documents/index.html` in a browser; every method documented (what it takes, what it returns); widget property tables are reflected from the live engine specs by `documents/gen.lua` |
+| [`readme/ARCHITECTURE.md`](readme/ARCHITECTURE.md) | layer map, frame pipeline, invariants, file responsibilities |
+| [`readme/CODE_STYLE.md`](readme/CODE_STYLE.md) | LuaCATS doc conventions, formatting, naming |
+| [`demo/`](demo/) | standalone showcase resource (public API only) |
 
-The engine lives in `source/client/`; `meta.xml` is the MTA manifest.
+## Migration V3 → V4
+
+V4 is a breaking release. The full change list:
+
+- **Edit**: `cursor` property renamed to **`caret`**; new `caretWidth`,
+  `caretMode` ("blink"|"solid"|"off"), `caretBlinkInterval`,
+  `selectionFrom`/`selectionColor`, `alignment`, `maxLength`,
+  `readOnly`, `masked`/`maskChar`, `placeholderVisibleWhenFocused`.
+  Click positions the caret (was: focus always moved it to the end).
+  Escape blurs; Enter submits keeping focus; Delete added; overflow
+  scrolls to keep the caret visible.
+- **Naming**: `DXUI.EASING` → **`DXUI.Easing`**; the key event's second
+  parameter `pressed2` → **`isDown`** (init.lua appends the shift
+  modifier); removed dead API: `DXUI.Values`, `Part.themeRole`,
+  `Part.replace` (use `node:setPart`).
+- **Themes**: built-in theme `"default"` renamed to **`"light"`**
+  (`Settings.defaultTheme` default); 9 built-ins via density presets
+  (`dark-compact`, `green-full`, ...); `ui:defineTheme` /
+  `ui:setTheme(name|table)`; themed components may carry asset prefixes
+  and opt-in `transition` blocks.
+- **Factories**: `ui:<widget>()` factories are synthesized from the
+  widget registry — every registered class gains one automatically
+  (`ui:radiogroup()` appeared); the hardcoded list is gone.
+- **Window**: new `closeButton` part + `closeButtonVisible` (click emits
+  `"close"`); the header drags the window (clamped on-screen, `draggable`
+  gates); pages of a TabPanel parent to the content part.
+- **Render**: `drawRoundedRect(x, y, w, h, rtl, rtr, rbr, rbl, fill,
+  border, borderWidth)` (new signature); render-list `rrect` items carry
+  per-corner radii + border fields; removed `Effects.round`,
+  `Effects.whiteTexture`, the renderer's `resolveEffect`.
+- **Runtime**: `visible` now invalidates the input set too (hidden
+  interactive nodes leave the hit-test list); `DXUI.setRenderPriority`
+  re-registers the frame loop; the wheel falls back to the screen center
+  when the cursor is disabled.
+- **Comments**: source documentation is LuaCATS-only
+  ([`readme/CODE_STYLE.md`](readme/CODE_STYLE.md)).
+
+## Repository layout
+
+```
+source/          the engine (meta.xml order = dependency order)
+demo/            standalone showcase resource
+documents/       local wiki site (+ gen.lua, regenerated from the engine)
+readme/          ARCHITECTURE + CODE_STYLE
+tests/           headless suites + notes (not shipped; gitignored)
+```

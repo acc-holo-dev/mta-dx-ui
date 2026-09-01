@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Themes — DXUI wiki</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root { --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --ink:#e2e8f0;
+        --dim:#94a3b8; --acc:#38bdf8; --line:#334155; --code:#0b1220; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+       font:15px/1.55 "Segoe UI",system-ui,sans-serif; }
+nav { position:fixed; top:0; left:0; bottom:0; width:232px; overflow-y:auto;
+      background:var(--panel); border-right:1px solid var(--line); padding:18px 14px; }
+nav h1 { font-size:15px; margin:0 0 2px; color:var(--acc); }
+nav .sub { font-size:11px; color:var(--dim); margin-bottom:14px; }
+nav a { display:block; color:var(--ink); text-decoration:none; padding:6px 8px;
+        border-radius:6px; font-size:13.5px; }
+nav a:hover, nav a.on { background:var(--panel2); color:var(--acc); }
+main { margin-left:232px; padding:30px 44px 80px; max-width:980px; }
+h1 { font-size:26px; margin:0 0 6px; } h1 .v { color:var(--acc); font-size:15px; }
+h2 { font-size:19px; margin:34px 0 8px; color:var(--acc);
+     border-bottom:1px solid var(--line); padding-bottom:6px; }
+h3 { font-size:16px; margin:22px 0 6px; }
+p { margin:8px 0; } p.lead { color:var(--dim); margin-bottom:18px; }
+code { font:12.5px/1.5 Consolas,"Cascadia Mono",monospace; }
+code { background:var(--code); color:#93c5fd; padding:1.5px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+      padding:12px 14px; overflow-x:auto; color:#dbeafe; }
+pre code { background:transparent; padding:0; color:inherit; }
+table { border-collapse:collapse; width:100%; margin:10px 0 18px; font-size:13.5px; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--panel2); color:var(--acc); font-weight:600; }
+tr:nth-child(even) td { background:var(--panel); }
+td code, th code { background:transparent; padding:0; color:#7dd3fc; }
+.ev { color:#fbbf24; }
+.tag { display:inline-block; background:var(--panel2); border:1px solid var(--line);
+       color:var(--dim); font-size:11px; border-radius:10px; padding:1px 8px; margin-left:6px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+        padding:14px 18px; margin:10px 0; }
+ul { padding-left:22px; } li { margin:4px 0; }
+</style></head><body><nav><h1>DXUI</h1><div class="sub">retained-mode UI for MTA:SA</div><a href="index.html">Overview</a><a href="api.html">ui handle API</a><a href="widgets.html">Widgets</a><a href="theme.html" class="on">Themes</a><a href="translate.html">Translate</a><a href="settings.html">Settings</a><a href="advanced.html">Advanced</a></nav><main><h1>Themes <span class="v">tokens, presets, custom themes</span></h1>
+<p class="lead">Themes are DATA, not code: a token table (referenced as
+<code>@color.primary</code>) plus per-component styles. Built-ins ship in three
+palettes (light, dark, green) and three densities (normal, -compact, -full).
+Any resource can define its own theme and extend a built-in.</p>
+<h2>Registered themes (reflected)</h2><p><code>dark</code> · <code>dark-compact</code> · <code>dark-full</code> · <code>green</code> · <code>green-compact</code> · <code>green-full</code> · <code>light</code> · <code>light-compact</code> · <code>light-full</code></p>
+<h2>Base token vocabulary <span class="tag">light, reflected</span></h2><table><tr><th>category</th><th>tokens</th></tr><tr><td><code>color</code></td><td><code>border</code> <span class="tag">0xFFD1D5DB</span> <code>danger</code> <span class="tag">0xFFDC2626</span> <code>onPrimary</code> <span class="tag">0xFFFFFFFF</span> <code>overlay</code> <span class="tag">0x66000000</span> <code>primary</code> <span class="tag">0xFF2563EB</span> <code>primaryHover</code> <span class="tag">0xFF1D4ED8</span> <code>primaryPressed</code> <span class="tag">0xFF1E40AF</span> <code>success</code> <span class="tag">0xFF16A34A</span> <code>surface</code> <span class="tag">0xFFFFFFFF</span> <code>surfaceAlt</code> <span class="tag">0xFFF3F4F6</span> <code>text</code> <span class="tag">0xFF111827</span> <code>textSecondary</code> <span class="tag">0xFF6B7280</span> <code>tooltipBg</code> <span class="tag">0xFF111827</span> <code>warning</code> <span class="tag">0xFFD97706</span></td></tr><tr><td><code>padding</code></td><td><code>control</code> <span class="tag">table: 0000000000B271C0</span></td></tr><tr><td><code>radius</code></td><td><code>full</code> <span class="tag">0x000003E7</span> <code>lg</code> <span class="tag">0x0000000C</span> <code>md</code> <span class="tag">0x00000008</span> <code>sm</code> <span class="tag">0x00000004</span></td></tr><tr><td><code>size</code></td><td><code>headerHeight</code> <span class="tag">0x0000001C</span> <code>rowHeight</code> <span class="tag">0x00000016</span> <code>sliderThumb</code> <span class="tag">0x0000000E</span> <code>thumb</code> <span class="tag">0x00000008</span></td></tr></table>
+<h2>Component styles</h2>
+<p>Every widget has a themed section. Inside a theme table:</p>
+<pre><code>ui:defineTheme("brand", {
+    extends = "dark",                    -- optional parent (deep merge)
+    tokens = { color = { primary = 0xFF22D3EE } },
+    components = {
+        button = {
+            props  = { textColor = "@color.onPrimary" },  -- @token refs
+            states = { hover = { color = "@color.primaryHover" } },
+        },
+        window = { props = { radius = 10 } },
+    },
+})</code></pre>
+<ul>
+<li><code>props</code>/<code>base</code> are aliases (both accepted; child base wins over parent props).</li>
+<li>Asset prefixes: <code>"texture:icons/x.png"</code> and <code>"font:Roboto.ttf:12"</code> load cached resources for themed values.</li>
+<li>State sections apply on set-state; with an opt-in <code>transition = { duration, easing }</code> they animate (colors lerp per channel).</li>
+<li><code>ui:setTheme(name)</code> re-applies to every live widget instantly; mounted-later widgets adopt the active theme on mount.</li>
+<li>Ownership: user &gt; system &gt; theme — a themed value never overwrites something the consumer set.</li>
+</ul></main></body></html>

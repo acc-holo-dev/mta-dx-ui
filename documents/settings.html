@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Settings — DXUI wiki</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root { --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --ink:#e2e8f0;
+        --dim:#94a3b8; --acc:#38bdf8; --line:#334155; --code:#0b1220; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+       font:15px/1.55 "Segoe UI",system-ui,sans-serif; }
+nav { position:fixed; top:0; left:0; bottom:0; width:232px; overflow-y:auto;
+      background:var(--panel); border-right:1px solid var(--line); padding:18px 14px; }
+nav h1 { font-size:15px; margin:0 0 2px; color:var(--acc); }
+nav .sub { font-size:11px; color:var(--dim); margin-bottom:14px; }
+nav a { display:block; color:var(--ink); text-decoration:none; padding:6px 8px;
+        border-radius:6px; font-size:13.5px; }
+nav a:hover, nav a.on { background:var(--panel2); color:var(--acc); }
+main { margin-left:232px; padding:30px 44px 80px; max-width:980px; }
+h1 { font-size:26px; margin:0 0 6px; } h1 .v { color:var(--acc); font-size:15px; }
+h2 { font-size:19px; margin:34px 0 8px; color:var(--acc);
+     border-bottom:1px solid var(--line); padding-bottom:6px; }
+h3 { font-size:16px; margin:22px 0 6px; }
+p { margin:8px 0; } p.lead { color:var(--dim); margin-bottom:18px; }
+code { font:12.5px/1.5 Consolas,"Cascadia Mono",monospace; }
+code { background:var(--code); color:#93c5fd; padding:1.5px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+      padding:12px 14px; overflow-x:auto; color:#dbeafe; }
+pre code { background:transparent; padding:0; color:inherit; }
+table { border-collapse:collapse; width:100%; margin:10px 0 18px; font-size:13.5px; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--panel2); color:var(--acc); font-weight:600; }
+tr:nth-child(even) td { background:var(--panel); }
+td code, th code { background:transparent; padding:0; color:#7dd3fc; }
+.ev { color:#fbbf24; }
+.tag { display:inline-block; background:var(--panel2); border:1px solid var(--line);
+       color:var(--dim); font-size:11px; border-radius:10px; padding:1px 8px; margin-left:6px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+        padding:14px 18px; margin:10px 0; }
+ul { padding-left:22px; } li { margin:4px 0; }
+</style></head><body><nav><h1>DXUI</h1><div class="sub">retained-mode UI for MTA:SA</div><a href="index.html">Overview</a><a href="api.html">ui handle API</a><a href="widgets.html">Widgets</a><a href="theme.html">Themes</a><a href="translate.html">Translate</a><a href="settings.html" class="on">Settings</a><a href="advanced.html">Advanced</a></nav><main><h1>Settings <span class="v">engine-wide behavior (reflected)</span></h1>
+<p class="lead">Appearance lives in themes; behavior lives here. Merge a
+partial table at any time — every key below is consumed by the engine.</p>
+<table><tr><th>key</th><th>default (reflected)</th><th>consumed by</th></tr><tr><td><code>dev</code></td><td>false</td><td>validation on every property write; warn on misuse (prod: low overhead)</td></tr><tr><td><code>errorPolicy</code></td><td>"warn"</td><td>"error" | "warn" | "ignore" — failing event handlers</td></tr><tr><td><code>defaultTheme</code></td><td>"light"</td><td>theme activated at bootstrap and when this key is applied</td></tr><tr><td><code>designResolution</code></td><td>{mode=stretch}</td><td>default design space for new UI instances; mode stretch|fit</td></tr><tr><td><code>defaults.animationDuration</code></td><td>250</td><td>node:animate() default duration (ms)</td></tr><tr><td><code>defaults.animationEasing</code></td><td>"inout"</td><td>default easing name</td></tr><tr><td><code>defaults.scrollWheelStep</code></td><td>48</td><td>ScrollPanel wheel travel (px)</td></tr><tr><td><code>defaults.caretBlinkInterval</code></td><td>500</td><td>Edit caret blink half-period (ms; 0 = solid; the widget's caretBlinkInterval overrides)</td></tr><tr><td><code>resourcePolicy.autoRelease</code></td><td>true</td><td>release consumer UIs/assets when their resource stops</td></tr><tr><td><code>performance.screenCulling</code></td><td>true</td><td>skip render items fully outside the screen</td></tr><tr><td><code>performance.maxInteractiveScan</code></td><td>2000</td><td>hit-test scan cap (topmost first)</td></tr><tr><td><code>performance.renderPriority</code></td><td>"normal"</td><td>onClientRender priority of the frame loop; live re-registration</td></tr></table>
+<pre><code>DXUI.applySettings({
+    dev = true,
+    defaultTheme = "dark-compact",
+    defaults = { caretBlinkInterval = 400 },
+})</code></pre></main></body></html>

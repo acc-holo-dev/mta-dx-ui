@@ -1,0 +1,93 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Overview — DXUI wiki</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root { --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --ink:#e2e8f0;
+        --dim:#94a3b8; --acc:#38bdf8; --line:#334155; --code:#0b1220; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+       font:15px/1.55 "Segoe UI",system-ui,sans-serif; }
+nav { position:fixed; top:0; left:0; bottom:0; width:232px; overflow-y:auto;
+      background:var(--panel); border-right:1px solid var(--line); padding:18px 14px; }
+nav h1 { font-size:15px; margin:0 0 2px; color:var(--acc); }
+nav .sub { font-size:11px; color:var(--dim); margin-bottom:14px; }
+nav a { display:block; color:var(--ink); text-decoration:none; padding:6px 8px;
+        border-radius:6px; font-size:13.5px; }
+nav a:hover, nav a.on { background:var(--panel2); color:var(--acc); }
+main { margin-left:232px; padding:30px 44px 80px; max-width:980px; }
+h1 { font-size:26px; margin:0 0 6px; } h1 .v { color:var(--acc); font-size:15px; }
+h2 { font-size:19px; margin:34px 0 8px; color:var(--acc);
+     border-bottom:1px solid var(--line); padding-bottom:6px; }
+h3 { font-size:16px; margin:22px 0 6px; }
+p { margin:8px 0; } p.lead { color:var(--dim); margin-bottom:18px; }
+code { font:12.5px/1.5 Consolas,"Cascadia Mono",monospace; }
+code { background:var(--code); color:#93c5fd; padding:1.5px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+      padding:12px 14px; overflow-x:auto; color:#dbeafe; }
+pre code { background:transparent; padding:0; color:inherit; }
+table { border-collapse:collapse; width:100%; margin:10px 0 18px; font-size:13.5px; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--panel2); color:var(--acc); font-weight:600; }
+tr:nth-child(even) td { background:var(--panel); }
+td code, th code { background:transparent; padding:0; color:#7dd3fc; }
+.ev { color:#fbbf24; }
+.tag { display:inline-block; background:var(--panel2); border:1px solid var(--line);
+       color:var(--dim); font-size:11px; border-radius:10px; padding:1px 8px; margin-left:6px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+        padding:14px 18px; margin:10px 0; }
+ul { padding-left:22px; } li { margin:4px 0; }
+</style></head><body><nav><h1>DXUI</h1><div class="sub">retained-mode UI for MTA:SA</div><a href="index.html" class="on">Overview</a><a href="api.html">ui handle API</a><a href="widgets.html">Widgets</a><a href="theme.html">Themes</a><a href="translate.html">Translate</a><a href="settings.html">Settings</a><a href="advanced.html">Advanced</a></nav><main><h1>DXUI <span class="v">V4 · retained-mode UI for MTA:SA</span></h1>
+<p class="lead">Widgets, a real theme engine, live translations, pooled
+retained-mode rendering and headless tests — pure Lua 5.1 on DirectX 9.</p>
+
+<div class="card"><strong>Quick start</strong>
+<pre><code>local ui = exports.dxui:getUI("app", { design = { width = 800, height = 600 } })
+
+local win = ui:window({ title = "Hello", x = 40, y = 40, width = 360, height = 300 })
+ui:add(win)
+win:on("close", function(n) n.visible = false end)
+win:container():addChild(ui:button({ x = 10, y = 10, width = 100, height = 28, text = "OK" }))
+
+ui:setTheme("dark-compact")   -- any time, live re-apply
+ui:setLocale("ru")            -- your own dictionaries, live re-translate</code></pre>
+The engine owns the frame loop, input glue and per-resource cleanup — this
+page and the demo resource cover everything else.</div>
+
+<h2>Why this engine</h2>
+<ul>
+<li><strong>Retained, pooled rendering</strong> — one mutation layer with owner
+guards and category dirty flags; idle frames do <em>zero</em> rebuild/layout work
+(assert-tested), screen culling, RT compositing only where required.</li>
+<li><strong>Theme engine</strong> — design tokens, three palettes × three
+densities (9 built-in themes), custom themes with <code>extends</code> from any
+resource, per-state styles with opt-in transitions.</li>
+<li><strong>Live translation</strong> — per-resource locale tables,
+<code>setTextKey</code> bindings, instant switching.</li>
+<li><strong>Real inputs</strong> — hover/focus/pressed/drag/modal/popup
+dispatcher, caret editing with selection, clamped window drag.</li>
+<li><strong>Sane rendering</strong> — one shared SDF rounded-rect shader:
+per-corner radii, border+fill in a single draw, square corners bypass the
+shader entirely.</li>
+<li><strong>Headless tests</strong> — the entire engine runs outside MTA with
+an injected backend; the shipped behavior is assert-locked.</li>
+</ul>
+
+<h2>Where to read</h2>
+<table>
+<tr><th>page</th><th>content</th></tr>
+<tr><td><a href="api.html">ui handle API</a></td><td>every public method: what it takes, what it returns</td></tr>
+<tr><td><a href="widgets.html">Widgets</a></td><td>every widget: reflected property specs, parts, events, examples</td></tr>
+<tr><td><a href="theme.html">Themes</a></td><td>registered themes, token vocabulary, defining your own</td></tr>
+<tr><td><a href="translate.html">Translate</a></td><td>locales, bindings, live switching</td></tr>
+<tr><td><a href="settings.html">Settings</a></td><td>every engine key and what consumes it</td></tr>
+<tr><td><a href="advanced.html">Advanced</a></td><td>custom widgets, renderer primitives, overlays, diagnostics</td></tr>
+</table>
+
+<h2>Repository layout</h2>
+<pre><code>source/settings.lua      engine-wide behavior keys
+source/client/core/      node, widget, parts, value objects
+source/client/style/     tokens, theme engine, built-in themes
+source/client/render/    renderer, pass, backend (the ONLY dx* calls), effects
+source/client/input/     dispatcher, hit-test, events
+source/client/layout/    dimension/flex/absolute layout passes
+source/client/api/       runtime, ui handle, exports, diagnostics
+source/client/widgets/   the widget library
+source/client/text/      measurement + text layout
+demo/                    standalone showcase resource
+meta.xml                 MTA manifest (script order = dependency order)</code></pre></main></body></html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Widgets — DXUI wiki</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root { --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --ink:#e2e8f0;
+        --dim:#94a3b8; --acc:#38bdf8; --line:#334155; --code:#0b1220; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+       font:15px/1.55 "Segoe UI",system-ui,sans-serif; }
+nav { position:fixed; top:0; left:0; bottom:0; width:232px; overflow-y:auto;
+      background:var(--panel); border-right:1px solid var(--line); padding:18px 14px; }
+nav h1 { font-size:15px; margin:0 0 2px; color:var(--acc); }
+nav .sub { font-size:11px; color:var(--dim); margin-bottom:14px; }
+nav a { display:block; color:var(--ink); text-decoration:none; padding:6px 8px;
+        border-radius:6px; font-size:13.5px; }
+nav a:hover, nav a.on { background:var(--panel2); color:var(--acc); }
+main { margin-left:232px; padding:30px 44px 80px; max-width:980px; }
+h1 { font-size:26px; margin:0 0 6px; } h1 .v { color:var(--acc); font-size:15px; }
+h2 { font-size:19px; margin:34px 0 8px; color:var(--acc);
+     border-bottom:1px solid var(--line); padding-bottom:6px; }
+h3 { font-size:16px; margin:22px 0 6px; }
+p { margin:8px 0; } p.lead { color:var(--dim); margin-bottom:18px; }
+code { font:12.5px/1.5 Consolas,"Cascadia Mono",monospace; }
+code { background:var(--code); color:#93c5fd; padding:1.5px 5px; border-radius:4px; }
+pre { background:var(--code); border:1px solid var(--line); border-radius:8px;
+      padding:12px 14px; overflow-x:auto; color:#dbeafe; }
+pre code { background:transparent; padding:0; color:inherit; }
+table { border-collapse:collapse; width:100%; margin:10px 0 18px; font-size:13.5px; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:var(--panel2); color:var(--acc); font-weight:600; }
+tr:nth-child(even) td { background:var(--panel); }
+td code, th code { background:transparent; padding:0; color:#7dd3fc; }
+.ev { color:#fbbf24; }
+.tag { display:inline-block; background:var(--panel2); border:1px solid var(--line);
+       color:var(--dim); font-size:11px; border-radius:10px; padding:1px 8px; margin-left:6px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+        padding:14px 18px; margin:10px 0; }
+ul { padding-left:22px; } li { margin:4px 0; }
+</style></head><body><nav><h1>DXUI</h1><div class="sub">retained-mode UI for MTA:SA</div><a href="index.html">Overview</a><a href="api.html">ui handle API</a><a href="widgets.html" class="on">Widgets</a><a href="theme.html">Themes</a><a href="translate.html">Translate</a><a href="settings.html">Settings</a><a href="advanced.html">Advanced</a></nav><main><h1>Widgets <span class="v">factory reference</span></h1>
+<p class="lead">Every widget is created through its <code>ui:&lt;name&gt;(props)</code>
+factory. Factories are synthesized from the widget registry: any registered
+class gains one automatically. Property tables below are REFLECTED from the
+live spec tables — they are always exact. Inherited base properties
+(x, y, width, height, visible, opacity, color, font, layer, zIndex, clip,
+margin, padding, layoutMode, interactive, focusable, enabled, textKey ...)
+are documented in the ui handle page and omitted here.</p>
+<h2 id="panel">ui:panel(props) <span class="tag">Panel</span></h2>
+<p>Static surface — the base of every bordered widget.</p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>0</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr></table>
+
+<pre><code>local p = ui:panel({ x=0, y=0, width=100, height=60, radius=8 })</code></pre>
+<h2 id="label">ui:label(props) <span class="tag">Label</span></h2>
+<p>Auto-sizing text with wrap/ellipsis and translation binding.</p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>ellipsis</code></td><td></td><td>false</td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>shadow</code></td><td>transform</td><td><em>nil</em></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr></table>
+
+<pre><code>local l = ui:label({ x=0, y=0, text="Hello" })
+l:setTextKey("greeting")</code></pre>
+<h2 id="button">ui:button(props) <span class="tag">Button</span></h2>
+<p>Clickable surface with hover/pressed/focused states and themed colors.</p>
+<p><strong>Events:</strong> <span class="ev">click</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>0</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr></table>
+
+<pre><code>local btn = ui:button({ x=0, y=0, width=100, height=28, text="OK" })
+btn:on("click", function() save() end)</code></pre>
+<h2 id="image">ui:image(props) <span class="tag">Image</span></h2>
+<p>Texture quad with sections, color tint and effects (blur/mask).</p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>section</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>texture</code></td><td></td><td><em>nil</em></td></tr></table>
+
+<pre><code>local i = ui:image({ x=0, y=0, width=64, height=64, texture="icons/x.png" })</code></pre>
+<h2 id="window">ui:window(props) <span class="tag">Window</span></h2>
+<p>Titled panel: the header DRAGS the window (clamped so it stays reachable), a close-button part emits "close", children live in the content part.</p>
+<p><strong>Events:</strong> <span class="ev">close</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>closeButtonVisible</code></td><td>onSet</td><td>true</td></tr><tr><td><code>draggable</code></td><td></td><td>true</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>headerHeight</code></td><td>onSet</td><td>28</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>0</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>title</code></td><td>onSet</td><td>""</td></tr><tr><td><code>titleColor</code></td><td>transform, onSet</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>closeButton</code> · <code>content</code> · <code>header</code></p>
+<pre><code>local w = ui:window({ x=40, y=40, width=360, height=300, title="Settings" })
+ui:add(w)
+w:on("close", function(n) n.visible = false end)
+w:container():addChild(ui:button({ x=10, y=10, width=100, height=28, text="Hi" }))</code></pre>
+<h2 id="checkbox">ui:checkbox(props) <span class="tag">Checkbox</span></h2>
+<p>Toggling checkbox with a square indicator and a label.</p>
+<p><strong>Events:</strong> <span class="ev">change</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>boxColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>checked</code></td><td>onSet</td><td>false</td></tr><tr><td><code>checkedColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>indent</code></td><td></td><td>18</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>4</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+
+<pre><code>local cb = ui:checkbox({ x=0, y=0, width=160, height=20, text="Remember" })
+cb:on("change", function(_, on) intro = not on end)</code></pre>
+<h2 id="radiobutton">ui:radiobutton(props) <span class="tag">RadioButton</span></h2>
+<p>Radio option; use a RadioGroup for mutual exclusivity.</p>
+<p><strong>Events:</strong> <span class="ev">change</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>checked</code></td><td>onSet</td><td>false</td></tr><tr><td><code>dotColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>indent</code></td><td></td><td>18</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+
+<pre><code>local grp = ui:radiogroup({ x=0, y=0, gap=4 })
+for _, name in ipairs({ "Easy", "Hard" }) do
+    grp:addRadio(ui:radiobutton({ width=120, text=name }))
+end</code></pre>
+<h2 id="gridlist">ui:gridlist(props) <span class="tag">GridList</span></h2>
+<p>Vertical row list: click selects, wheel scrolls; rows come from the items table, height follows the themed rowHeight.</p>
+<p><strong>Events:</strong> <span class="ev">select</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>hoverColor</code></td><td>transform</td><td>4294178038 <span class="tag">0xFFF3F4F6</span></td></tr><tr><td><code>items</code></td><td></td><td>{}</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>rowHeight</code></td><td></td><td>22</td></tr><tr><td><code>scrollY</code></td><td>min 0, max 1</td><td>0</td></tr><tr><td><code>selectedColor</code></td><td>transform</td><td>4280640491 <span class="tag">0xFF2563EB</span></td></tr><tr><td><code>selectedIndex</code></td><td>onSet</td><td>0</td></tr><tr><td><code>selectedTextColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+
+<pre><code>local gl = ui:gridlist({ x=0, y=0, width=200, height=140 })
+gl.items = { "Red", "Green", "Blue" }
+gl:on("select", function(_, i, item) print(i, item) end)</code></pre>
+<h2 id="combobox">ui:combobox(props) <span class="tag">ComboBox</span></h2>
+<p>Selection box with a dropdown; opens on click, closes on outside click or selection.</p>
+<p><strong>Events:</strong> <span class="ev">select</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>headColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>items</code></td><td>onSet</td><td>{}</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>open</code></td><td></td><td>false</td></tr><tr><td><code>radius</code></td><td></td><td>4</td></tr><tr><td><code>rowHeight</code></td><td>onSet</td><td>20</td></tr><tr><td><code>selectedIndex</code></td><td>onSet</td><td>0</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>dropdown</code> · <code>head</code></p>
+<pre><code>local cb = ui:combobox({ x=0, y=0, width=160, items={ "a", "b", "c" } })
+cb:on("select", function(_, i, item) end)</code></pre>
+<h2 id="edit">ui:edit(props) <span class="tag">Edit</span></h2>
+<p>Single-line text input. Caret modes (blink/solid/off), shift-selection, maxLength, readOnly, masked display, alignment; the placeholder hides on focus and the caret appears at once. The caret is a per-frame OVERLAY — blinking never invalidates the cached render list.</p>
+<p><strong>Events:</strong> <span class="ev">change, submit, focus, blur</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>alignment</code></td><td>validate</td><td>"left"</td></tr><tr><td><code>bgColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>caret</code></td><td>number, onSet</td><td>0</td></tr><tr><td><code>caretBlinkInterval</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>caretColor</code></td><td>transform</td><td>4280640491 <span class="tag">0xFF2563EB</span></td></tr><tr><td><code>caretMode</code></td><td>validate</td><td>"blink"</td></tr><tr><td><code>caretWidth</code></td><td>number, min 1</td><td>1</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>focusBorderColor</code></td><td>transform</td><td>4280640491 <span class="tag">0xFF2563EB</span></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>maskChar</code></td><td></td><td>"*"</td></tr><tr><td><code>masked</code></td><td></td><td>false</td></tr><tr><td><code>maxLength</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>placeholder</code></td><td></td><td>""</td></tr><tr><td><code>placeholderColor</code></td><td>transform</td><td>4285231744 <span class="tag">0xFF6B7280</span></td></tr><tr><td><code>placeholderVisibleWhenFocused</code></td><td></td><td>false</td></tr><tr><td><code>radius</code></td><td></td><td>4</td></tr><tr><td><code>readOnly</code></td><td></td><td>false</td></tr><tr><td><code>selectionColor</code></td><td>transform</td><td>858088427</td></tr><tr><td><code>selectionFrom</code></td><td>validate, onSet</td><td><em>nil</em></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+
+<pre><code>local ed = ui:edit({ x=0, y=0, width=220, height=26, placeholder="Name" })
+ed:on("submit", function(_, text) save(text) end)
+ed.caretMode = "solid"   -- "blink" (default) | "solid" | "off"
+ed.maxLength = 24        -- 0 = unlimited</code></pre>
+<h2 id="slider">ui:slider(props) <span class="tag">Slider</span></h2>
+<p>Horizontal range slider (0..100) with drag + wheel control.</p>
+<p><strong>Events:</strong> <span class="ev">change, drag-start, drag-end</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>bgColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>thumbBorderColor</code></td><td>transform</td><td>4280640491 <span class="tag">0xFF2563EB</span></td></tr><tr><td><code>thumbColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr><tr><td><code>thumbSize</code></td><td></td><td>14</td></tr><tr><td><code>value</code></td><td>min 0, max 1, validate</td><td>0</td></tr></table>
+
+<pre><code>local s = ui:slider({ x=0, y=0, width=200, value=30 })
+s:on("change", function(_, v) print(v) end)</code></pre>
+<h2 id="progressbar">ui:progressbar(props) <span class="tag">ProgressBar</span></h2>
+<p>Fill bar showing 0..100 progress.</p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>bgColor</code></td><td>transform</td><td>4294178038 <span class="tag">0xFFF3F4F6</span></td></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>4</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>value</code></td><td>min 0, max 1, validate</td><td>0</td></tr></table>
+
+<pre><code>local bar = ui:progressbar({ x=0, y=0, width=200, height=8, value=50 })</code></pre>
+<h2 id="scrollpanel">ui:scrollpanel(props) <span class="tag">ScrollPanel</span></h2>
+<p>Scrollable viewport over tall content; wheel + drag scroll.</p>
+<p><strong>Events:</strong> <span class="ev">scroll</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>scrollStep</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>scrollX</code></td><td>min 0, max 1</td><td>0</td></tr><tr><td><code>scrollY</code></td><td>min 0, max 1</td><td>0</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>thumbSize</code></td><td></td><td>8</td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>content</code></p>
+<pre><code>local sp = ui:scrollpanel({ x=0, y=0, width=200, height=150 })
+sp:container():addChild(ui:panel({ x=0, y=0, width=180, height=600 }))</code></pre>
+<h2 id="tabpanel">ui:tabpanel(props) <span class="tag">TabPanel</span></h2>
+<p>Tab strip + pages; only the active page is visible. Pages parent to the content part.</p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>activeColor</code></td><td>transform</td><td>4280640491 <span class="tag">0xFF2563EB</span></td></tr><tr><td><code>activeIndex</code></td><td>onSet</td><td>1</td></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>labels</code></td><td>onSet</td><td>{}</td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>tabHeight</code></td><td></td><td>26</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4285231744 <span class="tag">0xFF6B7280</span></td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>content</code> · <code>tabs</code></p>
+<pre><code>local tp = ui:tabpanel({ x=0, y=0, width=300, height=200, labels={ "A", "B" } })
+tp:addPage(ui:label({ text="page A" }))</code></pre>
+<h2 id="popup">ui:popup(props) <span class="tag">Popup</span></h2>
+<p>Floating anchored container; outside clicks close it.</p>
+<p><strong>Events:</strong> <span class="ev">popup-close</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>8</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>content</code></p>
+<pre><code>local pp = ui:popup({ x=100, y=100, width=180, height=90 })
+pp:open()</code></pre>
+<h2 id="contextmenu">ui:contextmenu(props) <span class="tag">ContextMenu</span></h2>
+<p>Popup menu; opens at a point, closes on outside click or after a selection.</p>
+<p><strong>Events:</strong> <span class="ev">popup-close (per-item onSelect callbacks)</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>borderColor</code></td><td>transform</td><td>4291941851 <span class="tag">0xFFD1D5DB</span></td></tr><tr><td><code>borderWidth</code></td><td></td><td>1</td></tr><tr><td><code>disabledColor</code></td><td>transform</td><td>4285231744 <span class="tag">0xFF6B7280</span></td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>hoverColor</code></td><td>transform</td><td>4294178038 <span class="tag">0xFFF3F4F6</span></td></tr><tr><td><code>items</code></td><td>onSet</td><td>{}</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>radius</code></td><td></td><td>4</td></tr><tr><td><code>rowHeight</code></td><td>onSet</td><td>22</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4279310375 <span class="tag">0xFF111827</span></td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>list</code></p>
+<pre><code>local m = ui:contextmenu({ items = {
+    { text = "Copy",  onSelect = function() copy() end },
+    { text = "Paste", onSelect = function() paste() end },
+} })
+ui:add(m)
+m:open(120, 80)</code></pre>
+<h2 id="modal">ui:modal(props) <span class="tag">Modal</span></h2>
+<p>Dimmed full-screen overlay + centered dialog. Blocks input outside; closing a mid-stack modal removes only THAT modal.</p>
+<p><strong>Events:</strong> <span class="ev">close</span></p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>overlay</code></td><td>transform</td><td>1711276032</td></tr><tr><td><code>radius</code></td><td></td><td>12</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr></table>
+<h3>Parts (node:getPart)</h3><p><code>content</code></p>
+<pre><code>local md = ui:modal({ width=280, height=120 })
+md:container():addChild(ui:label({ text="Sure?" }))
+md:open()   -- pushes the dispatcher modal stack
+md:close()  -- emits "close"</code></pre>
+<h2 id="tooltip">ui:tooltip(props) <span class="tag">Tooltip</span></h2>
+<p>Floating label attached to a target; shows on hover, anchored top/bottom/left/right.</p>
+<table><tr><th>property</th><th>spec</th><th>default</th></tr><tr><td><code>blur</code></td><td></td><td>0</td></tr><tr><td><code>effect</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>flexDirection</code></td><td>validate</td><td><em>nil</em></td></tr><tr><td><code>gap</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>grow</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>justify</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>mask</code></td><td></td><td><em>nil</em></td></tr><tr><td><code>padX</code></td><td></td><td>8</td></tr><tr><td><code>padY</code></td><td></td><td>4</td></tr><tr><td><code>radius</code></td><td></td><td>4</td></tr><tr><td><code>shrink</code></td><td>number, min 0</td><td>0</td></tr><tr><td><code>textColor</code></td><td>transform</td><td>4294967295 <span class="tag">0xFFFFFFFF</span></td></tr></table>
+
+<pre><code>local tip = ui:tooltip({ text="Click to save" })
+ui:add(tip)
+tip:attach(button, "bottom")</code></pre></main></body></html>
