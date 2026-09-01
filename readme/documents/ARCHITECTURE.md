@@ -12,7 +12,7 @@ source/client/
 │   ├── node.lua                  base tree node + property system (_set layer)
 │   ├── widget.lua                widget base: theme apply, states, measure
 │   └── part.lua                  named child nodes (header/content/…)
-├── translation.lua               `T(key)` — translation dict (utf8)
+├── translation.lua               locale dicts — DXUI.tr(key,…) / addLocale / setLocale
 ├── text/
 │   └── text.lua                  injected measurer, wrap/ellipsis, layout cache
 ├── style/
@@ -31,7 +31,7 @@ source/client/
 ├── render/
 │   ├── render_list.lua           flat pooled item list (id of last item)
 │   ├── state.lua                 per-frame draw state (blend, clip, groups)
-│   ├── renderer.lua              Canvas – draw entry for widgets
+│   ├── renderer.lua              Renderer — draw entry for widgets
 │   ├── effects.lua               clipMode rt/mask/blur — RT group manager
 │   ├── backend_mta.lua           ONLY MTA dx* entry point (injectable)
 │   └── pass.lua                  collect → sort → emit
@@ -42,10 +42,10 @@ source/client/
 ├── api/
 │   ├── runtime.lua               UI instance: tick() pipeline + stats
 │   ├── ui.lua                    `ui:*` builders (panel/button/… shortcuts)
-│   ├── exports.lua               exports.getUI / DXUI.getUI singleton
+│   ├── exports.lua               DXUI.getUI(name,opts,owner): per-resource buckets + releaseResource + getUI export
 │   └── diagnostics.lua           snapshot/describe/report/zeroWork/idleRatio
 ├── widgets/                      one file per widget; registered via Builders
-└── init.lua                      MTA glue: bootstrap + event wiring (resource)
+└── init.lua                      MTA glue: frame loop ticks DXUI._uis, input wiring, resource-stop cleanup
 ```
 
 ## The property system (core/node.lua)
@@ -97,8 +97,8 @@ caches it. Sort on rebuild: `(effLayer, zIndex, _id)` — stable and cheap.
 
 ## Rendering
 
-- `Canvas` (renderer) provides `rect/roundedRect/image/text/line`; widgets
-  call it from `Widget:render(renderer)` — no direct dx* calls anywhere.
+- The Renderer provides `rect/roundedRect/borderedRect/outline/image/text/line`;
+  widgets call it from `Widget:render(renderer)` — no direct dx* calls anywhere.
 - Item pooling: group arrays recycled AFTER draw via the per-frame state
   cache; `render_list.lua` tracks pooled item count (`list.count`, used for
   `stats.items`).
@@ -126,8 +126,9 @@ defaults.** Compiled ONCE per (theme, component, styleKey):
 Events bubble target → ancestors (snapshot per level); a handler returning
 `DXUI.STOP` halts. Hit-testing is flag-based (`interactive/focusable` reset
 the interactive cache). The Dispatcher owns hover / focus / pressed / drag
-(threshold 6px) / modal depth / popup registry, maps screen→design coords,
-and click emits `(button, x, y, pressedOrigin)`.
+(threshold 6px) / a modal stack / a popup registry, maps screen→design
+coords, and click emits `(button, x, y, pressedOrigin)`. A modal on the
+stack blocks interaction with every node outside it.
 
 ## Diagnostics
 
@@ -138,10 +139,21 @@ never run without their dirty flag (the idle-frame contract).
 
 ## Boot
 
-`DXUI.bootstrap(opts)` (init.lua) is the MTA entry: `addEventHandler
-onClientRender` frame loop, `guiGetScreenSize → setViewport`, and mouse /
-click / scroll / key glue that translates screen coords into design coords
-before dispatch. Resource stop destroys the instance and releases resources.
+`init.lua` is the MTA entry. On load it wires the DX backend and registers
+the event glue **once**: an `onClientRender` frame loop that ticks
+**every** instance in `DXUI._uis` (the dxui resource's own and every
+consumer-owned instance created through `exports.dxui:getUI()`), a second
+`onClientRender` handler that pushes `guiGetScreenSize → setViewport` only
+on an actual size change, and input glue — `onClientCursorMove` →
+`mouseMove`, `onClientClick` → `mouseDown/mouseUp`, `onClientKey`
+(including the mouse wheel, which MTA fires as `"mouse_wheel_up"` /
+`"mouse_wheel_down"` with no release) → `scroll`/`key`, and
+`onClientCharacter` → `character`.
+
+Each instance lives in a per-owner bucket (`DXUI._uiByOwner`). When a
+CONSUMER resource stops, `DXUI.releaseResource(owner)` destroys and drops
+its instances from the tick list; when the dxui resource itself stops, the
+shared "default" bucket is released and assets are freed.
 
 Everything MTA-specific lives in `init.lua` + `render/backend_mta.lua`; the
 rest is plain Lua 5.1 and runs under lupa with a table backend (see
