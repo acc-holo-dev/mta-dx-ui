@@ -166,7 +166,7 @@ function Widget:_applyStyleState(animate)
                         and current ~= v then
                         -- tween via the Anim layer; the "theme" owner keeps
                         -- the prop tracked for the next theme switch
-                        local easings = DXUI.EASING or {}
+                        local easings = DXUI.Easing or {}
                         local ease = easings[transition.easing] or easings.out
                         self._themeApplied[k] = true
                         self._context.anim:_startStep(self, { [k] = v },

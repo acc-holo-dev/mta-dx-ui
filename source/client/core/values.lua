@@ -250,5 +250,3 @@ function DXUI.SizeProxy(node)
     values["@size"] = proxy
     return proxy
 end
-
-DXUI.Values = { ColorProxy = DXUI.ColorProxy, PointProxy = DXUI.PointProxy, SizeProxy = DXUI.SizeProxy }

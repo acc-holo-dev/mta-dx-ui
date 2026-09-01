@@ -76,7 +76,7 @@ easing.back    = easing.backOut
 easing.elastic = easing.elasticOut
 easing.bounce  = easing.bounceOut
 
-DXUI.EASING = easing
+DXUI.Easing = easing
 
 --- Spring easing over [0,1]: overshoots and settles. omega ~ natural
 -- frequency (higher = snappier), damping 0..1 (lower = more overshoot).

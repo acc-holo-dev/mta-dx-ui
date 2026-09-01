@@ -27,7 +27,7 @@ DXUI.AnimHandle = AnimHandle
 local function resolveEase(ease)
     if type(ease) == "function" then return ease end
     local name = ease or DXUI.Settings and DXUI.Settings.defaults.animationEasing or "inout"
-    return DXUI.EASING[name] or DXUI.EASING.inout
+    return DXUI.Easing[name] or DXUI.Easing.inout
 end
 
 --- Creates an animation manager bound to an instance context.

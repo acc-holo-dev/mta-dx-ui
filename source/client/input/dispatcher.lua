@@ -273,18 +273,18 @@ function Dispatcher:scroll(wheel, x, y)
 end
 
 --- Routes a key event to the focused node, bubbling up.
-function Dispatcher:key(keyName, pressed2, ...)
+function Dispatcher:key(keyName, isDown, ...)
     local target = self.focus
     if not target then return false end
     if not self:reachable(target) then return false end
     if DXUI.Events.has(target, "key") then
-        target:emit("key", keyName, pressed2, ...)
+        target:emit("key", keyName, isDown, ...)
         return true
     end
     local n = target._parent
     while n do
         if DXUI.Events.has(n, "key") then
-            n:emit("key", keyName, pressed2, ...)
+            n:emit("key", keyName, isDown, ...)
             return true
         end
         n = n._parent

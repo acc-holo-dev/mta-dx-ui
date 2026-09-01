@@ -291,10 +291,11 @@ function Runtime:scroll(wheel, sx, sy)
     return self.dispatcher:scroll(wheel, dx, dy)
 end
 
---- Routes a key event to the dispatcher.
-function Runtime:key(keyName, pressed2, ...)
+--- Routes a key event to the dispatcher (isDown = down/up edge; extra
+--- args ride along — e.g. the shift modifier from init.lua).
+function Runtime:key(keyName, isDown, ...)
     if not self.dispatcher then return false end
-    return self.dispatcher:key(keyName, pressed2, ...)
+    return self.dispatcher:key(keyName, isDown, ...)
 end
 
 --- Routes a character input to the dispatcher.

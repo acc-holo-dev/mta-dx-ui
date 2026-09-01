@@ -45,18 +45,4 @@ function Part.each(node, fn)
     end
 end
 
---- Looks up the theme role section name for a part (class + role).
--- Returns nil when the part has no role-specific theme.
-function Part.themeRole(rootClass, roleName)
-    -- components.<RootClass>.parts.<roleName>
-    return roleName
-end
-
---- Replaces or removes a part from a node (deterministic ownership).
--- If replaceWith is nil the slot is emptied WITHOUT touching a supplied
--- replacement (used by composites to hand a part to the user).
-function Part.replace(node, name, replaceWith)
-    return node:setPart(name, replaceWith)
-end
-
 DXUI.Part = Part

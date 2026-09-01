@@ -264,30 +264,6 @@ emitTree = function(node, renderer, list, baseOpacity, sx, sy, ox, oy)
     walkNode(node, renderer, list, baseOpacity, sx, sy, ox, oy)
 end
 
---- Emits a group root as an rtgroup item with its subtree contents.
-local function emitGroup(node, renderer, list)
-    local effOp = node._effOpacity or 1
-    if effOp <= 0 then return end
-    local sx, sy = renderer.scaleX, renderer.scaleY
-    local ox, oy = renderer.offsetX, renderer.offsetY
-    local it = DXUI.RenderList.obtain()
-    it.kind = "rtgroup"
-    it.x = node.worldX * sx + ox
-    it.y = node.worldY * sy + oy
-    it.w = node.width * sx
-    it.h = node.height * sy
-    it.scaleX, it.scaleY = sx, sy
-    it.effect = (node.blur and node.blur > 0 and DXUI.Effects.blur(node.width, node.height, node.blur))
-        or (node.mask and DXUI.Effects.mask(node.mask))
-    it.alpha = effOp
-    local arr = trackArr(acquireArr())
-    local sub = { items = arr, count = 0 }
-    walkNode(node, renderer, sub, 1 / effOp, sx, sy, ox, oy)
-    it.items = arr
-    it.count = sub.count
-    list:add(it)
-end
-
 --- Rebuilds instance.renderList. Returns the item count.
 function RenderPass.build(instance)
     local list = instance.renderList
@@ -323,7 +299,8 @@ function RenderPass.build(instance)
     for i = 1, count do
         local node = nodes[i]
         if hasGroup(node) then
-            emitGroup(node, renderer, list)
+            emitTree(node, renderer, list, 1,
+                renderer.scaleX, renderer.scaleY, renderer.offsetX, renderer.offsetY)
         else
             emitSingle(node, renderer, list)
         end

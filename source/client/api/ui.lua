@@ -23,7 +23,9 @@
 
 DXUI = DXUI or {}
 
-local UI = setmetatable({}, { __index = DXUI.Runtime })
+-- UI doubles as the class table and the instance metatable; per-widget
+-- factories + Runtime methods resolve through the metatable below.
+local UI = {}
 UI.__index = UI
 
 --- Creates a UI instance and returns the public handle.
@@ -63,11 +65,21 @@ function UI:widget(name, props)
     return inst
 end
 
-for _name in pairs({ panel=1, label=1, button=1, image=1, window=1, checkbox=1,
-    radiobutton=1, progressbar=1, slider=1, scrollpanel=1, edit=1, combobox=1,
-    tabpanel=1, gridlist=1, popup=1, contextmenu=1, modal=1, tooltip=1 }) do
-    UI[_name] = widgetFactory(_name)
-end
+-- Per-widget factories (ui:panel(props), ui:window(props), ...) are
+-- SYNTHESIZED from the widget registry: ui.lua loads before widgets/, so
+-- the names are not known yet — every Builders.register'ed class (both
+-- spellings) gains a factory automatically, and anything else falls
+-- through to the Runtime methods.
+setmetatable(UI, {
+    __index = function(_, key)
+        if type(key) == "string" and DXUI.Widgets and rawget(DXUI.Widgets, key) then
+            local factory = widgetFactory(key)
+            UI[key] = factory -- cache: later lookups hit the table
+            return factory
+        end
+        return DXUI.Runtime[key]
+    end,
+})
 
 -- ---------------------------------------------------------------------
 -- Value factories

@@ -91,17 +91,16 @@ TabPanel._build = function(node)
     buildTabs(node)
 end
 
---- Adds a page and shows it only when it is the active index.
+--- Adds a page into the content part; only the active page is visible.
+-- Pages fill the content box (its padding clears the tab strip).
 function TabPanel:addPage(child)
     local pages = self._pages or {}
     pages[#pages + 1] = child
     self._pages = pages
-    child:setParent(self)
-    local th = self.tabHeight or 26
+    child:setParent(self:getPart("content"))
     child.layoutMode = "relative"
     child.layoutWidth = DXUI.percent(100)
     child.layoutHeight = DXUI.percent(100)
-    child.padding = { left = 4, top = th + 4, right = 4, bottom = 4 }
     local i = #pages
     local active = self.activeIndex or 1
     child.visible = (i == active)
