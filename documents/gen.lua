@@ -614,7 +614,20 @@ Any resource can define its own theme and extend a built-in.</p>]]
             local cells = {}
             for _, k in ipairs(keys) do
                 local v = vals[k]
-                local shown = type(v) == "number" and ("0x%08X"):format(v) or tostring(v)
+                local shown
+                if type(v) == "number" then
+                    shown = ("0x%08X"):format(v)
+                elseif type(v) == "table" then
+                    -- stable, readable form (e.g. the padding.control box),
+                    -- NEVER a memory address: regeneration must be
+                    -- byte-identical or the CI wiki-freshness check fails
+                    local parts = {}
+                    for k2, v2 in pairs(v) do parts[#parts + 1] = tostring(k2) .. "=" .. tostring(v2) end
+                    table.sort(parts)
+                    shown = "{" .. table.concat(parts, ", ") .. "}"
+                else
+                    shown = tostring(v)
+                end
                 cells[#cells + 1] = "<code>" .. esc(k) .. "</code> <span class=\"tag\">"
                     .. esc(shown) .. "</span>"
             end
