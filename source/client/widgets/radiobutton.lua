@@ -20,10 +20,20 @@ local RadioButton = DXUI.Widget:extend("RadioButton", {
     color = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     dotColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
-    indent = { default = 18, invalidates = { DXUI.DIRTY.RENDER } },
+    indent = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
+
+--- Returns the effective dot/indent size from explicit prop or theme metric.
+function RadioButton:_dotSize()
+    return self.indent or self:_metric("dotSize", 18)
+end
+
+--- Returns the text-to-dot gap from theme metrics.
+function RadioButton:_textOffset()
+    return self:_metric("textOffset", 6)
+end
 
 --- Measures the circle plus label text for autoSize.
 function RadioButton:_measureContent()
@@ -35,24 +45,26 @@ function RadioButton:_measureContent()
     else
         tw, th = #self.text * 7, 15
     end
-    local d = self.indent or 18
-    -- +6 matches the render inset (text starts at d + 6)
-    return d + tw + 6, (th > d) and th or d
+    local d = self:_dotSize()
+    local offset = self:_textOffset()
+    return d + tw + offset, (th > d) and th or d
 end
 
 --- Draws the circle, the dot when checked, and the label.
 function RadioButton:render(renderer)
     local wx, wy = self.worldX, self.worldY
-    local d = self.indent or 18
+    local d = self:_dotSize()
+    local offset = self:_textOffset()
     local r = d / 2
     -- ring: border color under the inset fill (ring stays visible)
     renderer:borderedRect(wx, wy, d, d, r, self.color, self.borderColor, self.borderWidth)
     if self.checked then
-        local dot = d * 0.42
+        local ratio = self:_metric("dotFillRatio", 0.42)
+        local dot = d * ratio
         renderer:roundedRect(wx + (d - dot) / 2, wy + (d - dot) / 2, dot, dot, dot / 2, self.dotColor)
     end
     if self.text and self.text ~= "" then
-        renderer:text(self.text, wx + d + 6, wy, self.width - d - 6, self.height,
+        renderer:text(self.text, wx + d + offset, wy, self.width - d - offset, self.height,
             self.textColor, self.font, "left", "center", 1)
     end
 end

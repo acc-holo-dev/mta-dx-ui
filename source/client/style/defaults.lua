@@ -12,6 +12,9 @@
 ---    size:    rowHeight / headerHeight / thumb / sliderThumb
 ---             (density axis — compact/full presets override these)
 ---    padding: control (edit text inset; density axis)
+---
+---Component metrics are kept in components.<name>.metrics so density presets
+---can scale geometry without touching widget implementation.
 
 DXUI = DXUI or {}
 
@@ -54,10 +57,17 @@ local theme = {
         -- structural surface
         panel = {
             props = { color = "@color.surface", radius = "@radius.md" },
+            metrics = {
+                contentPadding = "@padding.control",
+            },
         },
 
         label = {
             props = { textColor = "@color.text" },
+            metrics = {
+                shadowOffsetX = 1,
+                shadowOffsetY = 1,
+            },
         },
 
         button = {
@@ -90,6 +100,9 @@ local theme = {
                 pressed = { color = "@color.primaryPressed" },
                 disabled = { textColor = "@color.textSecondary", color = "@color.surfaceAlt" },
             },
+            metrics = {
+                contentPadding = "@padding.control",
+            },
         },
 
         checkbox = {
@@ -108,9 +121,18 @@ local theme = {
                     switchThumbColor = "@color.onPrimary",
                     indent = 34,
                     transition = { duration = 150, easing = "out" },
+                    metrics = { thumbPadding = 2 },
                 },
             },
             states = { hover = { borderColor = "@color.primary" }, disabled = {} },
+            metrics = {
+                boxSize = 18,
+                textOffset = 6,
+                checkInset = 0.22,
+                checkMid = 0.42,
+                checkEnd = 0.78,
+                checkThickness = 2,
+            },
         },
 
         radiobutton = {
@@ -121,6 +143,11 @@ local theme = {
                 checkedColor = "@color.onPrimary",
             },
             states = { hover = { borderColor = "@color.primary" } },
+            metrics = {
+                dotSize = 18,
+                textOffset = 6,
+                dotFillRatio = 0.42,
+            },
         },
 
         progressbar = {
@@ -128,6 +155,9 @@ local theme = {
                 color = "@color.primary",
                 bgColor = "@color.surfaceAlt",
                 radius = "@radius.sm",
+            },
+            metrics = {
+                minFillWidth = 0.5,
             },
         },
 
@@ -138,6 +168,11 @@ local theme = {
                 thumbColor = "@color.surface",
                 thumbBorderColor = "@color.primary",
                 thumbSize = "@size.sliderThumb",
+            },
+            metrics = {
+                trackHeight = 4,
+                filledCutoff = 0.02,
+                defaultStep = 0.05,
             },
         },
 
@@ -153,6 +188,34 @@ local theme = {
                 padding = "@padding.control",
             },
             states = { focused = { borderColor = "@color.primary" }, disabled = { bgColor = "@color.surfaceAlt" } },
+            metrics = {
+                lineHeight = 15,
+                caretBlinkInterval = 500,
+                caretWidth = 1,
+                autoCompleteMax = 8,
+                undoCoalesceMs = 300,
+            },
+        },
+
+        memo = {
+            props = {
+                bgColor = "@color.surface",
+                borderColor = "@color.border",
+                focusBorderColor = "@color.primary",
+                textColor = "@color.text",
+                placeholderColor = "@color.textSecondary",
+                selectionColor = 0x332563EB,
+                radius = "@radius.sm",
+                padding = "@padding.control",
+            },
+            states = { focused = { borderColor = "@color.primary" }, disabled = { bgColor = "@color.surfaceAlt" } },
+            metrics = {
+                lineHeight = 15,
+                caretBlinkInterval = 500,
+                caretWidth = 1,
+                scrollStepLines = 3,
+                undoCoalesceMs = 300,
+            },
         },
 
         window = {
@@ -163,6 +226,11 @@ local theme = {
                 borderColor = "@color.border",
                 headerHeight = "@size.headerHeight",
             },
+            metrics = {
+                contentPadding = { left = 10, right = 10, top = 10, bottom = 10 },
+                closeButtonSize = "@size.headerHeight",
+                dragHeaderClamp = 40,
+            },
         },
 
         scrollpanel = {
@@ -171,6 +239,12 @@ local theme = {
                 thumbColor = "@color.border",
                 thumbHoverColor = "@color.textSecondary",
                 thumbSize = "@size.thumb",
+            },
+            metrics = {
+                thumbRadius = 999,
+                minThumbSize = 24,
+                scrollWheelStep = 48,
+                scrollInertia = 0,
             },
         },
 
@@ -183,6 +257,11 @@ local theme = {
                 rowHeight = "@size.rowHeight",
             },
             states = { hover = { borderColor = "@color.primary" } },
+            metrics = {
+                caretOffset = 13,
+                caretSize = 3,
+                caretStroke = 1,
+            },
         },
 
         tabpanel = {
@@ -191,6 +270,13 @@ local theme = {
                 textColor = "@color.textSecondary",
                 activeColor = "@color.primary",
                 borderColor = "@color.border",
+            },
+            metrics = {
+                tabHeight = 26,
+                tabPaddingX = 10,
+                tabGap = 0,
+                indicatorHeight = 2,
+                indicatorOffsetY = 2,
             },
         },
 
@@ -204,6 +290,18 @@ local theme = {
                 borderColor = "@color.border",
                 rowHeight = "@size.rowHeight",
             },
+            metrics = {
+                rowTextPadX = 6,
+                headerTextPadX = 4,
+                headerTextPadRight = 8,
+                cellPadX = 4,
+                minThumbSize = 20,
+                thumbWidth = 6,
+                thumbRadius = 3,
+                thumbInset = 8,
+                sortIconSize = 8,
+                rtMarginFactor = 0.5,
+            },
         },
 
         popup = {
@@ -211,6 +309,9 @@ local theme = {
                 color = "@color.surface",
                 borderColor = "@color.border",
                 radius = "@radius.md",
+            },
+            metrics = {
+                contentPadding = { left = 8, right = 8, top = 8, bottom = 8 },
             },
         },
 
@@ -224,6 +325,12 @@ local theme = {
                 radius = "@radius.sm",
                 rowHeight = "@size.rowHeight",
             },
+            metrics = {
+                itemPadding = { left = 12, right = 12, top = 0, bottom = 0 },
+                minWidth = 120,
+                separatorInset = 8,
+                separatorHeight = 1,
+            },
         },
 
         modal = {
@@ -232,6 +339,10 @@ local theme = {
                 overlay = "@color.overlay",
                 radius = "@radius.lg",
             },
+            metrics = {
+                contentWidthPct = 80,
+                contentPadding = { left = 12, right = 12, top = 12, bottom = 12 },
+            },
         },
 
         tooltip = {
@@ -239,6 +350,12 @@ local theme = {
                 color = "@color.tooltipBg",
                 textColor = "@color.onPrimary",
                 radius = "@radius.sm",
+            },
+            metrics = {
+                padX = 8,
+                padY = 4,
+                anchorGap = 6,
+                zIndex = 1000,
             },
         },
 

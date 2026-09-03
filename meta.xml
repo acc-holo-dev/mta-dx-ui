@@ -64,6 +64,7 @@
     <script src="source/client/api/ui.lua" />
     <script src="source/client/api/exports.lua" />
     <script src="source/client/api/diagnostics.lua" />
+    <script src="source/client/api/debug.lua" />
 
     <!-- widgets (basic) -->
     <script src="source/client/widgets/builders.lua" />

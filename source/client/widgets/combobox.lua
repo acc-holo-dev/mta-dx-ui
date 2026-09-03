@@ -10,12 +10,17 @@ DXUI = DXUI or {}
 
 local rebuildRows
 
+--- Returns the effective row height from explicit prop or theme metric.
+function ComboBox:_rowHeight()
+    return self.rowHeight or self:_metric("rowHeight", 20)
+end
+
 --- Updates the built head/dropdown geometry to the current rowHeight.
 --- The theme may set rowHeight AFTER the parts exist (theme defaults land
 --- post-build; live theme switches restyle mounted nodes), so every write
 --- path funnels here.
 local function syncRowHeight(node)
-    local headH = node.rowHeight or 20
+    local headH = node:_rowHeight()
     local head = node:getPart("head")
     if head then
         -- reuse the compiled form so an unchanged height does not allocate
@@ -65,7 +70,7 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
     -- hovered-row fill in the dropdown (the dropdown surface + fills are
     -- drawn by the dropdown part, under the row text)
     hoverColor = { default = 0xFFF3F4F6, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
-    rowHeight = { default = 20, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
+    rowHeight = { default = nil, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
         -- parts may not exist yet (constructor opts phase runs pre-build)
         if node:getPart("head") then syncRowHeight(node) end
     end },
@@ -85,7 +90,8 @@ local function rowText(node, item)
     if k ~= nil then
         local T = DXUI.Translate
         if T then
-            local loc = (node._context and node._context._locale) or T.locale
+            local ctx = node._context
+            local loc = (ctx and ctx.getLocale and ctx:getLocale()) or T.locale
             return T.trFor(loc, k)
         end
         return k
@@ -103,6 +109,7 @@ rebuildRows = function(node)
         children[i]:destroy()
     end
     local items = node.items or {}
+    local rowHeight = node:_rowHeight()
     local Label = DXUI.Widgets and DXUI.Widgets.Label
     if not Label then return end
     for i = 1, #items do
@@ -112,9 +119,9 @@ rebuildRows = function(node)
             padding = { left = 8, right = 8 },
         })
         row._index = i
-        row.y = (i - 1) * (node.rowHeight or 20)
+        row.y = (i - 1) * rowHeight
         row.layoutWidth = DXUI.percent(100)
-        row.layoutHeight = { k = "px", v = node.rowHeight or 20 }
+        row.layoutHeight = { k = "px", v = rowHeight }
         -- the dropdown part floats at zIndex 5 (above neighbors); the rows
         -- must paint (and hit) above ITS surface
         row.zIndex = 6
@@ -130,7 +137,7 @@ end
 
 --- Measures the head width and row height for autoSize.
 function ComboBox:_measureContent()
-    return (self._data and self._data.width) or 140, self.rowHeight or 22
+    return (self._data and self._data.width) or 140, self:_rowHeight()
 end
 
 --- Builds the head and dropdown parts and wires open/close behavior.
@@ -140,7 +147,7 @@ ComboBox._build = function(node, props)
         DXUI._textBindings[node] = true
     end
     local Label = DXUI.Widgets and DXUI.Widgets.Label or DXUI.Widget
-    local headH = node.rowHeight or 22
+    local headH = node:_rowHeight()
     local head = Label:new({ text = "", padding = { left = 8, right = 8 } })
     head.layoutWidth = DXUI.percent(100)
     head.layoutHeight = { k = "px", v = headH }
@@ -250,14 +257,17 @@ end
 --- Draws the head box and the caret arrow.
 function ComboBox:render(renderer)
     local wx, wy, w = self.worldX, self.worldY, self.width
-    local headH = self.rowHeight or 22
+    local headH = self:_rowHeight()
     local r = self.radius or 4
     renderer:borderedRect(wx, wy, w, headH, r, self.headColor, self.borderColor, self.borderWidth)
     -- caret arrow (two strokes forming a down-triangle)
-    local ax = wx + w - 13
+    local caretOffset = self:_metric("caretOffset", 13)
+    local caretSize = self:_metric("caretSize", 3)
+    local caretStroke = self:_metric("caretStroke", 1)
+    local ax = wx + w - caretOffset
     local ay = wy + headH / 2
-    renderer:line(ax, ay - 3, ax + 4, ay, self.textColor, 1)
-    renderer:line(ax + 4, ay, ax, ay + 3, self.textColor, 1)
+    renderer:line(ax, ay - caretSize, ax + caretSize, ay, self.textColor, caretStroke)
+    renderer:line(ax + caretSize, ay, ax, ay + caretSize, self.textColor, caretStroke)
 end
 
 DXUI.Builders.register("ComboBox", ComboBox)

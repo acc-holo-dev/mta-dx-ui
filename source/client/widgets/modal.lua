@@ -28,9 +28,10 @@ Modal._build = function(node)
     node.layoutHeight = DXUI.percent(100)
     local content = DXUI.Widget:new({})
     content.layoutMode = "center"
-    content.layoutWidth = DXUI.percent(80)
+    content.layoutWidth = DXUI.percent(node:_metric("contentWidthPct", 80))
     content.layoutHeight = DXUI.auto()
-    content.padding = { left = 12, right = 12, top = 12, bottom = 12 }
+    local pad = node:_metric("contentPadding", { left = 12, right = 12, top = 12, bottom = 12 })
+    content.padding = { left = pad.left, right = pad.right, top = pad.top, bottom = pad.bottom }
     node:setPart("content", content)
 end
 

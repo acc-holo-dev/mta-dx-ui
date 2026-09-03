@@ -171,7 +171,7 @@ function Translate.applyFor(instance)
             local ok, err = pcall(node.applyTranslation, node)
             if not ok then
                 Translate._bindings[node] = nil
-                DXUI._warn("applyTranslation failed: " .. tostring(err))
+                DXUI.Debug.warn("TEXT", "applyTranslation failed: " .. tostring(err))
             end
         else
             Translate._bindings[node] = nil

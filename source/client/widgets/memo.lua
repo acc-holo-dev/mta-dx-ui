@@ -79,8 +79,34 @@ local Memo = DXUI.Widget:extend("Memo", {
 })
 
 local EMPTY = ""
--- keystrokes closer than this coalesce into one undo step
-local HIST_COALESCE_MS = 300
+
+--- Returns the effective visual line height from explicit prop or theme metric.
+function Memo:_lineHeight()
+    return self.lineHeight or self:_metric("lineHeight", nil)
+end
+
+--- Returns the effective caret width from explicit prop or theme metric.
+function Memo:_caretWidth()
+    return self.caretWidth or self:_metric("caretWidth", 1)
+end
+
+--- Returns the effective caret blink interval from explicit prop, theme metric, or engine default.
+function Memo:_caretBlinkInterval()
+    return self.caretBlinkInterval
+        or self:_metric("caretBlinkInterval", nil)
+        or (DXUI.Settings and DXUI.Settings.defaults and DXUI.Settings.defaults.caretBlinkInterval)
+        or 500
+end
+
+--- Returns the scroll step in lines from theme metrics.
+function Memo:_scrollStepLines()
+    return self:_metric("scrollStepLines", 3)
+end
+
+--- Returns the undo coalesce window from theme metrics.
+function Memo:_undoCoalesceMs()
+    return self:_metric("undoCoalesceMs", 300)
+end
 
 --- History limit (defaults.editHistoryLimit, 64; 0 = history off).
 local function historyLimit()

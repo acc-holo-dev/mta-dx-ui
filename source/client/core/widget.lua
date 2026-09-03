@@ -192,8 +192,10 @@ function Widget:_applyStyleState(animate)
     self._applyingTheme = self._applyingTheme - 1
     if self._applyingTheme <= 0 then self._applyingTheme = nil end
     if not ok then
-        DXUI._warn("style apply failed: " .. tostring(err))
+        DXUI.Debug.error("STYLE", "style apply failed: " .. tostring(err))
     end
+    -- structured style trace (cheap no-op unless STYLE debug is on)
+    DXUI.Debug.style(self, "theme", state, target)
 end
 
 --- Build-time: apply theme defaults (state is "normal" at build).
@@ -251,7 +253,7 @@ function Widget:applyTranslation()
     local Translate = DXUI.Translate
     if not Translate then return end
     local context = self._context
-    local locale = (context and context._locale) or Translate.locale
+    local locale = (context and context.getLocale and context:getLocale()) or Translate.locale
     local raw = Translate.lookup(locale, key)
     local text, font
     if type(raw) == "table" then
@@ -274,6 +276,15 @@ function Widget:applyTranslation()
         end
     end
     return self
+end
+
+--- Reads a component metric from the active theme with a fallback.
+--- Internal widgets should use this instead of hardcoded constants.
+function Widget:_metric(name, fallback)
+    local cls = self._class
+    local className = cls and cls._name
+    if not className then return fallback end
+    return DXUI.Theme and DXUI.Theme.getMetric(className, name, self.style, fallback) or fallback
 end
 
 -- ---------------------------------------------------------------------

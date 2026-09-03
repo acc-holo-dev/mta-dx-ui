@@ -84,9 +84,7 @@ local function materialize(tbl)
     if not parentName then return tbl end
     local parent = Theme.themes[parentName]
     if not parent then
-        if DXUI._warn then
-            DXUI._warn("theme: extends unknown theme '" .. tostring(parentName) .. "' (ignored)")
-        end
+        DXUI.Debug.warn("THEME", "theme: extends unknown theme '" .. tostring(parentName) .. "' (ignored)")
         tbl.extends = nil
         return tbl
     end
@@ -187,6 +185,9 @@ local function compileComponent(themeName, componentName, styleKey)
             easing = def.transition.easing or "out",
         }
     end
+    if def.metrics then
+        styles.metrics = resolveProps(themeName, def.metrics)
+    end
     return styles
 end
 
@@ -216,6 +217,28 @@ function Theme.getComponentStyle(componentName, styleKey)
         return cached(Theme._fallback, componentName, styleKey)
     end
     return hit
+end
+
+---Returns a single metric for a component, or nil/fallback when absent.
+---Metrics live under components.<name>.metrics in the theme and override
+---widget class hardcoded defaults. Supports variant metrics when styleKey
+---matches a variant's metrics block.
+function Theme.getMetric(componentName, metricName, styleKey, fallback)
+    local cs = Theme.getComponentStyle(componentName, styleKey)
+    if cs and cs.metrics and cs.metrics[metricName] ~= nil then
+        return cs.metrics[metricName]
+    end
+    -- variant-specific metrics (merged from variant block)
+    if styleKey then
+        local theme = Theme.themes[Theme._currentName or ""]
+        local def = theme and theme.components
+            and (theme.components[componentName] or theme.components[componentName:lower()])
+        local var = def and def.variants and def.variants[styleKey]
+        if var and var.metrics and var.metrics[metricName] ~= nil then
+            return var.metrics[metricName]
+        end
+    end
+    return fallback
 end
 
 ---Returns the ACTIVE theme's name (nil before the first activation).
@@ -260,7 +283,7 @@ end
 function Theme.activate(name)
     local theme = Theme.themes[name]
     if not theme then
-        if DXUI._warn then DXUI._warn("theme: unknown theme '" .. tostring(name) .. "'") end
+        DXUI.Debug.warn("THEME", "theme: unknown theme '" .. tostring(name) .. "'")
         return false
     end
     Theme._currentName = name

@@ -2,8 +2,8 @@
 ---THE zero-work idle guarantee lives here:
 ---
 ---    tick(dtMs):
----        anim:update()                        -- runs only with active
----        if layoutDirty then Layout.update    -- animations (early out)
+---        anim:updateAnimations()              -- runs only with active
+---        if layoutDirty then Layout.resolve    -- animations (early out)
 ---        if renderDirty/orderDirty then RenderPass.build
 ---        if interactiveDirty then HitTest.rebuild
 ---        draw the CACHED render list          -- ~zero work idle
@@ -82,6 +82,8 @@ function Runtime.create(opts)
     self.stats = {
         frames = 0, layoutRuns = 0, rebuilds = 0, hitRebuilds = 0,
         items = 0, draws = 0,
+        -- cumulative subsystem timing (ms, via the injectable clock)
+        layoutMs = 0, renderMs = 0, inputMs = 0,
     }
     self._prevLayoutRuns = 0
     self._prevRebuilds = 0
@@ -180,7 +182,7 @@ function Runtime:tick()
 
     -- 1. animations (writes properties through the mutation layer — the
     --    dirty flags they set are consumed by the same frame's passes)
-    if self.anim then self.anim:update() end
+    if self.anim then self.anim:updateAnimations() end
 
     if self.perf and self.perf.zeroWork then
         if not self.layoutDirty then
@@ -195,8 +197,10 @@ function Runtime:tick()
 
     -- 2. layout
     if self.layoutDirty then
-        DXUI.Layout.update(self)
+        local t0 = self.clock()
+        DXUI.Layout.resolve(self)
         stats.layoutRuns = stats.layoutRuns + 1
+        stats.layoutMs = stats.layoutMs + (self.clock() - t0)
         self.layoutDirty = false
         -- positions changed
         self.renderDirty = true
@@ -205,8 +209,10 @@ function Runtime:tick()
 
     -- 3. render list rebuild + interactive list
     if self.renderDirty or self.orderDirty then
+        local t0 = self.clock()
         stats.rebuilds = stats.rebuilds + 1
         stats.items = DXUI.RenderPass.build(self)
+        stats.renderMs = stats.renderMs + (self.clock() - t0)
         self.renderDirty = false
         self.orderDirty = false
     end
@@ -224,11 +230,17 @@ function Runtime:tick()
     -- interactive list is fresh) + hover-stay timing (one-shot event).
     -- Zero-work idle: a few field reads when nothing is hovered.
     if self.dispatcher then
-        self.dispatcher:update(self.clock(), hitRebuilt)
+        local t0 = self.clock()
+        self.dispatcher:updateHover(self.clock(), hitRebuilt)
+        stats.inputMs = stats.inputMs + (self.clock() - t0)
     end
 
     -- 4. draw the cached list (zero work when the list is empty)
     self:draw()
+
+    -- structured frame diagnostics (rate-limited; cheap no-op when off)
+    DXUI.Debug.render(self, stats.layoutRuns, stats.rebuilds, stats.items,
+        self._interactiveCount or 0)
 
     -- baseline for the NEXT frame's zero-work check — must be taken AFTER
     -- the passes (same tick may legitimately consume dirty flags)

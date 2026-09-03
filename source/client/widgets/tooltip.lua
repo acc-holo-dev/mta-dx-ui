@@ -13,10 +13,17 @@ local Tooltip = DXUI.Widget:extend("Tooltip", {
     text = { default = "", invalidates = { DXUI.DIRTY.RENDER } },
     textColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
-    padX = { default = 8, invalidates = { DXUI.DIRTY.RENDER } },
-    padY = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
+    padX = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
+    padY = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
 })
+
+--- Returns padding from explicit prop or theme metrics.
+function Tooltip:_padX() return self.padX or self:_metric("padX", 8) end
+function Tooltip:_padY() return self.padY or self:_metric("padY", 4) end
+
+--- Returns the anchor gap from theme metrics.
+function Tooltip:_anchorGap() return self:_metric("anchorGap", 6) end
 
 --- Intrinsic size while autoSize is on (measured with the real font; the
 --- old #text*7 estimate broke with every non-monospace font).
@@ -27,13 +34,13 @@ function Tooltip:_measureContent()
     else
         tw, th = #(self.text or "") * 7, 15
     end
-    return tw + 2 * (self.padX or 8), th + 2 * (self.padY or 4)
+    return tw + 2 * self:_padX(), th + 2 * self:_padY()
 end
 
 --- Positions the tooltip in WORLD coords and brings it to the front.
 -- The tooltip is PARENTED to its target, so setPosition expects local
 -- coords; the intended world anchor point is converted back through the
--- parent's origin (same rule as Tooltip:refresh).
+-- parent's origin (same rule as Tooltip:reposition).
 function Tooltip:showAt(x, y)
     local p = self._parent
     local lx = (p and p.worldX) or 0
@@ -54,7 +61,7 @@ end
 Tooltip._build = function(node)
     node.visible = false
     -- tooltips float above everything else
-    node.zIndex = 1000
+    node.zIndex = node:_metric("zIndex", 1000)
 end
 
 --- Detaches the hover hooks from the target. The handlers live on the
@@ -85,7 +92,7 @@ function Tooltip:attach(target, anchor, opts)
     self._delay = delay
     self:setParent(target)
     local function show()
-        self:refresh()
+        self:reposition()
         self.visible = true
     end
     if delay > 0 then
@@ -103,7 +110,7 @@ end
 -- The tooltip is PARENTED to its target, so setPosition expects local
 -- coords; the intended world anchor point is converted back through the
 -- parent's origin.
-function Tooltip:refresh()
+function Tooltip:reposition()
     self.autoSize = true
     local t = self._target
     if not t then return end
@@ -119,14 +126,15 @@ function Tooltip:refresh()
     local lx = (p and p.worldX) or 0
     local ly = (p and p.worldY) or 0
     local wx, wy
+    local gap = self:_anchorGap()
     if anchor == "top" then
-        wx, wy = tx + (t.width - tw) / 2, ty - th - 6
+        wx, wy = tx + (t.width - tw) / 2, ty - th - gap
     elseif anchor == "bottom" then
-        wx, wy = tx + (t.width - tw) / 2, ty + t.height + 6
+        wx, wy = tx + (t.width - tw) / 2, ty + t.height + gap
     elseif anchor == "left" then
-        wx, wy = tx - tw - 6, ty + (t.height - th) / 2
+        wx, wy = tx - tw - gap, ty + (t.height - th) / 2
     else
-        wx, wy = tx + t.width + 6, ty + (t.height - th) / 2
+        wx, wy = tx + t.width + gap, ty + (t.height - th) / 2
     end
     self:setPosition(wx - lx, wy - ly)
 end

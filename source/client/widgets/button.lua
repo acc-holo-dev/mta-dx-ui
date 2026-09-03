@@ -31,7 +31,7 @@ local function bgTexture(self)
     end
     if self._bgTexWarned ~= t then
         self._bgTexWarned = t
-        if DXUI._warn then DXUI._warn("texture not found: " .. tostring(t)) end
+        DXUI.Debug.warn("RESOURCE", "texture not found: " .. tostring(t))
     end
     return nil
 end

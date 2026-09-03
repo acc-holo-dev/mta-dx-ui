@@ -44,11 +44,21 @@ local Checkbox = DXUI.Widget:extend("Checkbox", {
     checkedColor = { default = 0xFFFFFFFF, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 4, invalidates = { DXUI.DIRTY.RENDER } },
     borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
-    -- box size and text offset
-    indent = { default = 18, invalidates = { DXUI.DIRTY.RENDER } },
+    -- box size (read from theme metrics when nil; kept as an explicit override)
+    indent = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
+
+--- Returns the effective box/indent size from explicit prop or theme metric.
+function Checkbox:_boxSize()
+    return self.indent or self:_metric("boxSize", 18)
+end
+
+--- Returns the text-to-box gap from theme metrics.
+function Checkbox:_textOffset()
+    return self:_metric("textOffset", 6)
+end
 
 --- Measures the box plus label text for autoSize.
 function Checkbox:_measureContent()
@@ -60,9 +70,9 @@ function Checkbox:_measureContent()
     else
         tw, th = #self.text * 7, 15
     end
-    local box = self.indent or 18
-    -- +6 matches the render inset (text starts at box + 6)
-    return box + tw + 6, (th > box) and th or box
+    local box = self:_boxSize()
+    local offset = self:_textOffset()
+    return box + tw + offset, (th > box) and th or box
 end
 
 --- Tweens the switch thumb position toward `target` (0..1) through the
@@ -100,7 +110,8 @@ end
 --- Draws the box, the check mark when checked, and the label.
 function Checkbox:render(renderer)
     local wx, wy, h = self.worldX, self.worldY, self.height
-    local box = self.indent or 18
+    local box = self:_boxSize()
+    local offset = self:_textOffset()
     if isSwitch(self) then
         -- switch track: full node height, `indent` wide; the active fill
         -- grows with the thumb position, the thumb slides 0..1
@@ -112,14 +123,15 @@ function Checkbox:render(renderer)
             local fw = h + (tw - h) * t
             renderer:roundedRect(wx, wy, fw, h, r, self.checkedColor)
         end
+        local thumbPadding = self:_metric("thumbPadding", 2)
         local bw = (self.borderWidth or 1) * 2
-        local td = h - bw - 4
+        local td = h - bw - thumbPadding * 2
         if td < 2 then td = 2 end
-        local tx = wx + (tw - td - 2) * t + 1
+        local tx = wx + (tw - td - thumbPadding) * t + thumbPadding / 2
         local ty = wy + (h - td) / 2
         renderer:roundedRect(tx, ty, td, td, td / 2, self.switchThumbColor)
         if self.text and self.text ~= "" then
-            renderer:text(self.text, wx + tw + 6, wy, self.width - tw - 6, h,
+            renderer:text(self.text, wx + tw + offset, wy, self.width - tw - offset, h,
                 self.textColor, self.font, "left", "center", 1)
         end
         return
@@ -130,11 +142,15 @@ function Checkbox:render(renderer)
     -- check mark (two thick strokes)
     if self.checked then
         local c = self.checkedColor or 0xFFFFFFFF
-        renderer:line(wx + box * 0.22, wy + box * 0.52, wx + box * 0.42, wy + box * 0.72, c, 2)
-        renderer:line(wx + box * 0.42, wy + box * 0.72, wx + box * 0.78, wy + box * 0.28, c, 2)
+        local inset = self:_metric("checkInset", 0.22)
+        local mid = self:_metric("checkMid", 0.42)
+        local tail = self:_metric("checkEnd", 0.78)
+        local thick = self:_metric("checkThickness", 2)
+        renderer:line(wx + box * inset, wy + box * 0.52, wx + box * mid, wy + box * 0.72, c, thick)
+        renderer:line(wx + box * mid, wy + box * 0.72, wx + box * tail, wy + box * 0.28, c, thick)
     end
     if self.text and self.text ~= "" then
-        renderer:text(self.text, wx + box + 6, wy, self.width - box - 6, h,
+        renderer:text(self.text, wx + box + offset, wy, self.width - box - offset, h,
             self.textColor, self.font, "left", "center", 1)
     end
 end

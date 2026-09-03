@@ -16,7 +16,7 @@ local rebuildItems
 
 local ContextMenu = DXUI.Widget:extend("ContextMenu", {
     items = { default = {}, invalidates = { DXUI.DIRTY.RENDER } },
-    rowHeight = { default = 22, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
+    rowHeight = { default = nil, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
         -- themed density may land after build; rebuild the rows to match
         if node:getPart("list") then rebuildItems(node) end
     end },
@@ -41,6 +41,11 @@ local function isSeparator(item)
     return type(item) == "string" and item == "--"
 end
 
+--- Returns the effective row height from explicit prop or theme metric.
+function ContextMenu:_rowHeight()
+    return self.rowHeight or self:_metric("rowHeight", 22)
+end
+
 --- Rebuilds the menu rows from the current items and sizes the menu.
 rebuildItems = function(node)
     local list = node:getPart("list")
@@ -50,32 +55,35 @@ rebuildItems = function(node)
         children[i]:destroy()
     end
     local items = node.items or {}
+    local rh = node:_rowHeight()
+    local itemPadding = node:_metric("itemPadding", { left = 12, right = 12, top = 0, bottom = 0 })
     -- measure width: longest row, with the REAL font (rows render with
     -- node.font; the #text*7 estimate broke with every non-monospace font)
-    local maxW = 120
+    local minWidth = node:_metric("minWidth", 120)
+    local maxW = minWidth
     for i = 1, #items do
         local tx = rowTextOf(items[i])
         if tx ~= "--" then
             local w = (DXUI.Text and select(1, DXUI.Text.measure(tx, node.font, 1)))
                 or (#tx * 7)
-            w = w + 24
+            w = w + itemPadding.left + itemPadding.right
             if w > maxW then maxW = w end
         end
     end
     node.width = maxW
-    node.height = #items * (node.rowHeight or 22)
+    node.height = #items * rh
     local Label = DXUI.Widgets and DXUI.Widgets.Label
     if not Label then return end
     for i = 1, #items do
         local item = items[i]
         local entry = Label:new({
             text = rowTextOf(item),
-            padding = { left = 12, right = 12 },
+            padding = itemPadding,
         })
-        entry.y = (i - 1) * (node.rowHeight or 22)
+        entry.y = (i - 1) * rh
         entry.layoutWidth = DXUI.percent(100)
-        entry.layoutHeight = { k = "px", v = node.rowHeight or 22 }
-        entry.height = node.rowHeight or 22
+        entry.layoutHeight = { k = "px", v = rh }
+        entry.height = rh
         if isSeparator(item) then
             entry.text = ""
         elseif item.disabled then
@@ -155,11 +163,13 @@ function ContextMenu:render(renderer)
     end
     -- separators
     local items = self.items or {}
-    local rh = self.rowHeight or 22
+    local rh = self:_rowHeight()
+    local sepInset = self:_metric("separatorInset", 8)
+    local sepHeight = self:_metric("separatorHeight", 1)
     for i = 1, #items do
         if isSeparator(items[i]) then
             local y = wy + (i - 1) * rh + rh / 2
-            renderer:rect(wx + 8, y, w - 16, 1, 0xFFD1D5DB)
+            renderer:rect(wx + sepInset, y, w - sepInset * 2, sepHeight, 0xFFD1D5DB)
         end
     end
 end

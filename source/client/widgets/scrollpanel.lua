@@ -25,9 +25,8 @@ local ScrollPanel = DXUI.Widget:extend("ScrollPanel", {
         node:_applyScroll()
     end },
     -- theme colors: color (groove), thumbColor, thumbHoverColor
-    thumbSize = { default = 8, invalidates = { DXUI.DIRTY.RENDER } },
-    -- wheel travel per notch, px; nil = engine default
-    -- (DXUI.Settings.defaults.scrollWheelStep)
+    thumbSize = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
+    -- wheel travel per notch, px; nil = theme metric or engine default
     scrollStep = { default = nil, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
@@ -59,11 +58,7 @@ ScrollPanel._build = function(node)
     local content = DXUI.Widget:new({})
     node:setPart("content", content)
     node:on("scroll", function(n, wheel)
-        local step = n.scrollStep
-        if step == nil then
-            step = (DXUI.Settings and DXUI.Settings.defaults
-                and DXUI.Settings.defaults.scrollWheelStep) or 48
-        end
+        local step = n:_scrollStep()
         -- a new notch interrupts a running glide (new input always wins)
         local h = n._inertiaAnim
         if h and h.cancel then h:cancel() end
@@ -107,6 +102,25 @@ function ScrollPanel:scrollBy(dx, dy)
     return self
 end
 
+--- Effective scrollbar thumb size from prop or theme metric.
+function ScrollPanel:_thumbSize()
+    return self.thumbSize or self:_metric("thumbSize", 8)
+end
+
+--- Effective wheel step from prop, theme metric, or engine default.
+function ScrollPanel:_scrollStep()
+    return self.scrollStep
+        or self:_metric("scrollWheelStep", nil)
+        or (DXUI.Settings and DXUI.Settings.defaults and DXUI.Settings.defaults.scrollWheelStep)
+        or 48
+end
+
+--- Effective inertia window from theme metric or engine default.
+function ScrollPanel:_scrollInertia()
+    return (DXUI.Settings and DXUI.Settings.defaults and DXUI.Settings.defaults.scrollInertia)
+        or self:_metric("scrollInertia", 0)
+end
+
 --- Moves the content part to reflect the current scroll fractions.
 function ScrollPanel:_applyScroll()
     local content = self:getPart("content")
@@ -119,10 +133,9 @@ end
 
 --- Arms the inertia glide after a wheel notch: velocity from the recent
 --- notches (fast bursts average up), continuation distance ∝ velocity,
---- one "out"-eased Anim on scrollY. Off when defaults.scrollInertia <= 0.
+--- one "out"-eased Anim on scrollY. Off when inertia <= 0.
 function ScrollPanel:_wheelInertia(wheel, step)
-    local inertia = (DXUI.Settings and DXUI.Settings.defaults
-        and DXUI.Settings.defaults.scrollInertia) or 0
+    local inertia = self:_scrollInertia()
     if inertia <= 0 then return end
     local clock = self._context and self._context.clock
     local now = clock and clock() or 0
@@ -157,22 +170,25 @@ end
 function ScrollPanel:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local cx, cy = contentExtent(self:getPart("content"))
+    local thumbSize = self:_thumbSize()
+    local thumbRadius = self:_metric("thumbRadius", 999)
+    local minThumbSize = self:_metric("minThumbSize", 24)
     -- vertical thumb
     if cy > h then
         local th = h * h / cy
-        if th < 24 then th = 24 end
+        if th < minThumbSize then th = minThumbSize end
         local travel = h - th
         local ty = wy + travel * self.scrollY
-        renderer:roundedRect(wx + w - self.thumbSize, ty, self.thumbSize, th,
-            self.thumbSize / 2, self._thumbHover and self.thumbHoverColor or self.thumbColor)
+        renderer:roundedRect(wx + w - thumbSize, ty, thumbSize, th,
+            thumbRadius, self._thumbHover and self.thumbHoverColor or self.thumbColor)
     end
     if cx > w then
         local tw = w * w / cx
-        if tw < 24 then tw = 24 end
+        if tw < minThumbSize then tw = minThumbSize end
         local travel = w - tw
         local tx = wx + travel * self.scrollX
-        renderer:roundedRect(tx, wy + h - self.thumbSize, tw, self.thumbSize,
-            self.thumbSize / 2, self.thumbColor)
+        renderer:roundedRect(tx, wy + h - thumbSize, tw, thumbSize,
+            thumbRadius, self.thumbColor)
     end
 end
 

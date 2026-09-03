@@ -100,6 +100,31 @@ local GridList = DXUI.Widget:extend("GridList", {
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
+-- ---------------------------------------------------------------------
+-- Component metrics (theme-driven geometry; see style/defaults.lua)
+-- ---------------------------------------------------------------------
+
+--- Row text left padding (single-column mode).
+function GridList:_rowTextPadX() return self:_metric("rowTextPadX", 6) end
+--- Header text left padding (columns mode).
+function GridList:_headerTextPadX() return self:_metric("headerTextPadX", 4) end
+--- Header text right padding (columns mode).
+function GridList:_headerTextPadRight() return self:_metric("headerTextPadRight", 8) end
+--- Cell text left/right padding (columns mode).
+function GridList:_cellPadX() return self:_metric("cellPadX", 4) end
+--- Scrollbar thumb minimum length.
+function GridList:_minThumbSize() return self:_metric("minThumbSize", 20) end
+--- Scrollbar thumb thickness.
+function GridList:_thumbWidth() return self:_metric("thumbWidth", 6) end
+--- Scrollbar thumb corner radius.
+function GridList:_thumbRadius() return self:_metric("thumbRadius", 3) end
+--- Scrollbar thumb inset from the list edge.
+function GridList:_thumbInset() return self:_metric("thumbInset", 8) end
+--- Sort-direction icon reserved width in the header.
+function GridList:_sortIconSize() return self:_metric("sortIconSize", 8) end
+--- Persistent-RT bake margin as a fraction of the node height.
+function GridList:_rtMarginFactor() return self:_metric("rtMarginFactor", 0.5) end
+
 --- Columns-mode content width (sum of the column widths).
 function GridList:_contentWidth()
     local cols = self.columns
@@ -465,7 +490,8 @@ function GridList:_rowText(item)
     if k ~= nil then
         local T = DXUI.Translate
         if T then
-            local loc = (self._context and self._context._locale) or T.locale
+            local ctx = self._context
+            local loc = (ctx and ctx.getLocale and ctx:getLocale()) or T.locale
             return T.trFor(loc, k)
         end
         return k
@@ -486,6 +512,11 @@ function GridList:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
     local rh = self.rowHeight or 22
     local items = self.items or {}
+    local rowPadX = self:_rowTextPadX()
+    local minThumb = self:_minThumbSize()
+    local thumbW = self:_thumbWidth()
+    local thumbR = self:_thumbRadius()
+    local thumbInset = self:_thumbInset()
     local first, last
     if self.cacheContent then
         self:_rtUpdateScrollState()
@@ -516,13 +547,13 @@ function GridList:render(renderer)
             or (hoverIdx == i and self.hoverColor) or nil
         if bg then renderer:rect(wx, y0, w, rh, bg) end
         local tc = sel == i and (self.selectedTextColor or self.textColor) or self.textColor
-        renderer:text(self:_rowText(items[i]), wx + 6, y0, w - 12, rh, tc, self.font, "left", "center", 1)
+        renderer:text(self:_rowText(items[i]), wx + rowPadX, y0, w - rowPadX * 2, rh, tc, self.font, "left", "center", 1)
     end
     -- scrollbar thumb
     if maxScroll > 0 then
         local th = h * h / total
-        if th < 20 then th = 20 end
-        renderer:roundedRect(wx + w - 8, wy + (h - th) * self.scrollY, 6, th, 3, self.borderColor)
+        if th < minThumb then th = minThumb end
+        renderer:roundedRect(wx + w - thumbInset, wy + (h - th) * self.scrollY, thumbW, th, thumbR, self.borderColor)
     end
 end
 
@@ -530,6 +561,14 @@ end
 --- strip, column separators, v/h scroll thumbs. `first`/`last` override
 --- the visible row window (the cacheContent bake margin).
 function GridList:_renderColumns(renderer, wx, wy, w, h, rh, items, cols, first, last)
+    local headerPadX = self:_headerTextPadX()
+    local headerPadRight = self:_headerTextPadRight()
+    local cellPadX = self:_cellPadX()
+    local sortIcon = self:_sortIconSize()
+    local minThumb = self:_minThumbSize()
+    local thumbW = self:_thumbWidth()
+    local thumbR = self:_thumbRadius()
+    local thumbInset = self:_thumbInset()
     local cw = 0
     for i = 1, #cols do cw = cw + cols[i].width end
     local hOff = (cw > w) and self.scrollX * (cw - w) or 0
@@ -552,11 +591,11 @@ function GridList:_renderColumns(renderer, wx, wy, w, h, rh, items, cols, first,
     local hx = wx - hOff
     for i = 1, #cols do
         local col = cols[i]
-        renderer:text(col.title or "", hx + 4, wy, col.width - 12, rh,
+        renderer:text(col.title or "", hx + headerPadX, wy, col.width - headerPadX - headerPadRight, rh,
             self.headerTextColor or self.textColor, self.font,
             col.align or "left", "center", 1)
         if self._sortCol == i then
-            self:_drawSortMark(renderer, hx + col.width - 8, wy + rh / 2, self._sortDir)
+            self:_drawSortMark(renderer, hx + col.width - sortIcon, wy + rh / 2, self._sortDir)
         end
         hx = hx + col.width
     end
@@ -584,7 +623,7 @@ function GridList:_renderColumns(renderer, wx, wy, w, h, rh, items, cols, first,
         local row = items[i]
         for c = 1, #cols do
             local col = cols[c]
-            renderer:text(cellDisplay(row, col), cx + 4, y0, col.width - 8, rh,
+            renderer:text(cellDisplay(row, col), cx + cellPadX, y0, col.width - cellPadX * 2, rh,
                 tc, self.font, col.align or "left", "center", 1)
             cx = cx + col.width
         end
@@ -592,15 +631,15 @@ function GridList:_renderColumns(renderer, wx, wy, w, h, rh, items, cols, first,
     -- vertical thumb (track starts below the header)
     if maxScroll > 0 then
         local th = visible * visible / total
-        if th < 20 then th = 20 end
-        renderer:roundedRect(wx + w - 8, wy + rh + (visible - th) * self.scrollY,
-            6, th, 3, self.borderColor)
+        if th < minThumb then th = minThumb end
+        renderer:roundedRect(wx + w - thumbInset, wy + rh + (visible - th) * self.scrollY,
+            thumbW, th, thumbR, self.borderColor)
     end
     -- horizontal thumb
     if cw > w then
         local tw = w * w / cw
-        if tw < 20 then tw = 20 end
-        renderer:roundedRect(wx + (w - tw) * self.scrollX, wy + h - 8, tw, 6, 3,
+        if tw < minThumb then tw = minThumb end
+        renderer:roundedRect(wx + (w - tw) * self.scrollX, wy + h - thumbInset, tw, thumbW, thumbR,
             self.borderColor)
     end
 end
@@ -660,9 +699,9 @@ function GridList:_rtUpdateScrollState()
     local off = self:_vOffset()
     local base = self._rtBaseOff
     local d = off - (base or off)
-    -- margin: half the node height (design px); the RT holds the client
-    -- window plus this margin above and below
-    local m = (self.height or 0) / 2
+    -- margin: a fraction of the node height (design px); the RT holds the
+    -- client window plus this margin above and below
+    local m = (self.height or 0) * self:_rtMarginFactor()
     if changed or not base or d < -m * 0.9 or d > m * 0.9 then
         -- rebake: re-anchor the RT at the current scroll
         self._rtBaseOff = off
@@ -680,7 +719,7 @@ function GridList:_rtRowWindow()
     local rh = self.rowHeight or 22
     local off = self:_vOffset()
     local items = self.items or {}
-    local m = (self.height or 0) / 2
+    local m = (self.height or 0) * self:_rtMarginFactor()
     local first = math.floor(math.max(0, off - m) / rh) + 1
     local last = math.ceil(math.min(#items * rh, off + self.height + m) / rh)
     if first < 1 then first = 1 end

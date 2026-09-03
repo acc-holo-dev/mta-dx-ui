@@ -93,10 +93,8 @@ function DXUI.alphaMask(material)
     if m ~= nil then return m end
     m = buildAlphaMask(material)
     if not m then
-        if DXUI._warn then
-            DXUI._warn("alphaMask: no readable pixels for " .. tostring(material)
-                .. "; hit test falls back to the rect")
-        end
+        DXUI.Debug.warn("RESOURCE", "alphaMask: no readable pixels for " .. tostring(material)
+            .. "; hit test falls back to the rect")
         m = false
     end
     alphaMaskCount = alphaMaskCount + 1
@@ -124,21 +122,21 @@ function DXUI.texture(path, opts)
     local format, mipmaps, edge
     if opts ~= nil then
         if type(opts) ~= "table" then
-            DXUI._warn("texture: opts must be a table, got " .. type(opts))
+            DXUI.Debug.warn("RESOURCE", "texture: opts must be a table, got " .. type(opts))
         else
             format = opts.format
             if format ~= nil and not TEX_FORMATS[format] then
-                DXUI._warn("texture: unknown format '" .. tostring(format) .. "', using argb")
+                DXUI.Debug.warn("RESOURCE", "texture: unknown format '" .. tostring(format) .. "', using argb")
                 format = nil
             end
             mipmaps = opts.mipmaps
             if mipmaps ~= nil and type(mipmaps) ~= "boolean" then
-                DXUI._warn("texture: mipmaps must be a boolean, using default")
+                DXUI.Debug.warn("RESOURCE", "texture: mipmaps must be a boolean, using default")
                 mipmaps = nil
             end
             edge = opts.edge
             if edge ~= nil and not TEX_EDGES[edge] then
-                DXUI._warn("texture: unknown edge '" .. tostring(edge) .. "', using wrap")
+                DXUI.Debug.warn("RESOURCE", "texture: unknown edge '" .. tostring(edge) .. "', using wrap")
                 edge = nil
             end
         end
@@ -166,7 +164,7 @@ function DXUI.texture(path, opts)
         end
         tex = ok and result or false
         if not ok or not result then
-            DXUI._warn("texture: failed to load '" .. tostring(path) .. "'")
+            DXUI.Debug.warn("RESOURCE", "texture: failed to load '" .. tostring(path) .. "'")
         end
     else
         -- outside MTA: pass-through placeholder
@@ -214,14 +212,14 @@ function DXUI.font(name, size, opts)
     if type(opts) == "table" then
         bold, quality = opts.bold, opts.quality
     elseif opts ~= nil then
-        DXUI._warn("font: opts must be a table, got " .. type(opts))
+        DXUI.Debug.warn("RESOURCE", "font: opts must be a table, got " .. type(opts))
     end
     if bold ~= nil and type(bold) ~= "boolean" then
-        DXUI._warn("font: bold must be a boolean, using default")
+        DXUI.Debug.warn("RESOURCE", "font: bold must be a boolean, using default")
         bold = nil
     end
     if quality ~= nil and not FONT_QUALITIES[quality] then
-        DXUI._warn("font: unknown quality '" .. tostring(quality)
+        DXUI.Debug.warn("RESOURCE", "font: unknown quality '" .. tostring(quality)
             .. "', using engine default")
         quality = nil
     end
@@ -244,7 +242,7 @@ function DXUI.font(name, size, opts)
         end
         font = ok and result or false
         if not ok or not result then
-            DXUI._warn("font: failed to load '" .. tostring(name) .. "'")
+            DXUI.Debug.warn("RESOURCE", "font: failed to load '" .. tostring(name) .. "'")
         end
     end
     fontCache[key] = font
@@ -295,7 +293,7 @@ function DXUI.shader(code)
         local ok, result = pcall(dxCreateShader, code)
         sh = ok and result or false
         if not ok or not result then
-            DXUI._warn("shader: failed to compile")
+            DXUI.Debug.warn("RESOURCE", "shader: failed to compile")
         end
     end
     shaderCache[code] = sh

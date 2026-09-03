@@ -250,6 +250,7 @@ function Dispatcher:mouseDown(button, x, y)
     self._dragOver = nil
     local target = DXUI.HitTest.topAt(self.instance, x, y)
     if target and target.emit and not target._destroyed and self:reachable(target) then
+        DXUI.Debug.input("mouse_down", target, x, y, target.layer)
         self.pressed = target
         self.pressButton = button
         self.pressX, self.pressY = x, y
@@ -267,6 +268,7 @@ function Dispatcher:mouseUp(button, x, y)
     local pressed = self.pressed
     self.pressed = nil
     if pressed and pressed.emit and not pressed._destroyed then
+        DXUI.Debug.input("mouse_up", pressed, x, y, pressed.layer)
         pressed:emit("mouseup", button, x, y)
         pressed:emit("release", button, x, y)
         if self.dragging then
@@ -342,6 +344,7 @@ end
 function Dispatcher:scroll(wheel, x, y)
     local target = DXUI.HitTest.topAt(self.instance, x, y) or self.hover or self.focus
     if target and not self:reachable(target) then return false end
+    DXUI.Debug.input("scroll", target, x, y, target and target.layer or nil)
     local n = target
     while n do
         if DXUI.Events.has(n, "scroll") then
@@ -407,7 +410,7 @@ function Dispatcher:key(keyName, isDown, ...)
             if fn ~= nil then
                 local ok, consumed = pcall(fn, hk, keyName, isDown)
                 if not ok then
-                    DXUI._warn("hotkey '" .. tostring(keyName) .. "' failed: "
+                    DXUI.Debug.error("INPUT", "hotkey '" .. tostring(keyName) .. "' failed: "
                         .. tostring(consumed))
                     return true
                 end
@@ -486,7 +489,7 @@ end
 --- "hover-stay" once the hover target is held >=
 --- settings.defaults.hoverStayDelay (0 disables). Idle frames cost a
 --- few field reads — the zero-work contract holds.
-function Dispatcher:update(now, hitRebuilt)
+function Dispatcher:updateHover(now, hitRebuilt)
     if hitRebuilt and self.lastX ~= nil and self.pressed == nil then
         local inst = self.instance
         if inst and not inst._destroyed and DXUI.HitTest then
@@ -511,7 +514,7 @@ end
 --- Called when a node mounts/changes in the tree. Deliberately a no-op:
 -- at mount time the hit lists are STALE (the rebuild runs on the next
 -- tick), so re-evaluating hover here would see the old geometry. The
--- stationary-cursor re-evaluation lives in Dispatcher:update(now,
+-- stationary-cursor re-evaluation lives in Dispatcher:updateHover(now,
 -- hitRebuilt), driven by Runtime:tick right after the hit rebuild.
 function Dispatcher:_updateNodeState() end
 

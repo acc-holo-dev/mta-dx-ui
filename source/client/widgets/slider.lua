@@ -31,11 +31,17 @@ local Slider = DXUI.Widget:extend("Slider", {
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
+--- Effective thumb size from explicit prop or theme metric.
+function Slider:_thumbSize()
+    return self.thumbSize or self:_metric("thumbSize", 14)
+end
+
 --- full value from a local x (design units inside the widget).
 function Slider:_valueFromX(lx)
-    local w = self.width - (self.thumbSize or 14)
+    local ts = self:_thumbSize()
+    local w = self.width - ts
     if w <= 0 then return 0 end
-    local v = (lx - (self.thumbSize or 14) / 2) / w
+    local v = (lx - ts / 2) / w
     if v < 0 then v = 0 elseif v > 1 then v = 1 end
     return v
 end
@@ -62,14 +68,15 @@ end
 --- Draws the track, the filled section, and the thumb.
 function Slider:render(renderer)
     local wx, wy, w, h = self.worldX, self.worldY, self.width, self.height
-    local ts = self.thumbSize or 14
-    local trackH = 4
+    local ts = self:_thumbSize()
+    local trackH = self:_metric("trackHeight", 4)
     local ty = wy + (h - trackH) / 2
     renderer:roundedRect(wx, ty, w, trackH, 2, self.bgColor)
     local trackW = w - ts
     local tcx = wx + ts / 2 + trackW * self.value
     -- filled section
-    if self.value > 0.02 then
+    local filledCutoff = self:_metric("filledCutoff", 0.02)
+    if self.value > filledCutoff then
         renderer:roundedRect(wx, ty, tcx - wx, trackH, 2, self.color)
     end
     -- thumb
@@ -95,12 +102,13 @@ Slider._build = function(node)
     node:on("click", function(n, _, x, y)
         n:_applyValue(n:_valueFromX(x - n.worldX), false)
     end, "dxui-slider")
-    -- keyboard nudge (focused): arrows by step (default 0.05), home/end
+    -- keyboard nudge (focused): arrows by step (or theme metric default), home/end
     -- (MTA key names: arrow_l/arrow_r)
     node:on("key", function(n, keyName, pressed)
         if not pressed then return true end
         local s = n.step
-        local delta = (s and s > 0) and s or 0.05
+        local defaultStep = n:_metric("defaultStep", 0.05)
+        local delta = (s and s > 0) and s or defaultStep
         if keyName == "arrow_l" then
             n:_applyValue((n.value or 0) - delta, false)
         elseif keyName == "arrow_r" then

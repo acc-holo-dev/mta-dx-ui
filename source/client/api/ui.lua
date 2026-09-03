@@ -40,7 +40,7 @@ local function widgetFactory(name)
     return function(self, props)
         local cls = DXUI.Widgets and DXUI.Widgets[name]
         if not cls then
-            if DXUI._warn then DXUI._warn("ui:" .. name .. ": widget not registered yet") end
+            DXUI.Debug.warn("WIDGET", "ui:" .. name .. ": widget not registered yet")
             return nil
         end
         local inst = cls:new(props or {})
@@ -53,7 +53,7 @@ end
 function UI:widget(name, props)
     local cls = DXUI.Widgets and DXUI.Widgets[name]
     if not cls then
-        if DXUI._warn then DXUI._warn("ui:widget(" .. tostring(name) .. "): not registered") end
+        DXUI.Debug.warn("WIDGET", "ui:widget(" .. tostring(name) .. "): not registered")
         return nil
     end
     local inst = cls:new(props or {})

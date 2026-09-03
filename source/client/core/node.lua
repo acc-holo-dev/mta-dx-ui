@@ -16,20 +16,11 @@
 DXUI = DXUI or {}
 
 -- ---------------------------------------------------------------------
--- Configuration / warnings (error handling)
+-- Configuration
 -- ---------------------------------------------------------------------
 DXUI.config = DXUI.config or { dev = false }
 
---- Logs a warning in dev mode only.
-function DXUI._warn(msg)
-    if DXUI.config.dev then
-        if outputDebugString then
-            outputDebugString("[dxui] " .. msg)
-        else
-            print("[dxui] " .. msg)
-        end
-    end
-end
+-- DXUI._warn is now provided by api/debug.lua (back-compat shim)
 
 -- ---------------------------------------------------------------------
 -- Dirty categories (readable names) and instance frame flags
@@ -215,7 +206,7 @@ local mt = {
             return self:setParent(value)
         end
         if READONLY[key] then
-            DXUI._warn("read-only property: " .. key)
+            DXUI.Debug.warn("PROPERTY", "read-only property: " .. key)
             return
         end
         -- part replacement: node.header = customButton
@@ -381,12 +372,12 @@ end
 -- _applyingTheme flag — no owner threading through every call).
 function Node:_set(key, value, owner)
     if self._destroyed then
-        DXUI._warn("set on destroyed node: " .. key)
+        DXUI.Debug.warn("LIFECYCLE", "set on destroyed node: " .. key)
         return self
     end
     local spec = self._spec[key]
     if not spec then
-        DXUI._warn("set on unknown property: " .. key)
+        DXUI.Debug.warn("PROPERTY", "set on unknown property: " .. key)
         rawset(self, key, value)
         return self
     end
@@ -412,6 +403,8 @@ function Node:_set(key, value, owner)
         self._themeApplied[key] = nil
     end
     self._owner[key] = owner
+    -- structured property trace (cheap no-op unless PROPERTY debug is on)
+    DXUI.Debug.prop(self, key, old, value, owner, spec.invalidates)
 
     -- invalidate the value-object cache for this property
     if self._values and self._values[key] then
@@ -656,6 +649,9 @@ end
 function Node:_setContextRecursive(ctx)
     local entering = ctx ~= nil and self._context ~= ctx
     self._context = ctx
+    if entering then
+        DXUI.Debug.lifecycle("mount", self)
+    end
     if ctx then
         if ctx.dispatcher then
             ctx.dispatcher:_updateNodeState(self)
@@ -816,7 +812,7 @@ function Node:animate(props, duration, ease)
         return self._context.anim:animate(self, props, duration, ease)
     end
     if not self._context then
-        DXUI._warn("animate: node is not mounted; no animation will run")
+        DXUI.Debug.warn("ANIMATION", "animate: node is not mounted; no animation will run")
     end
     return self
 end
@@ -845,6 +841,7 @@ end
 function Node:destroy()
     if self._destroyed then return end
     self._destroyed = true
+    DXUI.Debug.lifecycle("destroy", self)
     -- bulk teardown: children's destroy() calls _removeChild on us; skip
     -- those scans (the array is cleared below) so destroy is O(n), not O(n^2)
     self._destroying = true

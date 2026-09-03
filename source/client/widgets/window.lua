@@ -52,17 +52,20 @@ local Window = Panel:extend("Window", {
             if h then h.textColor = v end
         end,
     },
-    headerHeight = { default = 28, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
+    headerHeight = { default = nil, invalidates = { DXUI.DIRTY.LAYOUT }, onSet = function(node)
         -- themed header height may land after build (theme defaults are
         -- applied post-build; live theme switches restyle live windows)
         local header = node:getPart("header")
-        if header then header.layoutHeight = { k = "px", v = node.headerHeight } end
+        if header then header.layoutHeight = { k = "px", v = node:_headerHeight() } end
         local content = node:getPart("content")
-        if content then content.padding = { top = node.headerHeight + 4, left = 10, right = 10, bottom = 10 } end
+        if content then
+            local pad = node:_metric("contentPadding", { left = 10, right = 10, top = 10, bottom = 10 })
+            content.padding = { top = node:_headerHeight() + 4, left = pad.left, right = pad.right, bottom = pad.bottom }
+        end
         local closeButton = node:getPart("closeButton")
         if closeButton then
-            closeButton.layoutWidth = { k = "px", v = node.headerHeight }
-            closeButton.layoutHeight = { k = "px", v = node.headerHeight }
+            closeButton.layoutWidth = { k = "px", v = node:_headerHeight() }
+            closeButton.layoutHeight = { k = "px", v = node:_headerHeight() }
         end
     end },
     -- header dragging (the window follows the pointer; clamped on-screen)
@@ -85,7 +88,9 @@ DXUI.Part.declare(Window, { "header", "content", "closeButton" })
 
 --- Builds the header, content and closeButton parts from declarative props.
 local function buildWindow(node, props)
-    local headerH = props.headerHeight or node.headerHeight
+    local headerH = node:_headerHeight()
+    local closeSize = node:_closeButtonSize()
+    local contentPad = node:_metric("contentPadding", { left = 10, right = 10, top = 10, bottom = 10 })
     local LabelClass = DXUI.Widgets and DXUI.Widgets.Label
     local ButtonClass = DXUI.Widgets and DXUI.Widgets.Button
 
@@ -98,7 +103,7 @@ local function buildWindow(node, props)
     header.zIndex = 2
     header.align = "left"
     header.valign = "center"
-    header.padding = { left = 10, right = 10 }
+    header.padding = { left = contentPad.left, right = contentPad.right }
     -- the header must be hit-testable to press and drag the window
     header.interactive = true
     header.focusable = false
@@ -107,7 +112,7 @@ local function buildWindow(node, props)
     content.layoutMode = "relative"
     content.layoutWidth = DXUI.percent(100)
     content.layoutHeight = DXUI.percent(100)
-    content.padding = { top = headerH + 4, left = 10, right = 10, bottom = 10 }
+    content.padding = { top = headerH + 4, left = contentPad.left, right = contentPad.right, bottom = contentPad.bottom }
     -- zIndex stays 0: the header (2) and closeButton (3) sort above it,
     -- while user children (also 0, later insertion) sort above IT — a
     -- part must never float above its own children in the hit order
@@ -122,8 +127,8 @@ local function buildWindow(node, props)
     closeButton.x = 1
     closeButton.y = 0
     closeButton.anchor = "tr"
-    closeButton.layoutWidth = { k = "px", v = headerH }
-    closeButton.layoutHeight = { k = "px", v = headerH }
+    closeButton.layoutWidth = { k = "px", v = closeSize }
+    closeButton.layoutHeight = { k = "px", v = closeSize }
     closeButton.zIndex = 3
     closeButton.focusable = false
     closeButton.text = props.closeButtonText or "\xD7"
@@ -148,12 +153,12 @@ local function buildWindow(node, props)
         local lh = ctx and ctx.layoutH or 0
         local nx = node._dragOX + (x - px)
         local ny = node._dragOY + (y - py)
-        -- keep at least a 60px strip of the header on-screen
-        local margin = 60
+        -- keep at least a strip of the header on-screen (theme metric)
+        local margin = node:_metric("dragHeaderClamp", 60)
         if nx < margin - node.width then nx = margin - node.width end
         if nx > lw - margin then nx = lw - margin end
         if ny < 0 then ny = 0 end
-        if ny > lh - 24 then ny = lh - 24 end
+        if ny > lh - margin then ny = lh - margin end
         node.x, node.y = nx, ny
     end, "dxui-window")
     header:on("drag-end", function()

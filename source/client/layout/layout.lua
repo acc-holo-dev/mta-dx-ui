@@ -156,7 +156,7 @@ end
 
 --- Full pass: root is a synthetic origin; its children lay out in the
 -- instance layout space (design resolution if set, else screen).
-function Layout.update(instance)
+function Layout.resolve(instance)
     local root = instance.root
     rawset(root, "_worldX", 0)
     rawset(root, "_worldY", 0)

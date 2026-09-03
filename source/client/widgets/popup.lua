@@ -18,6 +18,11 @@ local Popup = DXUI.Widget:extend("Popup", {
 
 DXUI.Part.declare(Popup, { "content" })
 
+--- Returns the content padding from theme metrics.
+function Popup:_contentPadding()
+    return self:_metric("contentPadding", { left = 8, right = 8, top = 8, bottom = 8 })
+end
+
 --- Creates the content part and hides the popup until opened.
 Popup._build = function(node)
     node.visible = false
@@ -25,7 +30,8 @@ Popup._build = function(node)
     content.layoutMode = "relative"
     content.layoutWidth = DXUI.percent(100)
     content.layoutHeight = DXUI.percent(100)
-    content.padding = { left = 8, right = 8, top = 8, bottom = 8 }
+    local pad = node:_contentPadding()
+    content.padding = { left = pad.left, right = pad.right, top = pad.top, bottom = pad.bottom }
     node:setPart("content", content)
     node:on("popup-close", function(n)
         n.visible = false

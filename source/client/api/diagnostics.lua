@@ -22,6 +22,9 @@ function Diagnostics.snapshot(instance)
         hitRebuilds = s.hitRebuilds,
         items = s.items,
         draws = s.draws,
+        layoutMs = s.layoutMs,
+        renderMs = s.renderMs,
+        inputMs = s.inputMs,
     }
 end
 
@@ -30,9 +33,9 @@ function Diagnostics.describe(instance)
     local s = instance.stats
     return string.format(
         "DXUI[%s] frames=%d layoutRuns=%d rebuilds=%d hitRebuilds=%d " ..
-        "| last list items=%d draws=%d",
+        "| last list items=%d draws=%d | ms layout=%.1f render=%.1f input=%.1f",
         instance.name, s.frames, s.layoutRuns, s.rebuilds, s.hitRebuilds,
-        s.items, s.draws)
+        s.items, s.draws, s.layoutMs, s.renderMs, s.inputMs)
 end
 
 --- One-line string (console-friendly).

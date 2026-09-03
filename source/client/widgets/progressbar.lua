@@ -30,7 +30,7 @@ function ProgressBar:render(renderer)
     local r = self.radius or 4
     renderer:roundedRect(wx, wy, w, h, r, self.bgColor or self.color)
     local filled = w * self.value
-    if filled > 0.5 then
+    if filled > (self:_metric("minFillWidth", 0.5)) then
         renderer:roundedRect(wx, wy, filled, h, r, self.color)
     end
 end

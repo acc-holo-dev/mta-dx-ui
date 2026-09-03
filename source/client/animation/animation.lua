@@ -1,5 +1,5 @@
 ---Animation engine: ONE centralized manager per UI instance, ONE tick per
----frame (the instance frame loop calls anim:update()). No per-animation
+---frame (the instance frame loop calls anim:updateAnimations()). No per-animation
 ---timers, MTA handlers or coroutines.
 ---
 ---Animations write REAL node properties through the normal mutation layer
@@ -106,7 +106,7 @@ function AnimationManager:_startStep(node, props, duration, ease, onDone, owner)
                 dur = duration, ease = ease, token = token, owner = owner,
             }
         else
-            DXUI._warn("animate: property not animatable: " .. tostring(prop))
+            DXUI.Debug.warn("ANIMATION", "animate: property not animatable: " .. tostring(prop))
         end
     end
     if token.remaining == 0 and onDone then onDone() end
@@ -158,7 +158,7 @@ end
 --- Single tick (instance frame loop, BEFORE layout/render). Writes via
 -- node:_set(prop, value, a.owner) — normal mutation layer, automatic
 -- invalidation. Paused chains freeze (timestamps shift on resume).
-function AnimationManager:update()
+function AnimationManager:updateAnimations()
     -- zero-work idle
     if self.activeCount == 0 then return end
     local now = self.context.clock()

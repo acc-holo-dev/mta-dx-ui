@@ -25,10 +25,12 @@ local function buildTabs(node)
     local labels = node.labels or {}
     local Label = DXUI.Widgets and DXUI.Widgets.Label
     if not Label then return end
-    local th = node.tabHeight or 26
+    local th = node:_tabHeight()
+    local tabPaddingX = node:_metric("tabPaddingX", 10)
+    local tabGap = node:_metric("tabGap", 0)
     local cursorX = 0
     for i = 1, #labels do
-        local tab = Label:new({ text = labels[i], padding = { left = 10, right = 10 } })
+        local tab = Label:new({ text = labels[i], padding = { left = tabPaddingX, right = tabPaddingX } })
         tab._index = i
         tab:on("click", function(t)
             node.activeIndex = t._index
@@ -40,7 +42,7 @@ local function buildTabs(node)
         tab.layoutHeight = { k = "px", v = th }
         local mw = (DXUI.Text and DXUI.Text.measure(labels[i], nil, 1))
             or (#labels[i] * 7)
-        cursorX = cursorX + mw + 20
+        cursorX = cursorX + mw + tabPaddingX * 2 + tabGap
         node._tabLabels[i] = tab
     end
     if node._context then node._context.layoutDirty = true end
@@ -60,7 +62,7 @@ local TabPanel = DXUI.Widget:extend("TabPanel", {
             end
         end,
     },
-    tabHeight = { default = 26, invalidates = { DXUI.DIRTY.LAYOUT } },
+    tabHeight = { default = nil, invalidates = { DXUI.DIRTY.LAYOUT } },
     textColor = { default = 0xFF6B7280, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     activeColor = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
@@ -69,8 +71,13 @@ local TabPanel = DXUI.Widget:extend("TabPanel", {
 DXUI.Part.declare(TabPanel, { "tabs", "content" })
 
 --- Creates the tabs and content parts.
+--- Effective tab height from explicit prop or theme metric.
+function TabPanel:_tabHeight()
+    return self.tabHeight or self:_metric("tabHeight", 26)
+end
+
 TabPanel._build = function(node)
-    local th = node.tabHeight or 26
+    local th = node:_tabHeight()
     local tabBar = DXUI.Widget:new({})
     tabBar.layoutMode = "relative"
     tabBar.layoutWidth = DXUI.percent(100)
@@ -112,13 +119,15 @@ end
 --- Draws the active tab's underline indicator.
 function TabPanel:render(renderer)
     local wx, wy = self.worldX, self.worldY
-    local th = self.tabHeight or 26
+    local th = self:_tabHeight()
     local active = self.activeIndex or 1
     local tab = self._tabLabels and self._tabLabels[active]
+    local indicatorHeight = self:_metric("indicatorHeight", 2)
+    local indicatorOffsetY = self:_metric("indicatorOffsetY", 2)
     if tab then
         local tx = tab.worldX or wx
         local tw = tab.width or 40
-        renderer:rect(tx, wy + th - 2, tw, 2, self.activeColor)
+        renderer:rect(tx, wy + th - indicatorOffsetY, tw, indicatorHeight, self.activeColor)
     end
 end
 

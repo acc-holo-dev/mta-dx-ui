@@ -90,7 +90,7 @@ local Edit = DXUI.Widget:extend("Edit", {
     -- (Popup sibling — outside-click closes it, LAYER.POPUP)
     autoComplete = { default = nil, invalidates = { DXUI.DIRTY.RENDER },
         validate = function(v) return v == nil or type(v) == "table" or type(v) == "function" end },
-    autoCompleteMax = { default = 8, type = "number", min = 1, invalidates = { DXUI.DIRTY.RENDER } },
+    autoCompleteMax = { default = nil, type = "number", min = 1, invalidates = { DXUI.DIRTY.RENDER } },
     masked = { default = false, invalidates = { DXUI.DIRTY.RENDER } },
     maskChar = { default = "*", invalidates = { DXUI.DIRTY.RENDER } },
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
@@ -98,8 +98,34 @@ local Edit = DXUI.Widget:extend("Edit", {
 })
 
 local EMPTY = ""
--- keystrokes closer than this coalesce into one undo step
-local HIST_COALESCE_MS = 300
+
+--- Returns the effective line height from theme metrics.
+function Edit:_lineHeight()
+    return self:_metric("lineHeight", 15)
+end
+
+--- Returns the effective caret width from explicit prop or theme metric.
+function Edit:_caretWidth()
+    return self.caretWidth or self:_metric("caretWidth", 1)
+end
+
+--- Returns the effective caret blink interval from explicit prop, theme metric, or engine default.
+function Edit:_caretBlinkInterval()
+    return self.caretBlinkInterval
+        or self:_metric("caretBlinkInterval", nil)
+        or (DXUI.Settings and DXUI.Settings.defaults and DXUI.Settings.defaults.caretBlinkInterval)
+        or 500
+end
+
+--- Returns the effective auto-complete max entries from explicit prop or theme metric.
+function Edit:_autoCompleteMax()
+    return self.autoCompleteMax or self:_metric("autoCompleteMax", 8)
+end
+
+--- Returns the undo coalesce window from theme metrics.
+function Edit:_undoCoalesceMs()
+    return self:_metric("undoCoalesceMs", 300)
+end
 
 --- The string drawn for the current text (masked display).
 function Edit:_displayText()
@@ -164,7 +190,7 @@ function Edit:_histPre()
 end
 
 --- Commits the post-edit state (call AFTER a user mutation). A rapid
---- keystroke burst (< HIST_COALESCE_MS) collapses into ONE undo step;
+--- keystroke burst collapses into ONE undo step;
 --- after an undo the next edit starts a fresh branch (redo tail drops).
 function Edit:_histPost(pre)
     if pre == nil then return end
@@ -177,7 +203,7 @@ function Edit:_histPost(pre)
     local post = { text = self.text, caret = self.caret or 0, sel = self.selectionFrom }
     local clock = self._context and self._context.clock
     local now = clock and clock() or 0
-    if pos == #h and now - (self._editLastT or 0) < HIST_COALESCE_MS then
+    if pos == #h and now - (self._editLastT or 0) < self:_undoCoalesceMs() then
         -- coalesce into the current step
         h[pos] = post
     else
@@ -264,7 +290,7 @@ function Edit:_updateAutoComplete()
         end
     end
     if type(cands) ~= "table" or #cands == 0 then self:_acClose() return end
-    local maxItems = self.autoCompleteMax or 8
+    local maxItems = self:_autoCompleteMax()
     for i = #cands, maxItems + 1, -1 do cands[i] = nil end
     self._acList = cands
     self._acActive = 1
@@ -287,7 +313,9 @@ function Edit:_acShow()
         if DXUI.LAYER then p.layer = DXUI.LAYER.POPUP end
         p.zIndex = 900
         p._acEdit = self
-        local ITEM_H = 18
+        local ITEM_H = self:_lineHeight()
+        local PAD = 4
+        local INNER_PAD_X = 8
         p.render = function(ps, renderer)
             local e = ps._acEdit
             local cands = e and e._acList
@@ -296,19 +324,19 @@ function Edit:_acShow()
             renderer:borderedRect(wx, wy, w, h, 6, 0xFFFFFFFF, 0xFFD1D5DB, 1)
             local active = e._acActive or 1
             for i = 1, #cands do
-                local y0 = wy + 4 + (i - 1) * ITEM_H
+                local y0 = wy + PAD + (i - 1) * ITEM_H
                 if i == active then
                     renderer:rect(wx + 2, y0, w - 4, ITEM_H, 0xFF2563EB)
                 end
                 local tc = (i == active) and 0xFFFFFFFF or 0xFF111827
-                renderer:text(cands[i], wx + 8, y0, w - 16, ITEM_H,
+                renderer:text(cands[i], wx + INNER_PAD_X, y0, w - INNER_PAD_X * 2, ITEM_H,
                     tc, e.font, "left", "center", 1)
             end
         end
         p:on("click", function(ps, _, px, py)
             local e = ps._acEdit
             if not e or not e._acList then return end
-            local rel = py - ps.worldY - 4
+            local rel = py - ps.worldY - PAD
             local idx = math.floor(rel / ITEM_H) + 1
             if idx >= 1 and idx <= #e._acList then
                 e._acActive = idx
@@ -325,7 +353,7 @@ function Edit:_acShow()
         if tw + 16 > maxW then maxW = tw + 16 end
     end
     p.width = maxW
-    p.height = #cands * 18 + 8
+    p.height = #cands * ITEM_H + PAD * 2
     p.x = self.x
     p.y = self.y + self.height
     self._acOpen = true
@@ -457,9 +485,7 @@ function Edit:_caretOn()
     local mode = self.caretMode
     if mode == "off" then return false end
     if mode == "solid" then return true end
-    local iv = self.caretBlinkInterval
-        or (DXUI.Settings and DXUI.Settings.defaults and DXUI.Settings.defaults.caretBlinkInterval)
-        or 500
+    local iv = self:_caretBlinkInterval()
     if iv <= 0 then return true end
     local clock = self._context and self._context.clock
     local t = clock and clock() or 0
@@ -501,8 +527,9 @@ function Edit:render(renderer)
     else
         local caretX = DXUI.Text and DXUI.Text.charX(display, self.font, 1, self.caret or 0) or 0
         if caretX < scroll then scroll = caretX end
-        if caretX > scroll + cw - (self.caretWidth or 1) then
-            scroll = caretX - cw + (self.caretWidth or 1)
+        local caretW = self:_caretWidth()
+        if caretX > scroll + cw - caretW then
+            scroll = caretX - cw + caretW
         end
         if scroll < 0 then scroll = 0 end
         local maxScroll = textW - cw
@@ -542,7 +569,7 @@ function Edit:overlay(renderer)
     local padL = (self.padding and self.padding.left) or 8
     local cx = DXUI.Text and DXUI.Text.charX(display, self.font, 1, self.caret or 0) or 0
     renderer:rect(self.worldX + padL + (self._alignOff or 0) - (self._scrollX or 0) + cx,
-        self.worldY + 2, self.caretWidth or 1, self.height - 4, self.caretColor)
+        self.worldY + 2, self:_caretWidth(), self.height - 4, self.caretColor)
 end
 
 --- Registers the overlay when mounted (frame-clock caret repaint).

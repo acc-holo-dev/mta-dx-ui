@@ -119,7 +119,7 @@ local function callHandler(h, current, eventName, ...)
         if policy == "error" then
             error(r, 0)
         elseif policy == "warn" then
-            DXUI._warn("event handler error (" .. tostring(eventName) .. "): " .. tostring(r))
+            DXUI.Debug.warn("EVENT", "event handler error (" .. tostring(eventName) .. "): " .. tostring(r))
         end
     elseif r == DXUI.STOP then
         return true

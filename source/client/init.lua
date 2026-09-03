@@ -65,7 +65,7 @@ function DXUI._renderHandler()
         -- one failing instance must not abort the frame for the others
         local ok, err = pcall(uis[i].tick, uis[i])
         if not ok then
-            DXUI._warn("tick failed for UI #" .. i .. ": " .. tostring(err))
+            DXUI.Debug.error("CORE", "tick failed for UI #" .. i .. ": " .. tostring(err))
         end
     end
 end
