@@ -67,7 +67,14 @@ GridList._build = function(node)
         if i then n.selectedIndex = i end
     end, "dxui-grid")
     node:on("scroll", function(n, wheel)
-        n.scrollY = n.scrollY - wheel * (n.rowHeight or 22) / math.max(1, #(n.items or {}) * (n.rowHeight or 22) - n.height)
+        local rh = n.rowHeight or 22
+        local total = #(n.items or {}) * rh
+        -- nothing to scroll when the list fits the viewport: leave
+        -- scrollY alone (a 0-1 range clamped by the spec would otherwise
+        -- drift with no visible effect)
+        if total <= n.height then return true end
+        local range = total - n.height
+        n.scrollY = n.scrollY - wheel * rh / range
         return true
     end, "dxui-grid")
 end

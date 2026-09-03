@@ -304,10 +304,20 @@ end
 -- Lifecycle
 -- ---------------------------------------------------------------------
 
---- Fully destroys the instance (tree, caches, animations, resources).
+--- Fully destroys the instance (tree, caches, animations, resources) and
+-- drops it from the global tick list so the frame loop stops visiting it.
 function Runtime:destroy()
     if self._destroyed then return end
     self._destroyed = true
+    -- leave the tick list (a direct ui:destroy() must not keep the
+    -- instance being ticked every frame; releaseResource removes it too,
+    -- which is harmless here)
+    local uis = DXUI._uis
+    if uis then
+        for i = #uis, 1, -1 do
+            if uis[i] == self then table.remove(uis, i) end
+        end
+    end
     self.root:destroy()
     if self.anim then
         self.anim.active = nil

@@ -24,8 +24,14 @@ function Tooltip:_measureContent()
 end
 
 --- Positions the tooltip in WORLD coords and brings it to the front.
+-- The tooltip is PARENTED to its target, so setPosition expects local
+-- coords; the intended world anchor point is converted back through the
+-- parent's origin (same rule as Tooltip:refresh).
 function Tooltip:showAt(x, y)
-    self:setPosition(x, y)
+    local p = self._parent
+    local lx = (p and p.worldX) or 0
+    local ly = (p and p.worldY) or 0
+    self:setPosition(x - lx, y - ly)
     self.visible = true
     self:bringToFront()
     return self

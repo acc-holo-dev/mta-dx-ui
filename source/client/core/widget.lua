@@ -137,7 +137,10 @@ function Widget:_applyStyleState(animate)
         end
     end
 
-    self._applyingTheme = true
+    -- counter, not a boolean: nested style applies (e.g. an onSet hook
+    -- triggering another _applyStyleState) must not clobber the flag; the
+    -- theme-owned marker is cleared only when the outermost apply returns.
+    self._applyingTheme = (self._applyingTheme or 0) + 1
     -- revert theme-managed properties that are no longer themed
     if applied then
         for k in pairs(applied) do
@@ -175,7 +178,8 @@ function Widget:_applyStyleState(animate)
             end
         end
     end
-    self._applyingTheme = nil
+    self._applyingTheme = self._applyingTheme - 1
+    if self._applyingTheme <= 0 then self._applyingTheme = nil end
 end
 
 --- Build-time: apply theme defaults (state is "normal" at build).

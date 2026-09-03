@@ -110,8 +110,11 @@ local function destroyIfElement(_, v)
     end
 end
 
---- Releases every cached texture/font NOT in keep (string keys). The
--- keep-set is built by the theme while it compiles (Resources.markUsed).
+--- Releases every cached texture/font NOT in keep (string keys). Shaders
+-- are deliberately NOT swept here: they are shared engine-wide effects
+-- keyed by shader code (rounded/blur/mask), never per-theme assets, so a
+-- theme switch must keep them.
+-- The keep-set is built by the theme while it compiles (Resources.markUsed).
 -- Returns the number of released assets (diagnostics).
 function DXUI.releaseObsolete(keep)
     local freed = 0
