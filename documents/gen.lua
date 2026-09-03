@@ -614,7 +614,24 @@ Any resource can define its own theme and extend a built-in.</p>]]
             local cells = {}
             for _, k in ipairs(keys) do
                 local v = vals[k]
-                local shown = type(v) == "number" and ("0x%08X"):format(v) or tostring(v)
+                -- a table token renders its fields: runtime addresses
+                -- (tostring of a table) drift per load and would leak into
+                -- the committed pages.
+                local shown
+                if type(v) == "number" then
+                    shown = ("0x%08X"):format(v)
+                elseif type(v) == "table" then
+                    local f = {}
+                    for k, fv in pairs(v) do
+                        f[#f + 1] = k .. "="
+                            .. (type(fv) == "number" and ("0x%08X"):format(fv) or tostring(fv))
+                        if type(fv) == "table" then f[#f] = k end
+                    end
+                    table.sort(f)
+                    shown = "table: " .. table.concat(f, " ")
+                else
+                    shown = tostring(v)
+                end
                 cells[#cells + 1] = "<code>" .. esc(k) .. "</code> <span class=\"tag\">"
                     .. esc(shown) .. "</span>"
             end
