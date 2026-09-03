@@ -144,6 +144,12 @@ Node.properties = {
     focusable = { default = false, invalidates = { DIRTY.INPUT }, onSet = function(node)
         if DXUI.HitTest then DXUI.HitTest.invalidate(node) end
     end },
+    -- drag & drop payload (any value): a non-nil dragData turns the node
+    -- into a DRAG SOURCE; drop targets bind "drag-over"/"drop" handlers
+    -- (see input/dispatcher.lua)
+    dragData = { default = nil, invalidates = { DIRTY.INPUT }, onSet = function(node)
+        if DXUI.HitTest then DXUI.HitTest.invalidate(node) end
+    end },
     -- user data — never touched by the framework
     userData = { default = nil, invalidates = {} },
 }
@@ -632,7 +638,11 @@ function Node:setParent(parent)
 end
 
 --- Removes a child from the children list.
+-- During a bulk destroy the parent sets `_destroying`, so per-child scans
+-- are skipped (the array is cleared wholesale at the end of destroy) —
+-- this keeps destroying a large tree O(n), not O(n^2).
 function Node:_removeChild(child)
+    if self._destroying then return end
     local children = self._children
     for i = 1, #children do
         if children[i] == child then
@@ -835,6 +845,9 @@ end
 function Node:destroy()
     if self._destroyed then return end
     self._destroyed = true
+    -- bulk teardown: children's destroy() calls _removeChild on us; skip
+    -- those scans (the array is cleared below) so destroy is O(n), not O(n^2)
+    self._destroying = true
 
     if self._onDestroy then
         -- context still alive here
@@ -846,6 +859,7 @@ function Node:destroy()
     for i = #children, 1, -1 do
         children[i]:destroy()
     end
+    self._destroying = nil
 
     if self._parent then
         self._parent:_removeChild(self)
@@ -854,6 +868,12 @@ function Node:destroy()
 
     if self._context then
         self._context:_onNodeDestroyed(self)
+    end
+
+    -- symmetric teardown: detach hooks (overlay unregister, etc.). A node
+    -- already detached via reparent has _onDetached already run (idempotent).
+    if self._onDetached then
+        self:_onDetached()
     end
 
     -- clear references (frees node-owned state; subscriptions dropped —

@@ -32,9 +32,17 @@ local function resolveSize(node, contentW, contentH)
     local w, h = node.width, node.height
     local lwC, lhC = node.layoutWidth, node.layoutHeight
     local mL, mT, mR, mB = Dimension.box(node.margin)
-    -- content measure is shared by both axes (label/checkbox return w,h)
+    -- content measure is shared by both axes (label/checkbox return w,h);
+    -- only measure when a free/auto/fill dimension actually needs it, so a
+    -- fixed-size node never pays for content measurement on a layout pass
     local mw, mh
-    if node._measureContent then mw, mh = node:_measureContent() end
+    local needW = (lwC and (lwC.k == "auto" or lwC.k == "fill"))
+        or (node.autoSize and freeDim(node, "width"))
+    local needH = (lhC and (lhC.k == "auto" or lhC.k == "fill"))
+        or (node.autoSize and freeDim(node, "height"))
+    if node._measureContent and (needW or needH) then
+        mw, mh = node:_measureContent()
+    end
 
     if node.layoutMode == "stretch" then
         w = contentW - mL - mR

@@ -62,7 +62,11 @@ function DXUI._renderHandler()
     local uis = DXUI._uis
     if not uis then return end
     for i = 1, #uis do
-        uis[i]:tick()
+        -- one failing instance must not abort the frame for the others
+        local ok, err = pcall(uis[i].tick, uis[i])
+        if not ok then
+            DXUI._warn("tick failed for UI #" .. i .. ": " .. tostring(err))
+        end
     end
 end
 
@@ -79,6 +83,20 @@ do
     local prio = (DXUI.Settings and DXUI.Settings.performance
         and DXUI.Settings.performance.renderPriority) or "normal"
     addEventHandler("onClientRender", resourceRoot, DXUI._renderHandler, false, prio)
+end
+
+-- system-input guard: onClientKey / onClientCharacter keep firing while
+-- the chatbox, console or another MTA window owns the keyboard (DGS-style
+-- guard; controlled by settings.defaults.systemInputGuard). Outside MTA
+-- the stubs keep the check inert. Mouse events need no guard — the cursor
+-- is hidden while system input is active.
+local chatBoxActive = isChatBoxInputActive or function() return false end
+local consoleActive = isConsoleActive or function() return false end
+local mtaWindowActive = isMTAWindowActive or function() return false end
+local function systemInputBlocked()
+    local d = DXUI.Settings and DXUI.Settings.defaults
+    if d and d.systemInputGuard == false then return false end
+    return chatBoxActive() or consoleActive() or mtaWindowActive()
 end
 
 -- mouse movement (absolute screen pixels)
@@ -106,6 +124,7 @@ end)
 -- keys + mouse wheel (wheel has no dedicated raw-dx event; onClientKey
 -- delivers "mouse_wheel_up"/"mouse_wheel_down" with no release).
 addEventHandler("onClientKey", resourceRoot, function(keyName, pressed)
+    if systemInputBlocked() then return end
     local uis = DXUI._uis
     if not uis then return end
     if keyName == "mouse_wheel_up" or keyName == "mouse_wheel_down" then
@@ -132,6 +151,7 @@ end)
 
 -- printable characters (text input for Edit and friends)
 addEventHandler("onClientCharacter", resourceRoot, function(ch)
+    if systemInputBlocked() then return end
     local uis = DXUI._uis
     if not uis then return end
     for i = 1, #uis do

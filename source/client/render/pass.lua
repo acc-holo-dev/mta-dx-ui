@@ -86,7 +86,7 @@ local function collect(instance, node, nodes, count, parentVisible, parentOpacit
     local opacity = parentOpacity * (node.opacity or 1)
     local layer = node.layer
     if layer == DXUI.LAYER.BASE then layer = parentLayer end
-    local myGroup = hasGroup(node)
+    local myGroup = hasGroup(node) or node.cacheContent == true
     local clip = parentClip
     if node.clip or myGroup then
         local rect = intersectClip(parentClip, node.worldX, node.worldY, node.width, node.height)
@@ -235,7 +235,7 @@ end
 --- In-group emission. A group root becomes one rtgroup item whose contents
 -- are its own primitives + visible subtree; ordinary nodes emit directly.
 emitTree = function(node, renderer, list, baseOpacity, sx, sy, ox, oy)
-    if hasGroup(node) then
+    if hasGroup(node) or node.cacheContent == true then
         local effOp = node._effOpacity or 1
         if effOp <= 0 then return end
         local it = DXUI.RenderList.obtain()
@@ -248,6 +248,24 @@ emitTree = function(node, renderer, list, baseOpacity, sx, sy, ox, oy)
         it.effect = (node.blur and node.blur > 0 and DXUI.Effects.blur(node.width, node.height, node.blur))
             or (node.mask and DXUI.Effects.mask(node.mask))
         it.alpha = effOp * baseOpacity
+        if node.cacheContent and not hasGroup(node) then
+            -- persistent content cache: the group bakes into a keyed RT
+            -- that survives frames (idle frames composite ONE image —
+            -- see state.lua). cacheContent yields to blur/mask groups.
+            if node._rtKey == nil then
+                node._rtKey = "dxui-cache:" .. tostring(node)
+            end
+            it.rtKey = node._rtKey
+            it.rtw = it.w
+            it.rth = it.h * 2
+            it.node = node
+        else
+            -- pooled-reuse hygiene: no stale cache fields on plain groups
+            it.rtKey = nil
+            it.rtw = nil
+            it.rth = nil
+            it.node = nil
+        end
         local arr = trackArr(acquireArr())
         local sub = { items = arr, count = 0 }
         walkNode(node, renderer, sub, (1 / effOp) * baseOpacity, sx, sy, ox, oy)

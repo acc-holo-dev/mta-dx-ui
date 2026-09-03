@@ -15,11 +15,14 @@
 ---    setBlendMode(mode)
 ---    drawRect(x,y,w,h,color)
 ---    drawRoundedRect(x,y,w,h, rtl,rtr,rbr,rbl, fill, border, borderWidth)
----    drawImage(x,y,w,h,texture,color,effect,section)
+---    drawImage(x,y,w,h,texture,color,effect,section[,rotation,rotCX,rotCY])
 ---    drawText(text,x,y,w,h,color,font,align,valign,scaleX,scaleY)
 ---    drawLine(x1,y1,x2,y2,color,width)
 ---    beginGroup(x,y,w,h)  -> bool
 ---    endGroup(x,y,w,h,effect,alpha)
+---    beginPersistentGroup(key,w,h,ox,oy) -> bool
+---    endPersistentGroup()
+---    compositePersistentGroup(key,x,y,w,h,sx,sy,sw,sh) -> bool
 ---    materialSize(tex)    -> w,h
 
 DXUI = DXUI or {}
@@ -47,7 +50,10 @@ local function applyEffect(effect, baseTexture)
             dxSetShaderValue(effect.shader, k, v)
         end
     end
-    if base and base ~= "" then
+    -- base-texture binds are for shaders that SAMPLE their input
+    -- (blur/mask); the gradient ignores its input, and its "texture"
+    -- IS the shader element itself — never bind that
+    if base and base ~= "" and base ~= effect.shader then
         dxSetShaderValue(effect.shader, "gTexture0", base)
     end
     return effect.shader
@@ -131,6 +137,11 @@ end
 -- Active RT-group stack: { { rt, offX, offY, prevTarget }, ... }.
 local groupStack = {}
 
+-- Persistent RT registry (cacheContent containers; NOT the pool): keyed
+-- render targets that survive frames, released via destroyPersistentRT.
+-- { key = { rt, w, h } }
+local persistentRTs = {}
+
 --- Translates a point into the active RT group's local space.
 local function adjust(x, y)
     local n = #groupStack
@@ -161,26 +172,40 @@ DXUI.BackendMTA = {
         drawRounded(x, y, w, h, rtl, rtr, rbr, rbl, fill, border, borderWidth)
     end,
 
-    --- Draws an image (full or section), optionally through an effect shader.
-    drawImage = function(x, y, w, h, texture, color, effect, section)
+    --- Draws an image (full or section), optionally through an effect
+    --- shader. `rotation` (deg, optional) turns the quad around
+    --- (rotCX, rotCY) — ABSOLUTE screen coords (the Renderer scales
+    --- them); nil = the quad's own center.
+    drawImage = function(x, y, w, h, texture, color, effect, section, rotation, rotCX, rotCY)
         x, y = adjust(x, y)
         local shader = applyEffect(effect, texture)
         local material = shader or texture
+        local rot = rotation or 0
+        if rot ~= 0 then
+            if rotCX == nil or rotCY == nil then
+                rotCX, rotCY = x + w / 2, y + h / 2
+            else
+                -- same RT-group local space as the position
+                rotCX, rotCY = adjust(rotCX, rotCY)
+            end
+        end
         if section then
             dxDrawImageSection(x, y, w, h,
                 section[1], section[2], section[3], section[4],
-                material, 0, 0, 0, color)
+                material, rot, rotCX or 0, rotCY or 0, color)
         else
-            dxDrawImage(x, y, w, h, material, 0, 0, 0, color)
+            dxDrawImage(x, y, w, h, material, rot, rotCX or 0, rotCY or 0, color)
         end
     end,
 
-    --- Draws text with alignment and scale.
-    drawText = function(text, x, y, w, h, color, font, align, valign, scaleX, scaleY)
+    --- Draws text with alignment and scale. `colorCoded` (11th arg,
+    --- optional) renders #RRGGBB codes embedded in the text (Label.rich).
+    drawText = function(text, x, y, w, h, color, font, align, valign, scaleX, scaleY, colorCoded)
         x, y = adjust(x, y)
         dxDrawText(text, x, y, x + w, y + h, color,
             scaleX or 1, scaleY or 1, font or "default",
-            align or "left", valign or "top", true, false, false, false)
+            align or "left", valign or "top", true, false, false,
+            colorCoded and true or false)
     end,
 
     --- Draws a line segment.
@@ -225,7 +250,60 @@ DXUI.BackendMTA = {
         dxDrawImage(ax, ay, w, h, shader or g.rt, 0, 0, 0, quadColor)
         if DXUI.Effects then DXUI.Effects.releaseRT(g.rt, w .. "x" .. h) end
     end,
+
+    -- Persistent RT content cache (cacheContent; see state.lua) --------
+
+    --- Begins a persistent group: creates/resizes the keyed RT ONCE and
+    --- redirects draws into it. (ox, oy) = the RT origin in screen space
+    --- so children with absolute coords land correctly (groupStack
+    --- adjust()). NO composite here — compositePersistentGroup draws the
+    --- RT, possibly many frames later.
+    beginPersistentGroup = function(key, w, h, ox, oy)
+        local e = persistentRTs[key]
+        if e and e.rt and (e.w ~= w or e.h ~= h) then
+            dxDestroyRenderTarget(e.rt)
+            e.rt = nil
+        end
+        if not e or not e.rt then
+            local rt = dxCreateRenderTarget(w, h, true)
+            if not rt then return false end
+            persistentRTs[key] = { rt = rt, w = w, h = h }
+            e = persistentRTs[key]
+        end
+        local n = #groupStack
+        local prevTarget = (n > 0) and groupStack[n].rt or nil
+        if not dxSetRenderTarget(e.rt, true) then return false end
+        groupStack[#groupStack + 1] = { rt = e.rt, offX = ox, offY = oy, prevTarget = prevTarget }
+        return true
+    end,
+
+    --- Ends a persistent group (restores the previous target; the RT
+    --- stays alive in the registry until destroyPersistentRT).
+    endPersistentGroup = function()
+        local g = table.remove(groupStack)
+        if g then
+            dxSetRenderTarget(g.prevTarget)
+        else
+            dxSetRenderTarget(nil)
+        end
+    end,
+
+    --- Composites a section of a persistent RT (idle frames: ONE draw).
+    compositePersistentGroup = function(key, x, y, w, h, sx, sy, sw, sh)
+        local e = persistentRTs[key]
+        if not e or not e.rt then return false end
+        x, y = adjust(x, y)
+        dxDrawImageSection(x, y, w, h, sx, sy, sw, sh, e.rt, 0, 0, 0, 0xFFFFFFFF)
+        return true
+    end,
 }
+
+--- Releases a persistent RT (node destroyed/detached; cacheContent).
+function DXUI.BackendMTA.destroyPersistentRT(key)
+    local e = persistentRTs[key]
+    if e and e.rt then dxDestroyRenderTarget(e.rt) end
+    persistentRTs[key] = nil
+end
 
 --- Wires the MTA measurement backend into the text engine (called once at
 -- bootstrap; safe to call repeatedly).

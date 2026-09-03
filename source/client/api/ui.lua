@@ -6,8 +6,9 @@
 ---    ui:widget(name, props)            -- generic
 ---    ui:color(r,g,b[,a])               -- packed 0xAARRGGBB int / proxy
 ---    ui:percent(n) / ui:auto() / ui:fill()
----    ui:texture(path) / font(name,size) / shader(code)
+---    ui:texture(path[,opts]) / font(name,size[,opts]) / shader(code)
 ---    ui:setTextKey(key, target, textProp)
+---    ui:setEach(nodes, props) / ui:animateEach(nodes, props, duration[, ease])
 ---    ui:addLocale(lang, dict) / setLocale(lang)
 ---
 ---Lifecycle/frame:
@@ -97,10 +98,16 @@ function UI:fill() return DXUI.fill and DXUI.fill() or nil end
 -- Resources
 -- ---------------------------------------------------------------------
 
---- Loads (or returns the cached) texture for a path.
-function UI:texture(path) return DXUI.texture and DXUI.texture(path) end
---- Loads (or returns the cached) font for a file path and size.
-function UI:font(name, size) return DXUI.font and DXUI.font(name, size) end
+--- Loads (or returns the cached) texture for a path. opts (nil = engine
+--- defaults): { format = "argb"|"dxt1"|"dxt3"|"dxt5", mipmaps = bool,
+--- edge = "wrap"|"clamp" } — see dxCreateTexture on the MTA wiki (dxt1 is
+--- 8x, dxt3/dxt5 4x lighter in video memory).
+function UI:texture(path, opts) return DXUI.texture and DXUI.texture(path, opts) end
+--- Loads (or returns the cached) font for a file path and size. opts
+--- (nil = engine defaults): { bold = bool, quality = "default"|"draft"|
+--- "proof"|"nonantialiased"|"antialiased"|"cleartype"|"cleartype_natural" }
+--- — see dxCreateFont on the MTA wiki.
+function UI:font(name, size, opts) return DXUI.font and DXUI.font(name, size, opts) end
 --- Compiles (or returns the cached) shader for source code.
 function UI:shader(code) return DXUI.shader and DXUI.shader(code) end
 
@@ -108,6 +115,113 @@ function UI:shader(code) return DXUI.shader and DXUI.shader(code) end
 function UI:applySettings(t)
     if DXUI.applySettings then DXUI.applySettings(t) end
     return self
+end
+
+-- ---------------------------------------------------------------------
+-- Group helpers (lists of nodes)
+-- ---------------------------------------------------------------------
+
+--- Applies a props table to every node at once. Each write goes through
+--- the normal __newindex path — spec validation + per-node invalidation.
+function UI:setEach(nodes, props)
+    if type(nodes) ~= "table" or type(props) ~= "table" then return self end
+    for i = 1, #nodes do
+        local n = nodes[i]
+        if n and not n._destroyed then
+            for prop, value in pairs(props) do
+                n[prop] = value
+            end
+        end
+    end
+    return self
+end
+
+-- EachGroup: handle over a set of per-node animation chains (below).
+local EachGroup = {}
+EachGroup.__index = EachGroup
+
+--- Fires when EVERY chain has finished (exactly once). Late
+--- registrations on an already-finished group fire immediately.
+function EachGroup:onDone(fn)
+    if type(fn) ~= "function" or self.cancelled then return self end
+    if self.finished then
+        fn()
+        return self
+    end
+    self.doneCbs[#self.doneCbs + 1] = fn
+    return self
+end
+
+--- Cancels every chain (their onDone callbacks never fire — so the
+--- group's onDone never fires either).
+function EachGroup:cancel()
+    self.cancelled = true
+    self.doneCbs = {}
+    for i = 1, #self.handles do
+        local h = self.handles[i]
+        if h and h.cancel then h:cancel() end
+    end
+    return self
+end
+
+function EachGroup:pause()
+    for i = 1, #self.handles do
+        local h = self.handles[i]
+        if h and h.pause then h:pause() end
+    end
+    return self
+end
+
+function EachGroup:resume()
+    for i = 1, #self.handles do
+        local h = self.handles[i]
+        if h and h.resume then h:resume() end
+    end
+    return self
+end
+
+--- Animates every node with the same props/duration/easing; returns a
+--- GROUP handle: onDone fires ONCE when all chains finish; cancel/pause/
+--- resume forward to every chain. Unmounted nodes warn and are skipped.
+--- Caveat: cancel a chain only through the group — a separately
+--- cancelled chain (or one whose node was destroyed mid-flight) never
+--- counts as finished, so the group's onDone would never fire.
+function UI:animateEach(nodes, props, duration, easing)
+    local group = setmetatable({
+        handles = {},
+        remaining = 0,
+        doneCbs = {},
+        finished = false,
+        cancelled = false,
+    }, EachGroup)
+    if type(nodes) ~= "table" then return group end
+    local function chainDone()
+        if group.cancelled or group.finished then return end
+        group.remaining = group.remaining - 1
+        if group.remaining <= 0 then
+            group.finished = true
+            local cbs = group.doneCbs
+            group.doneCbs = {}
+            for i = 1, #cbs do cbs[i]() end
+        end
+    end
+    for i = 1, #nodes do
+        local n = nodes[i]
+        if n and n.animate and not n._destroyed then
+            local h = n:animate(props, duration, easing)
+            -- Node:animate returns the NODE for unmounted nodes (no
+            -- animation ran — it warned); only real handles count
+            if h and h.onDone then
+                group.handles[#group.handles + 1] = h
+                group.remaining = group.remaining + 1
+                h:onDone(chainDone)
+            end
+        end
+    end
+    -- everything completed synchronously (or nothing started): let a
+    -- later onDone fire immediately
+    if group.remaining <= 0 then group.finished = true end
+    return group
 end
 
 -- ---------------------------------------------------------------------

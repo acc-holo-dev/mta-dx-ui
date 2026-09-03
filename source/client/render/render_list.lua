@@ -9,10 +9,11 @@
 ---Item kinds: rect | rrect | image | text | line | rtgroup
 ---    { kind="rect", x,y,w,h,color }
 ---    { kind="rrect", x,y,w,h, rtl,rtr,rbr,rbl, color, borderColor, borderWidth }
----    { kind="image", x,y,w,h,texture,color,effect,section }
----    { kind="text", text,x,y,w,h,color,font,align,valign,scaleX,scaleY }
+---    { kind="image", x,y,w,h,texture,color,effect,section[,rotation,rotCX,rotCY] }
+---    { kind="text", text,x,y,w,h,color,font,align,valign,scaleX,scaleY[,rich] }
 ---    { kind="line", x1,y1,x2,y2,color,width }
----    { kind="rtgroup", x,y,w,h,scaleX,scaleY,effect,alpha,items,count,pool }
+---    { kind="rtgroup", x,y,w,h,scaleX,scaleY,effect,alpha,items,count,
+---          pool[,rtKey,rtw,rth,node] }
 
 DXUI = DXUI or {}
 
@@ -31,10 +32,13 @@ function RenderList.obtain()
 end
 
 --- Recycles the items of a list (returns them to the pool, bounded).
+--- Node back-references (persistent cache groups) are dropped: a pooled
+--- table must never pin a destroyed node.
 function RenderList.recycle(items, count)
     for i = 1, count do
         local it = items[i]
         items[i] = nil
+        if it then it.node = nil end
         if #pool < POOL_CAP then
             pool[#pool + 1] = it
         end

@@ -18,7 +18,14 @@ local function syncRowHeight(node)
     local headH = node.rowHeight or 20
     local head = node:getPart("head")
     if head then
-        head.layoutHeight = { k = "px", v = headH }
+        -- reuse the compiled form so an unchanged height does not allocate
+        -- a fresh table (and thus does not re-invalidate layout every call)
+        local compiled = node._headHeightCompiled
+        if not compiled or compiled.v ~= headH then
+            compiled = { k = "px", v = headH }
+            node._headHeightCompiled = compiled
+        end
+        head.layoutHeight = compiled
     end
     local dd = node:getPart("dropdown")
     if dd then
@@ -33,7 +40,7 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
         if node.emit then node:emit("select", i, node.items and node.items[i]) end
         local head = node:getPart("head")
         if head and node.items and node.items[i] then
-            head.text = (type(node.items[i]) == "table") and (node.items[i].text or "") or node.items[i]
+            head.text = rowText(node, node.items[i])
         end
     end },
     -- the open PROP is the single source of truth: writing it drives the
@@ -69,9 +76,21 @@ local ComboBox = DXUI.Widget:extend("ComboBox", {
 
 DXUI.Part.declare(ComboBox, { "head", "dropdown" })
 
---- Returns the display text for an item (string or {text=...}).
-local function rowText(item)
-    return (type(item) == "table") and (item.text or "") or tostring(item)
+--- Returns the display text for an item: string | {text=…} | {textKey=…}
+--- (textKey items translate in the INSTANCE locale — they switch live on
+--- locale changes; rebuildRows re-reads them).
+local function rowText(node, item)
+    if type(item) ~= "table" then return tostring(item) end
+    local k = item.textKey
+    if k ~= nil then
+        local T = DXUI.Translate
+        if T then
+            local loc = (node._context and node._context._locale) or T.locale
+            return T.trFor(loc, k)
+        end
+        return k
+    end
+    return item.text or ""
 end
 
 --- Rebuilds the dropdown rows from the current items.
@@ -88,7 +107,7 @@ rebuildRows = function(node)
     if not Label then return end
     for i = 1, #items do
         local row = Label:new({
-            text = rowText(items[i]),
+            text = rowText(node, items[i]),
             textColor = node.textColor,
             padding = { left = 8, right = 8 },
         })
@@ -116,6 +135,10 @@ end
 
 --- Builds the head and dropdown parts and wires open/close behavior.
 ComboBox._build = function(node, props)
+    -- items with textKey re-translate on locale switches
+    if DXUI._textBindings then
+        DXUI._textBindings[node] = true
+    end
     local Label = DXUI.Widgets and DXUI.Widgets.Label or DXUI.Widget
     local headH = node.rowHeight or 22
     local head = Label:new({ text = "", padding = { left = 8, right = 8 } })
@@ -209,6 +232,19 @@ end
 --- Direct access to the dropdown part (the rows live here).
 function ComboBox:container()
     return self:getPart("dropdown")
+end
+
+--- Translate binding: items with textKey re-read on locale switches (the
+--- head label of the selected row included).
+function ComboBox:applyTranslation()
+    rebuildRows(self)
+    local i = self.selectedIndex or 0
+    local head = self:getPart("head")
+    if head and i > 0 and self.items and self.items[i] then
+        head.text = rowText(self, self.items[i])
+    end
+    self:_invalidate({ DXUI.DIRTY.RENDER })
+    return self
 end
 
 --- Draws the head box and the caret arrow.

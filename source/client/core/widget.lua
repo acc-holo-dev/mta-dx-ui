@@ -141,45 +141,59 @@ function Widget:_applyStyleState(animate)
     -- triggering another _applyStyleState) must not clobber the flag; the
     -- theme-owned marker is cleared only when the outermost apply returns.
     self._applyingTheme = (self._applyingTheme or 0) + 1
-    -- revert theme-managed properties that are no longer themed
-    if applied then
-        for k in pairs(applied) do
-            if not (target and target[k] ~= nil) then
-                local owner = self._owner and self._owner[k]
-                if owner ~= "user" and owner ~= "system" then
-                    local spec = self._spec[k]
-                    if spec then self[k] = spec.default end
-                end
-            end
-        end
-    end
-    self._themeApplied = {}
-
-    if target then
-        for k, v in pairs(target) do
-            if self._spec[k] ~= nil then
-                local owner = self._owner and self._owner[k]
-                if owner ~= "user" and owner ~= "system" then
-                    local current = self._data[k]
-                    if transition and type(v) == "number" and type(current) == "number"
-                        and current ~= v then
-                        -- tween via the Anim layer; the "theme" owner keeps
-                        -- the prop tracked for the next theme switch
-                        local easings = DXUI.Easing or {}
-                        local ease = easings[transition.easing] or easings.out
-                        self._themeApplied[k] = true
-                        self._context.anim:_startStep(self, { [k] = v },
-                            transition.duration, ease, nil, "theme")
-                    else
-                        self[k] = v
-                        self._themeApplied[k] = true
+    -- the body is isolated so the counter is ALWAYS decremented below,
+    -- even if a theme value throws mid-apply (owner-guard stays consistent)
+    local ok, err = pcall(function()
+        -- revert theme-managed properties that are no longer themed
+        if applied then
+            for k in pairs(applied) do
+                if not (target and target[k] ~= nil) then
+                    -- table owners are AnimHandles: a completed user
+                    -- animation is an explicit write — protect it like
+                    -- user/system; only string tags ("theme") revert
+                    local owner = self._owner and self._owner[k]
+                    if owner ~= "user" and owner ~= "system"
+                        and type(owner) ~= "table" then
+                        local spec = self._spec[k]
+                        if spec then self[k] = spec.default end
                     end
                 end
             end
         end
-    end
+        self._themeApplied = {}
+
+        if target then
+            for k, v in pairs(target) do
+                if self._spec[k] ~= nil then
+                    -- AnimHandle owners (user animations) are protected
+                    -- like "user"/"system" — see the revert loop above
+                    local owner = self._owner and self._owner[k]
+                    if owner ~= "user" and owner ~= "system"
+                        and type(owner) ~= "table" then
+                        local current = self._data[k]
+                        if transition and type(v) == "number" and type(current) == "number"
+                            and current ~= v then
+                            -- tween via the Anim layer; the "theme" owner keeps
+                            -- the prop tracked for the next theme switch
+                            local easings = DXUI.Easing or {}
+                            local ease = easings[transition.easing] or easings.out
+                            self._themeApplied[k] = true
+                            self._context.anim:_startStep(self, { [k] = v },
+                                transition.duration, ease, nil, "theme")
+                        else
+                            self[k] = v
+                            self._themeApplied[k] = true
+                        end
+                    end
+                end
+            end
+        end
+    end)
     self._applyingTheme = self._applyingTheme - 1
     if self._applyingTheme <= 0 then self._applyingTheme = nil end
+    if not ok then
+        DXUI._warn("style apply failed: " .. tostring(err))
+    end
 end
 
 --- Build-time: apply theme defaults (state is "normal" at build).
@@ -228,6 +242,9 @@ end
 
 --- Applies the bound translation key to the text property. The instance
 -- locale (ui:setLocale) wins over the engine locale (DXUI.setLocale).
+-- Entries may carry a per-locale font: {text="…", font="path:size"} —
+-- the font resolves through the shared font cache ("path:size" specs are
+-- NOT valid dxDrawText args) and writes the widget's `font` prop.
 function Widget:applyTranslation()
     local key = self.textKey
     if key == nil then return end
@@ -235,9 +252,27 @@ function Widget:applyTranslation()
     if not Translate then return end
     local context = self._context
     local locale = (context and context._locale) or Translate.locale
-    local text = Translate.trFor(locale, key)
+    local raw = Translate.lookup(locale, key)
+    local text, font
+    if type(raw) == "table" then
+        text = raw.text
+        font = raw.font
+    else
+        text = raw
+    end
+    if text == nil then text = key end
     local prop = self._textTarget or "text"
     if self._spec[prop] then self[prop] = text end
+    -- per-locale font (widgets WITHOUT a font prop ignore it)
+    if font ~= nil and self._spec and self._spec.font then
+        if type(font) == "string" and DXUI.systemFont then
+            local ok, resolved = pcall(DXUI.systemFont, font)
+            if ok and resolved ~= nil then self.font = resolved end
+        else
+            -- a ready handle passes through
+            self.font = font
+        end
+    end
     return self
 end
 

@@ -160,7 +160,13 @@ local colorMt = {
     --- Formats the color as "#RRGGBBAA".
     __tostring = function(self)
         local packed = rawget(self, "_packed")
-        if packed == nil then packed = DXUI.ColorToInt(rawget(self, "_node")._data[rawget(self, "_key")]) end
+        if packed == nil then
+            local node = rawget(self, "_node")
+            if node and not node._destroyed then
+                packed = DXUI.ColorToInt(node._data[rawget(self, "_key")])
+            end
+        end
+        if packed == nil then return "#00000000" end
         return string.format("#%02X%02X%02X%02X",
             math.floor(packed / 0x1000000),
             math.floor(packed / 0x10000) % 256,

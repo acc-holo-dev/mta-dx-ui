@@ -23,6 +23,7 @@
 ---prefixes load through the resource cache at compile time:
 ---    "texture:path/file.png"        -> DXUI.texture(path)
 ---    "font:path/file.ttf:12"         -> DXUI.font(path, 12)
+---    "font:path/file.ttf:12:cleartype" -> DXUI.font(path, 12, {quality})
 ---
 ---Lookup chain (Widget:_applyStyleState): widget.style variant > component
 ---base > widget class default. getComponentStyle returns COMPILED maps
@@ -125,14 +126,19 @@ local function resolveProps(themeName, props)
                     r = loaded
                 end
             else
-                local fontPath, fontSz = r:match("^font:([^:]+):(%d+)$")
+                local fontPath, fontSz, quality =
+                    r:match("^font:([^:]+):(%d+):(%a[%w_]*)$")
+                if not fontPath then
+                    fontPath, fontSz = r:match("^font:([^:]+):(%d+)$")
+                end
                 if fontPath then
                     fontSz = tonumber(fontSz)
-                    local loaded = DXUI.font and DXUI.font(fontPath, fontSz)
+                    local opts = quality and { quality = quality } or nil
+                    local loaded = DXUI.font and DXUI.font(fontPath, fontSz, opts)
                     if loaded == false then
                         r = nil
                     else
-                        Theme.keepFont(fontPath, fontSz)
+                        Theme.keepFont(fontPath, fontSz, quality)
                         r = loaded
                     end
                 end
@@ -279,10 +285,20 @@ function Theme.keepTexture(path)
     if Theme._keep and path then Theme._keep["t:" .. path] = true end
 end
 
----Marks a font (path, size) as kept by the active theme.
-function Theme.keepFont(path, size)
+---Marks a font (path, size[, quality]) as kept by the active theme. The
+---key is built by DXUI.fontCacheKey (the same validation it applies in
+---DXUI.font), so the keep entry always matches the key the font was
+---actually cached under — including the invalid-quality fallback.
+function Theme.keepFont(path, size, quality)
     if Theme._keep and path then
-        Theme._keep["f:" .. path .. ":" .. tostring(size)] = true
+        local key
+        if DXUI.fontCacheKey then
+            key = DXUI.fontCacheKey(path, size,
+                quality and { quality = quality } or nil)
+        else
+            key = tostring(path) .. ":" .. tostring(size)
+        end
+        Theme._keep["f:" .. key] = true
     end
 end
 

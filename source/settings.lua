@@ -13,11 +13,18 @@
 ---   defaults.animationEasing     node:animate() default easing name
 ---   defaults.scrollWheelStep      ScrollPanel wheel travel (px)
 ---   defaults.caretBlinkInterval   Edit caret blink half-period (ms)
+---   defaults.hoverStayDelay     hover held this long fires one-shot "hover-stay" (ms)
+---   defaults.doubleClickInterval double-click pairing window (ms)
+---   defaults.clickCooldown      click emission rate limit (ms; 0 = off)
+---   defaults.editHistoryLimit   Edit undo/redo depth (0 = off)
+---   defaults.scrollInertia    ScrollPanel wheel glide (ms; 0 = off)
+---   defaults.cursor         Custom per-type pointer cursor (D4; off)
 ---   resourcePolicy.autoRelease   release consumer UIs/assets on their stop
 ---   performance.screenCulling    skip off-screen render items
 ---   performance.maxInteractiveScan hit-test scan cap (topmost first)
 ---   performance.renderPriority   MTA onClientRender priority (init.lua)
 ---   defaults.font                system font for fontless text draws
+---   defaults.systemInputGuard   ignore keys/characters while the chatbox/console owns input
 
 DXUI = DXUI or {}
 
@@ -58,10 +65,48 @@ local Settings = {
         -- Edit caret blink half-period, ms (caretBlinkInterval property
         -- overrides this per widget; 0 = solid)
         caretBlinkInterval = 500,
+        -- Hover held this long (ms) fires the one-shot "hover-stay"
+        -- event on the hovered node (delayed tooltips show on it).
+        -- 0 disables the event. See input/dispatcher.lua.
+        hoverStayDelay = 400,
+        -- Two clicks on the same node within this window (ms) pair into
+        -- a "doubleclick" (the second carries click count 2; the first
+        -- stays a plain click). 0 disables pairing.
+        doubleClickInterval = 300,
+        -- Click emission rate limit (ms): a click closer to the previous
+        -- one emits nothing (macro-spam guard). 0 (default) = off —
+        -- a double-click pair faster than this is swallowed too, so keep
+        -- it 0 while doubleclicks matter.
+        clickCooldown = 0,
+        -- Edit undo/redo chain depth (user edits; ctrl+z/ctrl+y).
+        -- 0 disables history. See widgets/edit.lua.
+        editHistoryLimit = 64,
+        -- Wheel flick glide (ScrollPanel): ms of continued scrolling
+        -- after the last wheel notch, velocity from the recent deltas.
+        -- 0 (default) = off. See widgets/scrollpanel.lua.
+        scrollInertia = 0,
+        -- Custom pointer cursor (D4): a per-type image drawn after the
+        -- overlays (api/runtime.lua). No built-in assets: configure per
+        -- type — { types = { arrow = { texture="cursors/arrow.png",
+        -- hotspot={x=0,y=0} }, text = {...}, hand = {...} } } — a type
+        -- without a loaded texture keeps the system cursor; hiding the
+        -- OS cursor (showCursor) stays the resource's decision.
+        -- enabled=false (default) costs nothing.
+        cursor = {
+            enabled = false,
+            scale = 1,   -- design px multiplier
+            color = nil, -- tint, 0xAARRGGBB (nil = white)
+            types = {},  -- per-type { texture, hotspot = { x, y } }
+        },
         -- System font: used by every text draw whose node has no font set
         -- (node font > themed font > this). Spec "path" or "path:size",
         -- resolved once and cached; nil = the MTA built-in font.
         font = nil,
+        -- While the chatbox / console / an MTA window owns the keyboard,
+        -- onClientKey and onClientCharacter still fire; block them so a
+        -- focused Edit does not eat chat input (init.lua). false restores
+        -- the pass-through behavior.
+        systemInputGuard = true,
     },
 
     -- Resource policy: auto-release the UI instances and cached MTA assets

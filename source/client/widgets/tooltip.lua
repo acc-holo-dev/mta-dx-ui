@@ -2,6 +2,7 @@
 ---
 ---    local tt = ui:tooltip({ text = "Click to save" })
 ---    tt:attach(button, "right")     -- shows near the button on hover
+---    tt:attach(button, "top", { delay = 400 }) -- delayed (hover-stay)
 ---
 ---Positioning anchors: top|bottom|left|right around the target.
 
@@ -17,10 +18,16 @@ local Tooltip = DXUI.Widget:extend("Tooltip", {
     autoSize = { default = true, invalidates = { DXUI.DIRTY.LAYOUT } },
 })
 
---- Approximate intrinsic size while autoSize is on (before layout runs).
+--- Intrinsic size while autoSize is on (measured with the real font; the
+--- old #text*7 estimate broke with every non-monospace font).
 function Tooltip:_measureContent()
-    local w = #(self.text or "") * 7 + 2 * (self.padX or 8)
-    return w, 15 + 2 * (self.padY or 4)
+    local tw, th
+    if DXUI.Text then
+        tw, th = DXUI.Text.measure(self.text or "", self.font, 1)
+    else
+        tw, th = #(self.text or "") * 7, 15
+    end
+    return tw + 2 * (self.padX or 8), th + 2 * (self.padY or 4)
 end
 
 --- Positions the tooltip in WORLD coords and brings it to the front.
@@ -50,15 +57,42 @@ Tooltip._build = function(node)
     node.zIndex = 1000
 end
 
---- Binds to a target node: shows near it on hover-start, hides on hover-end.
-function Tooltip:attach(target, anchor)
+--- Detaches the hover hooks from the target. The handlers live on the
+--- TARGET's event map, so Node:destroy's Events.clear(self) cannot reach
+--- them — without this the target keeps firing into a dead tooltip.
+function Tooltip:_onDestroy()
+    local t = self._target
+    if t and not t._destroyed and t.off then
+        t:off("hover-start", nil, "dxui-tooltip")
+        t:off("hover-end", nil, "dxui-tooltip")
+        t:off("hover-stay", nil, "dxui-tooltip")
+    end
+end
+
+--- Binds to a target node: shows near it on hover, hides on hover-end.
+--- opts: { delay = ms }. delay 0 (default) shows instantly on
+--- hover-start; delay > 0 shows on the one-shot "hover-stay" instead —
+--- the dispatcher fires it once the target has been held >=
+--- settings.defaults.hoverStayDelay (default 400 ms).
+--- Idempotent: a previous binding (same or other target) is removed first —
+--- the hooks are id-tagged, so re-attach never stacks duplicate handlers.
+function Tooltip:attach(target, anchor, opts)
+    Tooltip._onDestroy(self)
     self._target = target
     self._anchor = anchor or "top"
+    local delay = (type(opts) == "table" and opts.delay) or 0
+    if type(delay) ~= "number" or delay < 0 then delay = 0 end
+    self._delay = delay
     self:setParent(target)
-    target:on("hover-start", function()
+    local function show()
         self:refresh()
         self.visible = true
-    end, "dxui-tooltip")
+    end
+    if delay > 0 then
+        target:on("hover-stay", show, "dxui-tooltip")
+    else
+        target:on("hover-start", show, "dxui-tooltip")
+    end
     target:on("hover-end", function()
         self:hide()
     end, "dxui-tooltip")
@@ -73,7 +107,9 @@ function Tooltip:refresh()
     self.autoSize = true
     local t = self._target
     if not t then return end
-    local th = 15 + 2 * (self.padY or 4)
+    -- own height from the same measure the layout uses (_measureContent),
+    -- so the anchor math matches the drawn box
+    local _, th = self:_measureContent()
     local tw = self.width or 40
     local anchor = self._anchor or "top"
     local tx, ty = t.worldX or 0, t.worldY or 0

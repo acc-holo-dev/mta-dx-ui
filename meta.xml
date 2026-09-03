@@ -80,6 +80,7 @@
     <script src="source/client/widgets/slider.lua" />
     <script src="source/client/widgets/scrollpanel.lua" />
     <script src="source/client/widgets/edit.lua" />
+    <script src="source/client/widgets/memo.lua" />
     <script src="source/client/widgets/combobox.lua" />
     <script src="source/client/widgets/tabpanel.lua" />
     <script src="source/client/widgets/gridlist.lua" />

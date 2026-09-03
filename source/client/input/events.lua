@@ -107,6 +107,26 @@ function Events.has(node, eventName)
     return map ~= nil and map[eventName] ~= nil and #map[eventName] > 0
 end
 
+--- Invokes one handler with error isolation. Returns true when the handler
+-- returned DXUI.STOP (stop propagation).
+local function callHandler(h, current, eventName, ...)
+    if not (h and h.fn) then return false end
+    local ok, r = pcall(h.fn, current, ...)
+    if not ok then
+        -- one bad listener must never abort the frame;
+        -- the policy decides how loud the failure is
+        local policy = (DXUI.Settings and DXUI.Settings.errorPolicy) or "warn"
+        if policy == "error" then
+            error(r, 0)
+        elseif policy == "warn" then
+            DXUI._warn("event handler error (" .. tostring(eventName) .. "): " .. tostring(r))
+        end
+    elseif r == DXUI.STOP then
+        return true
+    end
+    return false
+end
+
 --- Emits on node and bubbles through ancestors (snapshot per level).
 -- Returns true if a handler stopped propagation. A throwing handler is
 -- isolated: rethrown in dev mode, warned-and-skipped in production, so one
@@ -119,24 +139,15 @@ function Events.bc(node, eventName, ...)
         if map then
             local list = map[eventName]
             if list and #list > 0 then
-                local snap = {}
-                for i = 1, #list do snap[i] = list[i] end
-                for i = 1, #snap do
-                    local h = snap[i]
-                    if h and h.fn then
-                        local ok, r = pcall(h.fn, current, ...)
-                        if not ok then
-                            -- one bad listener must never abort the frame;
-                            -- the policy decides how loud the failure is
-                            local policy = (DXUI.Settings and DXUI.Settings.errorPolicy) or "warn"
-                            if policy == "error" then
-                                error(r, 0)
-                            elseif policy == "warn" then
-                                DXUI._warn("event handler error (" .. tostring(eventName) .. "): " .. tostring(r))
-                            end
-                        elseif r == DXUI.STOP then
-                            return true
-                        end
+                if #list == 1 then
+                    -- fast path: no snapshot allocation for the common
+                    -- single-handler case
+                    if callHandler(list[1], current, eventName, ...) then return true end
+                else
+                    local snap = {}
+                    for i = 1, #list do snap[i] = list[i] end
+                    for i = 1, #snap do
+                        if callHandler(snap[i], current, eventName, ...) then return true end
                     end
                 end
             end

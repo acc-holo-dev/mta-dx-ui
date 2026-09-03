@@ -7,13 +7,23 @@
 ---
 ---wheel: scrollY (and scrollX with shift); scrollbars: track + thumb by
 ---scroll fraction; thumb drag re-scrolls. Emits "scroll" (x, y).
+---
+---Inertia (defaults.scrollInertia, ms; 0 = off): after the last wheel
+---notch the scroll GLIDES with an "out"-eased Anim on scrollY — velocity
+---estimated from the recent notches; any new notch cancels the glide.
+---The glide moves the content but does NOT emit "scroll" events.
 
 
 DXUI = DXUI or {}
 
 local ScrollPanel = DXUI.Widget:extend("ScrollPanel", {
-    scrollX = { default = 0, min = 0, max = 1, invalidates = { DXUI.DIRTY.RENDER } },
-    scrollY = { default = 0, min = 0, max = 1, invalidates = { DXUI.DIRTY.RENDER } },
+    scrollX = { default = 0, min = 0, max = 1, invalidates = { DXUI.DIRTY.RENDER }, onSet = function(node)
+        -- direct writes (incl. the inertia Anim) move the content too
+        node:_applyScroll()
+    end },
+    scrollY = { default = 0, min = 0, max = 1, invalidates = { DXUI.DIRTY.RENDER }, onSet = function(node)
+        node:_applyScroll()
+    end },
     -- theme colors: color (groove), thumbColor, thumbHoverColor
     thumbSize = { default = 8, invalidates = { DXUI.DIRTY.RENDER } },
     -- wheel travel per notch, px; nil = engine default
@@ -41,7 +51,8 @@ local function contentExtent(node)
     return mx, my
 end
 
---- Creates the content part and wires wheel scrolling.
+--- Creates the content part and wires wheel scrolling (with optional
+-- inertia glide — see the file header).
 ScrollPanel._build = function(node)
     -- contents never overflow the viewport
     node.clip = true
@@ -53,7 +64,12 @@ ScrollPanel._build = function(node)
             step = (DXUI.Settings and DXUI.Settings.defaults
                 and DXUI.Settings.defaults.scrollWheelStep) or 48
         end
+        -- a new notch interrupts a running glide (new input always wins)
+        local h = n._inertiaAnim
+        if h and h.cancel then h:cancel() end
+        n._inertiaAnim = nil
         n:scrollBy(0, -wheel * step)
+        n:_wheelInertia(wheel, step)
         return true
     end, "dxui-scroll")
 end
@@ -77,8 +93,8 @@ function ScrollPanel:scrollBy(dx, dy)
     local cx, cy = contentExtent(self:getPart("content"))
     local sx = 0
     local sy = 0
-    if cx > self.width then sx = (cx - self.width) or 1 end
-    if cy > self.height then sy = (cy - self.height) or 1 end
+    if cx > self.width then sx = cx - self.width end
+    if cy > self.height then sy = cy - self.height end
     local nx = self.scrollX + (sx > 0 and dx / sx or 0)
     local ny = self.scrollY + (sy > 0 and dy / sy or 0)
     if nx < 0 then nx = 0 elseif nx > 1 then nx = 1 end
@@ -99,6 +115,42 @@ function ScrollPanel:_applyScroll()
     local ox = (cx > self.width) and (self.scrollX * (cx - self.width)) or 0
     local oy = (cy > self.height) and (self.scrollY * (cy - self.height)) or 0
     content:setPosition(-ox, -oy)
+end
+
+--- Arms the inertia glide after a wheel notch: velocity from the recent
+--- notches (fast bursts average up), continuation distance ∝ velocity,
+--- one "out"-eased Anim on scrollY. Off when defaults.scrollInertia <= 0.
+function ScrollPanel:_wheelInertia(wheel, step)
+    local inertia = (DXUI.Settings and DXUI.Settings.defaults
+        and DXUI.Settings.defaults.scrollInertia) or 0
+    if inertia <= 0 then return end
+    local clock = self._context and self._context.clock
+    local now = clock and clock() or 0
+    local dy = -wheel * step
+    local vel
+    local lastT = self._inertiaT
+    if lastT and (now - lastT) < 250 then
+        -- burst: instantaneous velocity, smoothed toward the last one
+        local inst = dy / math.max((now - lastT) / 1000, 0.016)
+        vel = (self._inertiaVel or inst) * 0.6 + inst * 0.4
+    else
+        -- isolated notch: assume a 60 ms notch period
+        vel = dy / 0.06
+    end
+    self._inertiaT = now
+    self._inertiaVel = vel
+    local _, cy = contentExtent(self:getPart("content"))
+    if cy <= self.height then return end
+    local sy = cy - self.height
+    -- glided distance ∝ velocity × the glide window (px)
+    local dist = vel * (inertia / 1000)
+    if math.abs(dist) < step * 0.5 then return end
+    local targetY = (self.scrollY * sy + dist) / sy
+    if targetY < 0 then targetY = 0 elseif targetY > 1 then targetY = 1 end
+    if math.abs(targetY - self.scrollY) < 1e-6 then return end
+    if not self._context or not self._context.anim then return end
+    self._inertiaAnim = self._context.anim:animate(self,
+        { scrollY = targetY }, inertia, "out")
 end
 
 --- Draws the vertical and horizontal scrollbar thumbs.

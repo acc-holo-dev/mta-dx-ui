@@ -1,6 +1,7 @@
 ---Flex container layout: row | column, gap, align (cross axis:
 ---start|center|end|stretch), justify (main axis: start|center|end|
----spaceBetween|spaceAround|spaceEvenly), grow/shrink (weights), wrap.
+---spaceBetween|spaceAround|spaceEvenly), grow (weights; `shrink` is
+---declared on the Node spec but not consumed by this pass), wrap.
 ---
 ---Run INSIDE the layout walk: the container's size is resolved first
 ---(Layout), then Flex.flex(container, children, contentW, contentH)

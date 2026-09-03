@@ -11,6 +11,9 @@ DXUI = DXUI or {}
 local Modal = DXUI.Widget:extend("Modal", {
     overlay = { default = 0x66000000, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     radius = { default = 12, invalidates = { DXUI.DIRTY.RENDER } },
+    -- frosted backdrop (E5): strength > 0 blurs the world BEHIND the
+    -- dialog rect before the surface (see render/effects.lua)
+    backdropBlur = { default = 0, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
@@ -68,9 +71,27 @@ end
 function Modal:render(renderer)
     if not self.visible then return end
     local ui = self._context
-    local lw = ui and (ui.layoutW or 800) or 800
-    local lh = ui and (ui.layoutH or 600) or 600
-    renderer:rect(0, 0, lw, lh, self.overlay)
+    -- the overlay must cover the FULL screen, even in "fit" (letterbox)
+    -- mode: convert screen-space extents back through the renderer mapping
+    local sx = renderer.scaleX or 1
+    local sy = renderer.scaleY or 1
+    local ox = renderer.offsetX or 0
+    local oy = renderer.offsetY or 0
+    local sw = (ui and ui.screenW) or 0
+    local sh = (ui and ui.screenH) or 0
+    if sw > 0 and sh > 0 then
+        renderer:rect(-ox / sx, -oy / sy, sw / sx, sh / sy, self.overlay)
+    else
+        -- fallback: design-space overlay (viewport not known yet)
+        local lw = ui and (ui.layoutW or 800) or 800
+        local lh = ui and (ui.layoutH or 600) or 600
+        renderer:rect(0, 0, lw, lh, self.overlay)
+    end
+    -- frosted backdrop (E5) between the dim and the surface
+    if self.backdropBlur and self.backdropBlur > 0 and DXUI.Effects
+        and DXUI.Effects.renderBackdrop then
+        DXUI.Effects.renderBackdrop(renderer, self, self.backdropBlur)
+    end
     renderer:roundedRect(self.worldX, self.worldY, self.width, self.height,
         self.radius or 12, self.color)
 end

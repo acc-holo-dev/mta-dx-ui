@@ -27,7 +27,17 @@ local RadioButton = DXUI.Widget:extend("RadioButton", {
 
 --- Measures the circle plus label text for autoSize.
 function RadioButton:_measureContent()
-    return (self.indent or 18) + (#self.text * 7) + 4, self.indent or 18
+    -- measure with the REAL font (the #text*7 estimate is wrong for every
+    -- non-monospace font); the circle side stays the height floor
+    local tw, th
+    if DXUI.Text then
+        tw, th = DXUI.Text.measure(self.text, self.font, 1)
+    else
+        tw, th = #self.text * 7, 15
+    end
+    local d = self.indent or 18
+    -- +6 matches the render inset (text starts at d + 6)
+    return d + tw + 6, (th > d) and th or d
 end
 
 --- Draws the circle, the dot when checked, and the label.

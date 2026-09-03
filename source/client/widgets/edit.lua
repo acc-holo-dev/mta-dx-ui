@@ -15,9 +15,21 @@
 ---properties. Overflow keeps the caret visible via an internal scroll.
 ---Byte-level UTF-8 (Lua 5.1 has no native UTF-8) — documented limitation.
 ---
----Keys: printable characters, backspace, delete, left/right (shift
+---Keys: printable characters, backspace, delete, arrow_l/arrow_r (shift
 ---extends selection), home/end (shift too), enter (submit, keeps focus),
----escape (blur). Click positions the caret.
+---escape (blur). Key names follow the MTA wiki (Key_names). Click
+---positions the caret.
+---
+---Undo/redo: ctrl+z / ctrl+y step through USER edits only (typing,
+---backspace/delete, selection replace); programmatic `text` writes do
+---not record — the next user edit re-baselines the chain. Keystrokes
+---within 300 ms coalesce into one undo step. History depth:
+---Settings.defaults.editHistoryLimit (0 = history off).
+---
+---AutoComplete: `autoComplete = {"alpha","algol"}` (built-in prefix filter)
+---or `autoComplete = function(prefix) return candidates end`. The
+---dropdown lists up to `autoCompleteMax` (8) entries; arrow_u/arrow_d
+---move, enter/tab insert (replacing the typed prefix), escape closes.
 
 DXUI = DXUI or {}
 
@@ -72,6 +84,13 @@ local Edit = DXUI.Widget:extend("Edit", {
         validate = function(v) return v == "left" or v == "center" or v == "right" end },
     maxLength = { default = 0, type = "number", min = 0, invalidates = { DXUI.DIRTY.RENDER } },
     readOnly = { default = false, invalidates = { DXUI.DIRTY.RENDER } },
+    -- autoComplete: an ARRAY of candidate strings (built-in case-
+    -- insensitive prefix filter) or a function(prefix, node) returning an
+    -- array | nil. The dropdown opens under the Edit on USER edits only
+    -- (Popup sibling — outside-click closes it, LAYER.POPUP)
+    autoComplete = { default = nil, invalidates = { DXUI.DIRTY.RENDER },
+        validate = function(v) return v == nil or type(v) == "table" or type(v) == "function" end },
+    autoCompleteMax = { default = 8, type = "number", min = 1, invalidates = { DXUI.DIRTY.RENDER } },
     masked = { default = false, invalidates = { DXUI.DIRTY.RENDER } },
     maskChar = { default = "*", invalidates = { DXUI.DIRTY.RENDER } },
     focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
@@ -79,6 +98,8 @@ local Edit = DXUI.Widget:extend("Edit", {
 })
 
 local EMPTY = ""
+-- keystrokes closer than this coalesce into one undo step
+local HIST_COALESCE_MS = 300
 
 --- The string drawn for the current text (masked display).
 function Edit:_displayText()
@@ -99,6 +120,7 @@ function Edit:_selectionRange()
 end
 
 --- Deletes [lo, hi) from the text and places the caret at lo.
+--- Internal helper — the PUBLIC entry points wrap history around it.
 function Edit:_deleteRange(lo, hi)
     self.text = self.text:sub(1, lo) .. self.text:sub(hi + 1)
     self.caret = lo
@@ -106,10 +128,256 @@ function Edit:_deleteRange(lo, hi)
     if self.emit then self:emit("change", self.text) end
 end
 
+-- ---------------------------------------------------------------------
+-- Undo/redo (user edits only; see the file header)
+-- ---------------------------------------------------------------------
+
+--- History limit (defaults.editHistoryLimit, 64; 0 = history off).
+local function historyLimit()
+    local d = DXUI.Settings and DXUI.Settings.defaults
+    local v = d and d.editHistoryLimit
+    if v == nil then v = 64 end
+    return v
+end
+
+--- Captures the pre-edit state (call BEFORE a user mutation). Returns the
+--- pre-state table, or nil when history is off. Re-baselines the chain
+--- when the text changed outside user edits since the last snapshot (the
+--- old chain is stale then).
+function Edit:_histPre()
+    local limit = historyLimit()
+    if limit <= 0 then self._editHistory = nil return nil end
+    local h = self._editHistory
+    local pre = { text = self.text, caret = self.caret or 0, sel = self.selectionFrom }
+    if not h or #h == 0 then
+        self._editHistory = { pre }
+        self._editHistPos = 1
+        return pre
+    end
+    local cur = h[self._editHistPos]
+    if not cur or cur.text ~= pre.text then
+        self._editHistory = { pre }
+        self._editHistPos = 1
+        return pre
+    end
+    return pre
+end
+
+--- Commits the post-edit state (call AFTER a user mutation). A rapid
+--- keystroke burst (< HIST_COALESCE_MS) collapses into ONE undo step;
+--- after an undo the next edit starts a fresh branch (redo tail drops).
+function Edit:_histPost(pre)
+    if pre == nil then return end
+    if pre.text == self.text and pre.caret == (self.caret or 0)
+        and pre.sel == self.selectionFrom then
+        return -- nothing changed (maxLength clamp, empty insert, ...)
+    end
+    local h = self._editHistory
+    local pos = self._editHistPos
+    local post = { text = self.text, caret = self.caret or 0, sel = self.selectionFrom }
+    local clock = self._context and self._context.clock
+    local now = clock and clock() or 0
+    if pos == #h and now - (self._editLastT or 0) < HIST_COALESCE_MS then
+        -- coalesce into the current step
+        h[pos] = post
+    else
+        -- drop the redo tail, push the new branch state
+        for i = #h, pos + 1, -1 do h[i] = nil end
+        h[#h + 1] = post
+        if #h > historyLimit() then
+            -- oldest drops out; pos == #h keeps the pointer consistent
+            table.remove(h, 1)
+        end
+        self._editHistPos = #h
+    end
+    self._editLastT = now
+end
+
+--- Applies a snapshot WITHOUT recording (undo/redo path).
+function Edit:_histApply(snap)
+    if not snap then return end
+    self.text = snap.text or ""
+    self.caret = snap.caret or 0
+    self.selectionFrom = snap.sel
+    if self.emit then self:emit("change", self.text) end
+end
+
+--- Steps back one user edit (ctrl+z). No-op at the chain start.
+function Edit:_undo()
+    local h = self._editHistory
+    local pos = self._editHistPos
+    if not h or pos <= 1 then return end
+    self._editHistPos = pos - 1
+    self:_histApply(h[pos - 1])
+    -- next user edit starts a fresh burst (no coalescing across undo)
+    self._editLastT = nil
+end
+
+--- Steps forward one undone edit (ctrl+y). No-op without a redo tail.
+function Edit:_redo()
+    local h = self._editHistory
+    local pos = self._editHistPos
+    if not h or pos >= #h then return end
+    self._editHistPos = pos + 1
+    self:_histApply(h[pos + 1])
+    self._editLastT = nil
+end
+
+-- ---------------------------------------------------------------------
+-- AutoComplete (dropdown under the Edit; see the file header)
+-- ---------------------------------------------------------------------
+
+--- The word prefix at the caret: (prefix string, 1-based start byte).
+function Edit:_acPrefix()
+    local caret = self.caret or 0
+    local text = self.text
+    local s = 1
+    for i = caret, 1, -1 do
+        local b = text:byte(i)
+        if b == 32 or b == 10 or b == 9 then s = i + 1 break end
+    end
+    return text:sub(s, caret), s
+end
+
+--- Refreshes the dropdown after a USER edit (programmatic writes never
+--- trigger it — the same rule as undo history). Opens when the resolved
+--- candidate list is non-empty, closes otherwise.
+function Edit:_updateAutoComplete()
+    local src = self.autoComplete
+    if src == nil then self:_acClose() return end
+    local prefix, s = self:_acPrefix()
+    if prefix == "" then self:_acClose() return end
+    local cands = nil
+    if type(src) == "function" then
+        -- user callbacks run guarded: a throw must not break typing
+        local ok, res = pcall(src, prefix, self)
+        if ok then cands = res end
+    else
+        -- built-in filter: case-insensitive prefix match
+        local lower = prefix:lower()
+        cands = {}
+        for i = 1, #src do
+            local it = src[i]
+            if type(it) == "string" and it:lower():sub(1, #prefix) == lower then
+                cands[#cands + 1] = it
+            end
+        end
+    end
+    if type(cands) ~= "table" or #cands == 0 then self:_acClose() return end
+    local maxItems = self.autoCompleteMax or 8
+    for i = #cands, maxItems + 1, -1 do cands[i] = nil end
+    self._acList = cands
+    self._acActive = 1
+    self._acPrefixStart = s
+    self:_acShow()
+end
+
+--- Creates (once) and shows the dropdown: a Popup SIBLING of the Edit —
+--- children would be clipped by the Edit's own clip; the sibling floats
+--- beside it in the same coordinate space.
+function Edit:_acShow()
+    local Popup = DXUI.Widgets and DXUI.Widgets.Popup
+    if not Popup then return end
+    local p = self._acPopup
+    if not p or p._destroyed then
+        p = Popup:new({ x = self.x, y = self.y, width = self.width, height = 10 })
+        -- parent to the Edit's PARENT (sibling): escapes the clip; the
+        -- dispatcher popup manager closes it on outside clicks
+        p:setParent(self._parent or self)
+        if DXUI.LAYER then p.layer = DXUI.LAYER.POPUP end
+        p.zIndex = 900
+        p._acEdit = self
+        local ITEM_H = 18
+        p.render = function(ps, renderer)
+            local e = ps._acEdit
+            local cands = e and e._acList
+            if not cands then return end
+            local wx, wy, w, h = ps.worldX, ps.worldY, ps.width, ps.height
+            renderer:borderedRect(wx, wy, w, h, 6, 0xFFFFFFFF, 0xFFD1D5DB, 1)
+            local active = e._acActive or 1
+            for i = 1, #cands do
+                local y0 = wy + 4 + (i - 1) * ITEM_H
+                if i == active then
+                    renderer:rect(wx + 2, y0, w - 4, ITEM_H, 0xFF2563EB)
+                end
+                local tc = (i == active) and 0xFFFFFFFF or 0xFF111827
+                renderer:text(cands[i], wx + 8, y0, w - 16, ITEM_H,
+                    tc, e.font, "left", "center", 1)
+            end
+        end
+        p:on("click", function(ps, _, px, py)
+            local e = ps._acEdit
+            if not e or not e._acList then return end
+            local rel = py - ps.worldY - 4
+            local idx = math.floor(rel / ITEM_H) + 1
+            if idx >= 1 and idx <= #e._acList then
+                e._acActive = idx
+                e:_acApply()
+            end
+        end, "dxui-edit-ac")
+        self._acPopup = p
+    end
+    -- size to the candidates (never narrower than the Edit)
+    local cands = self._acList
+    local maxW = self.width
+    for i = 1, #cands do
+        local tw = DXUI.Text and select(1, DXUI.Text.measure(cands[i], self.font, 1)) or 0
+        if tw + 16 > maxW then maxW = tw + 16 end
+    end
+    p.width = maxW
+    p.height = #cands * 18 + 8
+    p.x = self.x
+    p.y = self.y + self.height
+    self._acOpen = true
+    p:open(p.x, p.y)
+end
+
+--- Closes the dropdown (keeps the popup node for reuse).
+function Edit:_acClose()
+    self._acOpen = false
+    self._acList = nil
+    self._acActive = nil
+    local p = self._acPopup
+    if p and not p._destroyed and p.close then
+        p:close()
+    end
+end
+
+--- Moves the active suggestion (keyboard).
+function Edit:_acMove(d)
+    local list = self._acList
+    if not list or #list == 0 then return end
+    local a = (self._acActive or 1) + d
+    if a < 1 then a = 1 elseif a > #list then a = #list end
+    if a ~= self._acActive then
+        self._acActive = a
+        local p = self._acPopup
+        if p and p._invalidate then p:_invalidate({ DXUI.DIRTY.RENDER }) end
+    end
+end
+
+--- Inserts the active candidate in place of the typed prefix (a USER
+--- edit: recorded in undo history like typing).
+function Edit:_acApply()
+    local cand = self._acList and self._acList[self._acActive or 1]
+    self:_acClose()
+    if not cand then return end
+    local s = self._acPrefixStart or 1
+    local caret = self.caret or 0
+    local pre = self:_histPre()
+    self.text = self.text:sub(1, s - 1) .. cand .. self.text:sub(caret + 1)
+    self.caret = s - 1 + #cand
+    self.selectionFrom = nil
+    if self.emit then self:emit("change", self.text) end
+    self:_histPost(pre)
+    self._editLastT = nil
+end
+
 --- Inserts a character at the caret (replacing a selection, honoring
 --- maxLength/readOnly).
 function Edit:_insert(ch)
     if self.readOnly then return end
+    local pre = self:_histPre()
     local lo, hi = self:_selectionRange()
     if lo then self:_deleteRange(lo, hi) end
     local maxLen = self.maxLength or 0
@@ -118,11 +386,14 @@ function Edit:_insert(ch)
     self.text = self.text:sub(1, pos) .. ch .. self.text:sub(pos + 1)
     self.caret = pos + 1
     if self.emit then self:emit("change", self.text) end
+    self:_histPost(pre)
+    self:_updateAutoComplete()
 end
 
 --- Deletes the character before the caret (or the selection).
 function Edit:_backspace()
     if self.readOnly then return end
+    local pre = self:_histPre()
     local lo, hi = self:_selectionRange()
     if lo then self:_deleteRange(lo, hi) return end
     local pos = self.caret or 0
@@ -130,11 +401,14 @@ function Edit:_backspace()
     self.text = self.text:sub(1, pos - 1) .. self.text:sub(pos + 1)
     self.caret = pos - 1
     if self.emit then self:emit("change", self.text) end
+    self:_histPost(pre)
+    self:_updateAutoComplete()
 end
 
 --- Deletes forward: the selection, or the character after the caret.
 function Edit:_deleteForward()
     if self.readOnly then return end
+    local pre = self:_histPre()
     local lo, hi = self:_selectionRange()
     if lo then self:_deleteRange(lo, hi) return end
     local pos = self.caret or 0
@@ -142,6 +416,8 @@ function Edit:_deleteForward()
     self.text = self.text:sub(1, pos) .. self.text:sub(pos + 2)
     self.caret = pos
     if self.emit then self:emit("change", self.text) end
+    self:_histPost(pre)
+    self:_updateAutoComplete()
 end
 
 --- Moves the caret; `extend` (shift) anchors/extends the selection.
@@ -282,6 +558,7 @@ end
 
 --- Unregisters the overlay when detached.
 function Edit:_onDetached()
+    self:_acClose()
     local ctx = self._overlayCtx
     if not ctx then return end
     self._overlayCtx = nil
@@ -306,10 +583,39 @@ Edit._build = function(node)
     end, "dxui-edit")
     node:on("blur", function(n)
         n.selectionFrom = nil
+        n:_acClose()
         n:setState("normal")
     end, "dxui-edit")
     node:on("key", function(n, keyName, pressed, shift)
         if not pressed then return true end
+        -- undo/redo first: ctrl+z / ctrl+y (poll the modifier — the
+        -- dispatcher routes only shift)
+        local ctrl = getKeyState and (getKeyState("lctrl") or getKeyState("rctrl"))
+        if ctrl then
+            if keyName == "z" then
+                n:_undo()
+                return true
+            elseif keyName == "y" then
+                n:_redo()
+                return true
+            end
+        end
+        -- open dropdown first: arrows/enter/tab/escape belong to it
+        if n._acOpen and n._acList then
+            if keyName == "arrow_u" then
+                n:_acMove(-1)
+                return true
+            elseif keyName == "arrow_d" then
+                n:_acMove(1)
+                return true
+            elseif keyName == "enter" or keyName == "tab" then
+                n:_acApply()
+                return true
+            elseif keyName == "escape" then
+                n:_acClose()
+                return true
+            end
+        end
         local caret = n.caret or 0
         if keyName == "backspace" then n:_backspace()
         elseif keyName == "delete" then n:_deleteForward()
@@ -319,9 +625,9 @@ Edit._build = function(node)
             if n._context and n._context.dispatcher then
                 n._context.dispatcher:setFocus(nil)
             end
-        elseif keyName == "left" then
+        elseif keyName == "arrow_l" then
             n:_moveCaret(math.max(0, caret - 1), shift)
-        elseif keyName == "right" then
+        elseif keyName == "arrow_r" then
             n:_moveCaret(math.min(#n.text, caret + 1), shift)
         elseif keyName == "home" then
             n:_moveCaret(0, shift)

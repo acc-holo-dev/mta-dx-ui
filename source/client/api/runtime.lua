@@ -40,8 +40,10 @@ function Runtime.create(opts)
     opts = opts or {}
     local self = setmetatable({}, Runtime)
 
-    self.name = opts.name or string.format("ui%d", DXUI.Runtime._counter)
+    -- increment BEFORE formatting: the first unnamed instance formats
+    -- against a real number (_counter is unassigned until this first write)
     DXUI.Runtime._counter = (DXUI.Runtime._counter or 0) + 1
+    self.name = opts.name or string.format("ui%d", DXUI.Runtime._counter)
 
     self._destroyed = false
     self.backend = opts.backend or Runtime.backend
@@ -72,6 +74,9 @@ function Runtime.create(opts)
     self._groupScratchList = DXUI.RenderList.new()
     self._interactive = {}
     self._interactiveCount = 0
+    -- drop targets (drag & drop; rebuilt with the interactive list)
+    self._dropTargets = {}
+    self._dropTargetCount = 0
 
     -- frame diagnostics (always on: a few integer increments per frame)
     self.stats = {
@@ -95,7 +100,6 @@ function Runtime.create(opts)
     self.renderDirty = true
     self.orderDirty = false
     self.interactiveDirty = true
-    self.dirty = false
 
     -- design resolution mode: stretch | fit | none (letterbox reserved)
     self.designMode = (design.width and design.height)
@@ -206,12 +210,21 @@ function Runtime:tick()
         self.renderDirty = false
         self.orderDirty = false
     end
+    local hitRebuilt = false
     if self.interactiveDirty then
         if DXUI.HitTest then
             DXUI.HitTest.rebuild(self)
             stats.hitRebuilds = stats.hitRebuilds + 1
         end
         self.interactiveDirty = false
+        hitRebuilt = true
+    end
+
+    -- 3.5 input frame hook: stationary-cursor hover re-evaluation (the
+    -- interactive list is fresh) + hover-stay timing (one-shot event).
+    -- Zero-work idle: a few field reads when nothing is hovered.
+    if self.dispatcher then
+        self.dispatcher:update(self.clock(), hitRebuilt)
     end
 
     -- 4. draw the cached list (zero work when the list is empty)
@@ -253,6 +266,50 @@ function Runtime:draw()
         end
         r.direct = nil
     end
+    -- custom cursor (D4): one image after everything; skipped entirely
+    -- when disabled (defaults.cursor) — zero cost
+    local cs = DXUI.Settings and DXUI.Settings.defaults
+        and DXUI.Settings.defaults.cursor
+    if cs and cs.enabled then
+        self:_drawCursor(cs)
+    end
+end
+
+--- Draws the custom pointer cursor (D4): the type follows the hovered
+--- node ("text" over an Edit/Memo, "hand" over clickables, "arrow"
+--- otherwise). A type without a loaded texture keeps the system cursor.
+function Runtime:_drawCursor(cs)
+    local d = self.dispatcher
+    if not d then return end
+    local hover = d.hover
+    local t = "arrow"
+    if hover then
+        local cls = hover._class and hover._class._name
+        if cls == "Edit" or cls == "Memo" then
+            t = "text"
+        elseif hover.interactive or hover.focusable
+            or (DXUI.Events and DXUI.Events.has(hover, "click")) then
+            t = "hand"
+        end
+    end
+    local def = cs.types and cs.types[t]
+    if not def or def.texture == nil then return end
+    local tex = DXUI.texture and DXUI.texture(def.texture)
+    if not tex then return end
+    -- material size (headless: the fallback 16x16 stand-in)
+    local mw, mh = 16, 16
+    local ok, tw, th = pcall(dxGetMaterialSize, tex)
+    if ok and tw and tw > 0 then mw, mh = tw, th end
+    local sc = cs.scale or 1
+    local hx, hy = 0, 0
+    if def.hotspot then hx, hy = def.hotspot.x or 0, def.hotspot.y or 0 end
+    -- the dispatcher tracks the last pointer position in DESIGN coords
+    local x = (d.lastX or 0) - hx
+    local y = (d.lastY or 0) - hy
+    local r = self.renderer
+    r.direct = self._state
+    r:image(tex, x, y, mw * sc, mh * sc, cs.color or 0xFFFFFFFF)
+    r.direct = nil
 end
 
 -- ---------------------------------------------------------------------

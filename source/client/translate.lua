@@ -1,13 +1,22 @@
 ---Locale dictionaries and live translation (DXUI.Translate).
 ---
----A dictionary maps keys to strings for one locale:
+---A dictionary maps keys to values for one locale. A value may be:
 ---
----    ui:addLocale("ru", { menu_save = "Сохранить" })
+---  - a plain string:   menu_save = "Сохранить"
+---  - a plural table:  items = { one = "%1 элемент", few = "%1 элемента",
+---                          many = "%1 элементов" }   (en: one/other)
+---  - a font entry:    title = { text = "Заголовок", font = "Roboto.ttf:12" }
 ---
 ---Widgets bind their text to a key through the `textKey` property (or the
 ---`setTextKey(key, prop)` method — `prop` defaults to "text", e.g. "title"
 ---for a Window) and re-render automatically whenever the locale changes —
 ---no widget recreation needed.
+---
+---tr(key, n) with a NUMBER first substitution picks the CLDR-ish plural
+---form for that count (see pluralFor: ru — one/few/many, en — one/other)
+---before substituting. Per-locale fonts resolve through the shared font
+---cache ("path:size[:quality]" systemFont specs — see widgets/edit.lua
+---applyTranslation, the consumer side).
 ---
 ---Locale resolution for a binding: the instance locale (see `ui:setLocale`)
 ---wins over the engine locale (see `DXUI.setLocale`). Lookup falls back to
@@ -65,6 +74,32 @@ function Translate.lookup(lang, key)
     return text
 end
 
+--- Whether a dictionary value is a plural table ({one|few|many|other}).
+local function isPluralTable(v)
+    return type(v) == "table"
+        and (v.other ~= nil or v.many ~= nil or v.one ~= nil or v.few ~= nil)
+end
+
+---CLDR-ish plural form for a count: ru — one/few/many; en — one/other;
+---any other language — "other". Declarative rules only, no loadstring.
+---@param locale? string locale name (nil = the engine locale)
+---@param n number count
+---@return string "one"|"few"|"many"|"other"
+function Translate.pluralFor(locale, n)
+    local base = baseLocale(locale or Translate.locale or "en")
+    n = math.floor(math.abs(tonumber(n) or 0))
+    if base == "ru" then
+        local n10, n100 = n % 10, n % 100
+        if n10 == 1 and n100 ~= 11 then return "one" end
+        if n10 >= 2 and n10 <= 4 and (n100 < 10 or n100 >= 20) then return "few" end
+        return "many"
+    end
+    if base == "en" then
+        return (n == 1) and "one" or "other"
+    end
+    return "other"
+end
+
 ---Substitutes %1..%N placeholders. Single-pass gsub: multi-digit indexes
 ---(%10) resolve, and replacement text is inserted literally (a "%" inside
 ---a value cannot corrupt the pattern).
@@ -84,21 +119,44 @@ local function substitute(text, ...)
 end
 
 ---Translates a key in the ACTIVE engine locale, substituting %1..%N.
+---A NUMBER first substitution picks the plural form when the value is a
+---plural table (see pluralFor).
 ---@param key string translation key
 ---@param ... string|number substitution values
 ---@return string text
 function Translate.tr(key, ...)
-    return substitute(Translate.lookup(Translate.locale, key), ...)
+    return Translate.trFor(nil, key, ...)
 end
 
 ---Translates a key in an EXPLICIT locale (nil = the engine locale),
----substituting %1..%N.
+---substituting %1..%N. A NUMBER first substitution with a plural-table
+---value picks the CLDR-ish form for that count; {text=…, font=…} entries
+---translate as .text.
 ---@param locale? string locale name
 ---@param key string translation key
----@param ... string|number substitution values
+---@param ... string|number substitution values (a leading NUMBER drives
+---       the plural form)
 ---@return string text
 function Translate.trFor(locale, key, ...)
-    return substitute(Translate.lookup(locale or Translate.locale, key), ...)
+    local raw = Translate.lookup(locale or Translate.locale, key)
+    local text = raw
+    if type(raw) == "table" then
+        local n = select(1, ...)
+        if isPluralTable(raw) then
+            if type(n) == "number" then
+                local form = Translate.pluralFor(locale, n)
+                text = raw[form] or raw.other or raw.many or raw.one or raw.few or key
+            else
+                -- plural table used without a count: the neutral form
+                text = raw.other or raw.many or raw.one or raw.few or key
+            end
+        else
+            text = raw.text or key
+        end
+    end
+    if text == nil then text = key end
+    if type(text) ~= "string" then text = tostring(text) end
+    return substitute(text, ...)
 end
 
 ---Re-applies every binding whose node belongs to `instance` (nil = all).
@@ -109,7 +167,12 @@ function Translate.applyFor(instance)
         if instance and node._context ~= instance then
             -- another instance's binding: untouched by this switch
         elseif node.applyTranslation and not node._destroyed then
-            node:applyTranslation()
+            -- one failing binding must not abort the whole re-translate pass
+            local ok, err = pcall(node.applyTranslation, node)
+            if not ok then
+                Translate._bindings[node] = nil
+                DXUI._warn("applyTranslation failed: " .. tostring(err))
+            end
         else
             Translate._bindings[node] = nil
         end

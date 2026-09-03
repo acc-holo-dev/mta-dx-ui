@@ -197,8 +197,9 @@ function Renderer:outline(x, y, w, h, width, color)
     self:rect(x + w - width, y + width, width, h - 2 * width, color)
 end
 
---- Emits a text item.
-function Renderer:text(text, x, y, w, h, color, font, align, valign, scale)
+--- Emits a text item. `rich` (11th arg, optional) renders #RRGGBB codes
+--- embedded in the text (colorCoded draw — see backend drawText).
+function Renderer:text(text, x, y, w, h, color, font, align, valign, scale, rich)
     if text == nil or text == "" or self.effOpacity <= 0 then return end
     local nx, ny, nw, nh = clipRect(self, x, y, w, h)
     if nx == nil then return end
@@ -219,11 +220,16 @@ function Renderer:text(text, x, y, w, h, color, font, align, valign, scale)
     it.valign = valign or "top"
     it.scaleX = scale and scale * sx or sx
     it.scaleY = scale and scale * sy or sy
+    -- explicit nil: pooled items are reused without a field reset
+    it.rich = rich and true or nil
     self:_emit(it)
 end
 
---- Emits an image item (full or section).
-function Renderer:image(texture, x, y, w, h, color, section)
+--- Emits an image item (full or section). `rotation` (deg, optional)
+--- rotates around (rcx, rcy) — offsets RELATIVE to the quad's top-left,
+--- scaled into screen space with the same transform as the position;
+--- nil rcx/rcy = the quad's own center.
+function Renderer:image(texture, x, y, w, h, color, section, rotation, rcx, rcy)
     if texture == nil or self.effOpacity <= 0 then return end
     local nx, ny, nw, nh = clipRect(self, x, y, w, h)
     if nx == nil then return end
@@ -241,6 +247,19 @@ function Renderer:image(texture, x, y, w, h, color, section)
     -- image-path effect (blur/mask) set by the pass for Image nodes
     it.effect = self.fx
     it.section = section
+    -- rotation center: ABSOLUTE screen coords (MTA semantics) from the
+    -- UNCLIPPED quad geometry; explicit nils keep pooled items clean
+    if rotation then
+        it.rotation = rotation
+        local cx = (rcx ~= nil) and rcx or w / 2
+        local cy = (rcy ~= nil) and rcy or h / 2
+        it.rotCX = (x + cx) * sx + ox
+        it.rotCY = (y + cy) * sy + oy
+    else
+        it.rotation = nil
+        it.rotCX = nil
+        it.rotCY = nil
+    end
     self:_emit(it)
 end
 

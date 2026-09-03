@@ -100,6 +100,16 @@ local theme = {
                 checkedColor = "@color.onPrimary",
                 radius = "@radius.sm",
             },
+            -- switch variant example (D5): style="switch" opts a mounted
+            -- checkbox into the animated toggle track
+            variants = {
+                switch = {
+                    checkedColor = "@color.primary",
+                    switchThumbColor = "@color.onPrimary",
+                    indent = 34,
+                    transition = { duration = 150, easing = "out" },
+                },
+            },
             states = { hover = { borderColor = "@color.primary" }, disabled = {} },
         },
 
@@ -187,7 +197,6 @@ local theme = {
         gridlist = {
             props = {
                 color = "@color.surface",
-                rowColor = 0x00000000,
                 hoverColor = "@color.surfaceAlt",
                 selectedColor = "@color.primary",
                 selectedTextColor = "@color.onPrimary",

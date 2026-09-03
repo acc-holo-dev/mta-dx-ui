@@ -3,8 +3,10 @@
 ---timers, MTA handlers or coroutines.
 ---
 ---Animations write REAL node properties through the normal mutation layer
----(_set with owner "system") — no duplicated state; invalidation is
----automatic. Explicit animation > automatic theme transition.
+---(_set with the AnimHandle itself as owner, so update() can find a chain's
+---steps for pause/resume) — no duplicated state; invalidation is automatic.
+---The theme owner-guard treats handle-owned values like user writes (see
+---Widget:_applyStyleState). Explicit animation > automatic theme transition.
 ---
 ---    local anim = button:animate({ x = 100 }, 300, "out")
 ---    anim:after({ opacity = 0.5 }, 200):onDone(function() ... end)
@@ -78,9 +80,10 @@ function AnimationManager:_removeHandle(handle)
 end
 
 --- One animation step: a set of props + token (step completion -> onDone).
---- `owner` is the _set owner tag used when writing values ("system" for
---- user animations, "theme" for automatic theme state transitions so the
---- owner guard keeps tracking the prop as theme-managed).
+--- `owner` is the _set owner used on writes: the AnimHandle for user
+--- chains (update() needs it for pause/resume; the theme guard protects
+--- it like a user write), or "theme" for automatic state transitions
+--- (stays theme-managed and revertible).
 function AnimationManager:_startStep(node, props, duration, ease, onDone, owner)
     duration = duration or (DXUI.Settings and DXUI.Settings.defaults.animationDuration) or 250
     if duration <= 0 then duration = 1 end
@@ -208,6 +211,10 @@ function AnimHandle:_run(props, duration, ease)
         if next_ then
             self:_run(next_[1], next_[2], next_[3])
         else
+            -- chain complete: mark FIRST so late onDone() registrations
+            -- fire immediately (a zero-animatable-props step completes
+            -- synchronously — before the caller could register anything)
+            self._finished = true
             local cbs = self.doneCbs
             for i = 1, #cbs do cbs[i]() end
         end
@@ -220,8 +227,13 @@ function AnimHandle:after(props, duration, easeName)
     return self
 end
 
---- Callback when the WHOLE chain finishes.
+--- Callback when the WHOLE chain finishes. Late registrations on an
+--- already-finished chain fire immediately (see _run).
 function AnimHandle:onDone(fn)
+    if self._finished then
+        if type(fn) == "function" then fn() end
+        return self
+    end
     self.doneCbs[#self.doneCbs + 1] = fn
     return self
 end

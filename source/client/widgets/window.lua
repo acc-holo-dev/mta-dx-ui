@@ -6,6 +6,7 @@
 ---                          children = { someLabel } })
 ---    w.header.text = "Settings v2"
 ---    w:on("close", function(n) n:hide() end)
+---    w.hotkeys = { f1 = function(win) win:hide() end }   -- window hotkeys (D6)
 ---
 ---title/titleColor are declarative shorthands routed to the header part;
 ---content fills below the header strip (header overlays, zIndex 2). The
@@ -16,9 +17,11 @@
 
 DXUI = DXUI or {}
 
+-- Panel must resolve at LOAD time (Window extends it below). Label and
+-- Button resolve at BUILD time instead (see buildWindow): by then every
+-- widget file has loaded, so a meta.xml reorder cannot silently swap the
+-- header/close button for plain Widgets via stale load-time upvalues.
 local Panel = DXUI.Widgets.Panel or DXUI.Widget:extend("Panel", {})
-local LabelClass = DXUI.Widgets and DXUI.Widgets.Label
-local ButtonClass = DXUI.Widgets and DXUI.Widgets.Button
 
 local Window = Panel:extend("Window", {
     title = {
@@ -27,6 +30,21 @@ local Window = Panel:extend("Window", {
             if h then h.text = v end
         end,
     },
+    -- window hotkeys (D6): { [keyName] = function(window, keyName, isDown) }
+    -- — active while the FOCUS sits inside this window's subtree; matched
+    -- in Dispatcher:key BEFORE the focus chain. A handler returning false
+    -- lets the key fall through; anything else consumes it. No built-in
+    -- defaults (bind escape etc. yourself); do not bind plain typing keys
+    -- for windows that contain an Edit/Memo.
+    hotkeys = { default = nil, invalidates = {}, validate = function(v)
+        if v == nil then return true end
+        return type(v) == "table"
+    end },
+    -- frosted backdrop (E5): strength > 0 blurs the world BEHIND the
+    -- window rect before the surface draws (shared half-res screen
+    -- source, updated once per frame and only while a backdrop node is
+    -- visible — see render/effects.lua)
+    backdropBlur = { default = 0, invalidates = { DXUI.DIRTY.RENDER } },
     titleColor = {
         default = 0xFF111827, invalidates = { DXUI.DIRTY.RENDER },
         transform = DXUI.resolveColor, onSet = function(node, v)
@@ -68,6 +86,8 @@ DXUI.Part.declare(Window, { "header", "content", "closeButton" })
 --- Builds the header, content and closeButton parts from declarative props.
 local function buildWindow(node, props)
     local headerH = props.headerHeight or node.headerHeight
+    local LabelClass = DXUI.Widgets and DXUI.Widgets.Label
+    local ButtonClass = DXUI.Widgets and DXUI.Widgets.Button
 
     local header = LabelClass and LabelClass:new({}) or DXUI.Widget:new({})
     header.text = props.title or ""
@@ -97,7 +117,7 @@ local function buildWindow(node, props)
     -- top-right corner (relative x=1 = 100% of the content width, anchor
     -- "tr" pulls the box back by its own width). Hover/pressed styling
     -- comes from the button theme component's state blocks.
-    local closeButton = ButtonClass:new({})
+    local closeButton = ButtonClass and ButtonClass:new({}) or DXUI.Widget:new({})
     closeButton.layoutMode = "relative"
     closeButton.x = 1
     closeButton.y = 0
@@ -151,6 +171,15 @@ Window._build = buildWindow
 --- Direct access to the content part (children go here usually).
 function Window:container()
     return self:getPart("content")
+end
+
+--- Frosted backdrop (E5) under the Panel surface (gradient/texture/border).
+function Window:render(renderer)
+    local b = self.backdropBlur
+    if b and b > 0 and DXUI.Effects and DXUI.Effects.renderBackdrop then
+        DXUI.Effects.renderBackdrop(renderer, self, b)
+    end
+    return DXUI.Widgets.Panel.render(self, renderer)
 end
 
 DXUI.Builders.register("Window", Window)

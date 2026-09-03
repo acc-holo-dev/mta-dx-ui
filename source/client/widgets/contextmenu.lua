@@ -50,12 +50,15 @@ rebuildItems = function(node)
         children[i]:destroy()
     end
     local items = node.items or {}
-    -- measure width: longest row
+    -- measure width: longest row, with the REAL font (rows render with
+    -- node.font; the #text*7 estimate broke with every non-monospace font)
     local maxW = 120
     for i = 1, #items do
         local tx = rowTextOf(items[i])
         if tx ~= "--" then
-            local w = #tx * 7 + 24
+            local w = (DXUI.Text and select(1, DXUI.Text.measure(tx, node.font, 1)))
+                or (#tx * 7)
+            w = w + 24
             if w > maxW then maxW = w end
         end
     end

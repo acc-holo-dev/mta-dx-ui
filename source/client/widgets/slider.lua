@@ -1,6 +1,7 @@
 ---Slider — horizontal value 0..1 with draggable thumb. Drag events from
 ---the dispatcher; click also sets value. Emits "change" (value) and
----"input" (value) during drag.
+---"input" (value) during drag. Focusable: arrow_l/arrow_r nudge the value
+---(by `step`, default 0.05), home/end jump to 0/1 (MTA key names).
 ---
 ---    local s = ui:slider({ x=0, y=0, width=200, height=18, value=0.5 })
 ---    s:on("change", function(n, v) volume = v end)
@@ -13,6 +14,12 @@ local Slider = DXUI.Widget:extend("Slider", {
         default = 0, min = 0, max = 1, invalidates = { DXUI.DIRTY.RENDER },
         validate = function(v) return type(v) == "number" and v >= 0 and v <= 1 end,
     },
+    -- value quantum: drag/click/keyboard values snap to multiples of it
+    -- (direct `value` writes are NOT quantized — they set exactly)
+    step = {
+        default = nil, invalidates = { DXUI.DIRTY.RENDER },
+        validate = function(v) return v == nil or (type(v) == "number" and v > 0) end,
+    },
     thumbSize = { default = 14, invalidates = { DXUI.DIRTY.RENDER } },
     -- theme colors: color (track), bgColor (groove), thumbColor, thumbBorderColor
     bgColor = { default = 0xFFD1D5DB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
@@ -20,6 +27,8 @@ local Slider = DXUI.Widget:extend("Slider", {
     thumbBorderColor = { default = 0xFF2563EB, invalidates = { DXUI.DIRTY.RENDER }, transform = DXUI.resolveColor },
     borderWidth = { default = 1, invalidates = { DXUI.DIRTY.RENDER } },
     interactive = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
+    -- focusable by default so the keyboard nudge below works
+    focusable = { default = true, invalidates = { DXUI.DIRTY.INPUT } },
 })
 
 --- full value from a local x (design units inside the widget).
@@ -31,8 +40,18 @@ function Slider:_valueFromX(lx)
     return v
 end
 
+--- Snaps a value to the step quantum (nil step = unchanged), clamped 0..1.
+function Slider:_quantize(v)
+    local s = self.step
+    if not s or s <= 0 then return v end
+    local q = math.floor(v / s + 0.5) * s
+    if q < 0 then q = 0 elseif q > 1 then q = 1 end
+    return q
+end
+
 --- Applies a value, emitting "change" (unless silent) and "input".
 function Slider:_applyValue(v, silent)
+    v = self:_quantize(v)
     if self.value ~= v then
         self.value = v
         if not silent and self.emit then self:emit("change", v) end
@@ -75,6 +94,25 @@ Slider._build = function(node)
     end, "dxui-slider")
     node:on("click", function(n, _, x, y)
         n:_applyValue(n:_valueFromX(x - n.worldX), false)
+    end, "dxui-slider")
+    -- keyboard nudge (focused): arrows by step (default 0.05), home/end
+    -- (MTA key names: arrow_l/arrow_r)
+    node:on("key", function(n, keyName, pressed)
+        if not pressed then return true end
+        local s = n.step
+        local delta = (s and s > 0) and s or 0.05
+        if keyName == "arrow_l" then
+            n:_applyValue((n.value or 0) - delta, false)
+        elseif keyName == "arrow_r" then
+            n:_applyValue((n.value or 0) + delta, false)
+        elseif keyName == "home" then
+            n:_applyValue(0, false)
+        elseif keyName == "end" then
+            n:_applyValue(1, false)
+        else
+            return false
+        end
+        return true
     end, "dxui-slider")
 end
 
