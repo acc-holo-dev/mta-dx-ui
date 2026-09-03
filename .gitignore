@@ -1,7 +1,0 @@
-# Agent-local verification (never shipped, never pushed)
-tests/
-
-# Python leftovers (old runner)
-.venv/
-*.pyc
-__pycache__/
