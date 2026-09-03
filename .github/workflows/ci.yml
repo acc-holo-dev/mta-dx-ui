@@ -25,10 +25,12 @@ jobs:
       - name: Syntax gate (every Lua file parses as Lua 5.1)
         run: |
           set -e
+          # Lua 5.1 has no `arg` inside `-e` chunks, so the file path rides
+          # an env var instead of an `arg[i]` index (which would be nil).
           for f in $(find source demo -name '*.lua'); do
-            lua -e 'assert(loadfile(arg[1]), arg[1])' "$f"
+            FILE="$f" lua -e 'assert(loadfile(os.getenv("FILE")), os.getenv("FILE"))'
           done
-          lua -e 'assert(loadfile("documents/gen.lua"), "documents/gen.lua")'
+          FILE="documents/gen.lua" lua -e 'assert(loadfile(os.getenv("FILE")), os.getenv("FILE"))'
 
       - name: Engine boots headless (gen.lua loads source/ in meta.xml order)
         run: lua documents/gen.lua
