@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# DXUI is pure Lua 5.1 with no compilation step. What a clean checkout can
+# verify is: every Lua file parses as Lua 5.1, and the engine boots headless
+# (documents/gen.lua loads the whole source/ tree without an MTA backend) and
+# the committed wiki stays in sync with the code. The owner's test suite
+# (tests/, gitignored by requirement) is exercised locally.
+jobs:
+  syntax-and-boot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lua 5.1
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+
+      - name: Syntax gate (every Lua file parses as Lua 5.1)
+        run: |
+          set -e
+          for f in $(find source demo -name '*.lua'); do
+            lua -e 'assert(loadfile(arg[1]), arg[1])' "$f"
+          done
+          lua -e 'assert(loadfile("documents/gen.lua"), "documents/gen.lua")'
+
+      - name: Engine boots headless (gen.lua loads source/ in meta.xml order)
+        run: lua documents/gen.lua
+
+      - name: Committed wiki is up to date after regeneration
+        run: git diff --exit-code --stat
