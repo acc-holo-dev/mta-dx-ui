@@ -21,6 +21,12 @@
 
 DXUI = DXUI or {}
 
+-- node.lua creates DXUI.config later (it loads after settings.lua); make
+-- the dev flag available here too so applySettings() never indexes nil,
+-- no matter when it is called (see DXUI.applySettings below).
+DXUI.config = DXUI.config or { dev = false }
+DXUI.config.dev = DXUI.config.dev or false
+
 local Settings = {
     -- Dev mode: validation on every property write, warn on misuse.
     -- Prod: predictable, low overhead, safe.

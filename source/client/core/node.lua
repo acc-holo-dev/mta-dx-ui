@@ -124,8 +124,15 @@ Node.properties = {
     -- human-readable dimensions (compiled in the cold path; numbers pass
     -- through, ui.percent()/auto()/fill() produce compiled forms).
     -- layoutWidth/layoutHeight override width/height during the place pass.
-    layoutWidth  = { default = nil, invalidates = { DIRTY.LAYOUT } },
-    layoutHeight = { default = nil, invalidates = { DIRTY.LAYOUT } },
+    -- transform compiles human forms (number, "50%", "auto", "fill") into
+    -- the internal tagged form once (see dimension.lua) so the layout and
+    -- flex passes always read {k=...} tables.
+    layoutWidth  = { default = nil, invalidates = { DIRTY.LAYOUT }, transform = function(v)
+        return DXUI.Dimension and DXUI.Dimension.compile(v) or v
+    end },
+    layoutHeight = { default = nil, invalidates = { DIRTY.LAYOUT }, transform = function(v)
+        return DXUI.Dimension and DXUI.Dimension.compile(v) or v
+    end },
     -- clipping / compositing
     clip     = { default = false, invalidates = { DIRTY.RENDER, DIRTY.INPUT } },
     -- "rt" (expensive path)
@@ -741,18 +748,38 @@ end
 -- it); propagation bubbles up through ancestors. Late-bound so core can
 -- load before events.lua. Optional id tags registrations for
 -- Events.removeForOwner (widget wiring uses ids like "dxui-states").
+-- Attaching a handler can make a previously non-interactive node
+-- clickable, so the hit-test list must be rebuilt when that happens
+-- (interactiveDirty), not just the cached predicate invalidated.
 function Node:on(eventName, fn, id)
     if DXUI.Events then
+        local ctx = self._context
+        local wasInteractive = DXUI.HitTest and DXUI.HitTest.isInteractive(self) or false
         DXUI.Events.add(self, eventName, fn, id)
-        if self._context and DXUI.HitTest then DXUI.HitTest.invalidate(self) end
+        if DXUI.HitTest then DXUI.HitTest.invalidate(self) end
+        -- a node that became interactive must re-enter the hit-test list
+        -- on the next collect -- merely clearing the predicate cache is
+        -- not enough (the list is rebuilt only on interactiveDirty)
+        if ctx and DXUI.HitTest then
+            local nowInteractive = DXUI.HitTest.isInteractive(self)
+            if nowInteractive and not wasInteractive then
+                ctx.interactiveDirty = true
+            end
+        end
     end
     return self
 end
 
---- Removes a listener (all registrations of the same fn for that event).
-function Node:off(eventName, fn)
+--- Removes a listener. With `fn` — all registrations of that fn for the
+-- event; with `fn` nil — every handler for the event; with `id` — every
+-- handler for the event tagged with that id (see Node:on).
+function Node:off(eventName, fn, id)
     if DXUI.Events then
-        DXUI.Events.remove(self, eventName, fn)
+        if id ~= nil then
+            DXUI.Events.removeId(self, eventName, id)
+        else
+            DXUI.Events.remove(self, eventName, fn)
+        end
     end
     return self
 end
@@ -771,11 +798,16 @@ end
 -- ---------------------------------------------------------------------
 
 --- Animates properties via the instance's animation manager.
+-- Not mounted: the node has no animation manager yet, so the call is a
+-- chained no-op -- warned in dev mode so an expected animation is not
+-- silently dropped (add the node to a UI before animating it).
 function Node:animate(props, duration, ease)
     if self._context and self._context.anim then
         return self._context.anim:animate(self, props, duration, ease)
     end
-    -- not mounted: no-op, keeps chaining
+    if not self._context then
+        DXUI._warn("animate: node is not mounted; no animation will run")
+    end
     return self
 end
 

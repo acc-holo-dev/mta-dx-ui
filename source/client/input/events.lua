@@ -59,6 +59,25 @@ function Events.remove(node, eventName, fn)
     end
 end
 
+--- Removes every handler for the event registered under the given owner id.
+-- Mirrors removeForOwner but scoped to one event name (node:off with an id).
+function Events.removeId(node, eventName, id)
+    local map = node._events
+    if not map then return end
+    local list = map[eventName]
+    if not list then return end
+    local j = 1
+    while j <= #list do
+        if list[j].id == id then
+            table.remove(list, j)
+        else
+            j = j + 1
+        end
+    end
+    if #list == 0 then map[eventName] = nil end
+    if not next(map) then node._events = nil end
+end
+
 --- Removes every handler registered under the given owner id.
 function Events.removeForOwner(node, id)
     local map = node._events
