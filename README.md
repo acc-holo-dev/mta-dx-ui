@@ -26,7 +26,16 @@ win:container():addChild(ui:button({ x = 10, y = 10, width = 100, height = 28, t
 
 The engine owns the frame loop, the input glue, the design→screen mapping
 and per-resource cleanup. A runnable showcase lives in
-[`demo/`](demo/) — copy `dxui/` + `demo/` to a server, start both.
+[`demo/`](demo/).
+
+## Deploy
+
+The **repository root is the engine resource** — there is no nested
+`dxui/` folder. Copy the whole repository folder into your server's
+`resources/` and name that folder **`dxui`**: MTA treats the folder name
+as the resource name, and everything here (`exports.dxui`,
+`<include resource="dxui">`) expects exactly that name. Then start
+`dxui`, and start `demo` alongside it for the showcase.
 
 ## Feature highlights
 
@@ -101,6 +110,27 @@ V4 is a breaking release. The full change list:
 - **Comments**: source documentation is LuaCATS-only
   ([`readme/CODE_STYLE.md`](readme/CODE_STYLE.md)).
 
+## Building & verifying
+
+DXUI is pure Lua 5.1 — no compilation step is needed to deploy it. To
+verify a change (any Lua 5.1 interpreter works):
+
+- **Syntax gate.** Every file must parse as Lua 5.1:
+  `luac -p source/settings.lua && luac -p source/client/core/node.lua`
+  (repeat for every `source/`, `demo/` and `documents/gen.lua` file).
+- **Wiki regeneration.** `lua documents/gen.lua` loads the whole engine
+  headless (meta.xml order, no MTA backend), reflects the live widget
+  specs and rewrites `documents/`. Keep the regenerated files in your
+  commit.
+- **Engine load smoke.** Running `documents/gen.lua` at all proves the
+  engine boots headless (the same guarantee the owner's test suite
+  asserts). CI runs the syntax gate, this engine load and a wiki-freshness
+  check on every push.
+
+The full test suite (`tests/`) is maintained locally by the owner and not
+shipped (see PROMT.md) — CI covers what is reproducible from a clean
+checkout.
+
 ## Repository layout
 
 ```
@@ -108,5 +138,6 @@ source/          the engine (meta.xml order = dependency order)
 demo/            standalone showcase resource
 documents/       local wiki site (+ gen.lua, regenerated from the engine)
 readme/          ARCHITECTURE + CODE_STYLE
-tests/           headless suites + notes (not shipped; gitignored)
+CHANGELOG.md     version history
+tests/           headless suites + notes (owner-local; gitignored, not shipped)
 ```

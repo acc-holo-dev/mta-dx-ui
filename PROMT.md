@@ -1,5 +1,13 @@
 # DXUI V4 — RELEASE MASTER PROMPT
 
+<!-- INTERNAL PROCESS DOCUMENT — not user/contributor documentation.
+     This is the release-planning prompt that drove V4 development:
+     it records the phase plan, the "Definition of Done", process rules
+     (e.g. the owner requirement that tests/ stay out of the repo) and
+     internal agent notes. Consumers and contributors should read
+     README.md / readme/ / documents/ instead. It is kept in-tree only
+     as the owner's design record. -->
+
 ## MTA:SA / Lua 5.1 / DX9 — Retained-mode UI engine
 
 # 0. РОЛЬ И ЦЕЛЬ
